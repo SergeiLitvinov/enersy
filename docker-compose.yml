@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: hybrid-db
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  python-service:
+    build:
+      context: ./backend-python
+      dockerfile: Dockerfile
+    container_name: python-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  julia-service:
+    build:
+      context: ./backend-julia
+      dockerfile: Dockerfile
+    container_name: julia-service
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    restart: unless-stopped
+
+  rust-wasm-builder:
+    build:
+      context: ./rust-wasm
+      dockerfile: Dockerfile
+    container_name: rust-wasm-builder
+    volumes:
+      - ./rust-wasm/dist:/dist
+    restart: on-failure
+
+  go-api:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    container_name: go-api
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      - postgres
+      - python-service
+      - julia-service
+    restart: unless-stopped
+
+  react-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: react-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - ./rust-wasm/dist:/app/public/rust-wasm
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
+    depends_on:
+      - go-api
+      - rust-wasm-builder
+    restart: unless-stopped
+
+volumes:
+  postgres_data: {}
