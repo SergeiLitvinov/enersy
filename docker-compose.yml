@@ -63,7 +63,7 @@ services:
   react-frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: react-frontend
     ports:
       - "3000:3000"

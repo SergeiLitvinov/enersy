@@ -5,7 +5,7 @@ services:
     env: production
     plan: free
     region: oregon
-    dockerfilePath: frontend/Dockerfile.dev
+    dockerfilePath: frontend/Dockerfile
 
   - type: web
     name: backend
