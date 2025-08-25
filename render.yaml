@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: frontend
+    runtime: docker
+    env: production
+    plan: free
+    region: oregon
+    dockerfilePath: frontend/Dockerfile.dev
+
+  - type: web
+    name: backend
+    runtime: docker
+    env: production
+    plan: free
+    region: oregon
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: PYTHON_SERVICE_URL
+        value: https://python-service.onrender.com
+      - key: JULIA_SERVICE_URL
+        value: https://julia-service.onrender.com
+
+  - type: web
+    name: python-service
+    runtime: docker
+    env: production
+    plan: free
+    region: oregon
+    dockerfilePath: backend-python/Dockerfile
+
+  - type: web
+    name: julia-service
+    runtime: docker
+    env: production
+    plan: free
+    region: oregon
+    dockerfilePath: backend-julia/Dockerfile
