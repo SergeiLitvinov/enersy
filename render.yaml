@@ -1,5 +1,5 @@
+---
 services:
-  # 🔹 Фронтенд (React + Vite)
   - type: web
     name: frontend
     runtime: docker
@@ -7,9 +7,7 @@ services:
     plan: free
     region: oregon
     dockerfilePath: frontend/Dockerfile
-    environmentUrl: https://backend-go.onrender.com/api  # Прокси API через Nginx
-
-  # 🔹 Бэкенд на Go (главный API)
+    environmentUrl: https://backend-go.onrender.com/api
   - type: web
     name: backend-go
     runtime: docker
@@ -24,8 +22,6 @@ services:
         value: https://backend-julia.onrender.com
       - key: DATABASE_URL
         value: postgresql://user:pass@database:5432/mydb
-
-  # 🔹 Python сервис
   - type: web
     name: backend-python
     runtime: docker
@@ -33,8 +29,6 @@ services:
     plan: free
     region: oregon
     dockerfilePath: backend-python/Dockerfile
-
-  # 🔹 Julia сервис
   - type: web
     name: backend-julia
     runtime: docker
@@ -42,11 +36,8 @@ services:
     plan: free
     region: oregon
     dockerfilePath: backend-julia/Dockerfile
-
-  # 🔹 База данных (PostgreSQL)
   - type: database
     name: database
     plan: free
     region: oregon
     provider: postgres
-    # Доступ по URL: postgresql://user:pass@database:5432/mydb
