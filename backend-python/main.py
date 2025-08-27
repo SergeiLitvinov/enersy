@@ -6,6 +6,10 @@ app = FastAPI()
 
 @app.post("/matrix-multiply")
 def matrix_multiply(data: dict):
-    A = np.array(data["A"])
-    B = np.array(data["B"])
-    return {"result": np.dot(A, B).tolist()}
+    try:
+        A = np.array(data["A"])
+        B = np.array(data["B"])
+        result = np.dot(A, B)
+        return {"result": result.tolist()}
+    except Exception as e:
+        return {"error": f"Matrix multiplication failed: {str(e)}"}

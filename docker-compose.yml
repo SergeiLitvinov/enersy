@@ -50,27 +50,16 @@ services:
       - PORT=8001
     restart: unless-stopped
 
-  rust-wasm-builder:
-    build:
-      context: ./rust-wasm
-      dockerfile: Dockerfile
-    container_name: rust-wasm-builder
-    volumes:
-      - ./rust-wasm/dist:/app/dist
-    command: echo "Rust WASM built"
-    restart: unless-stopped
-
   react-frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: react-frontend
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - ./rust-wasm/dist:/app/public/rust-wasm
+    - ./frontend/src:/app/src
+    - /app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV=development
@@ -78,7 +67,6 @@ services:
     tty: true
     depends_on:
       - go-api
-      - rust-wasm-builder
     restart: unless-stopped
 
 volumes:
