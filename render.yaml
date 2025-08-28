@@ -1,43 +1,57 @@
----
+# render.yaml
 services:
+  # --- Frontend (React + Vite + Rust/WASM) ---
   - type: web
     name: frontend
-    runtime: docker
-    env: production
-    plan: free
     region: oregon
+    plan: free
+    env: docker
     dockerfilePath: frontend/Dockerfile
-    environmentUrl: https://backend-go.onrender.com/api
+    buildCommand: cd rust-wasm && wasm-pack build --target web --out-dir ../frontend/public/rust-wasm && cd ../frontend && npm install && npm run build
+    startCommand: cd frontend && npx serve -s dist
+    envVars:
+      - key: PORT
+        value: 10000
+
+  # --- Backend Go ---
   - type: web
     name: backend-go
-    runtime: docker
-    env: production
-    plan: free
     region: oregon
+    plan: free
+    env: docker
     dockerfilePath: backend-go/Dockerfile
     envVars:
-      - key: PYTHON_SERVICE_URL
-        value: https://backend-python.onrender.com
-      - key: JULIA_SERVICE_URL
-        value: https://backend-julia.onrender.com
-      - key: DATABASE_URL
-        value: postgresql://user:pass@database:5432/mydb
+      - key: PORT
+        value: 8080
+
+  # --- Backend Python ---
   - type: web
     name: backend-python
-    runtime: docker
-    env: production
-    plan: free
     region: oregon
+    plan: free
+    env: docker
     dockerfilePath: backend-python/Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+
+  # --- Backend Julia ---
   - type: web
     name: backend-julia
-    runtime: docker
-    env: production
-    plan: free
     region: oregon
+    plan: free
+    env: docker
     dockerfilePath: backend-julia/Dockerfile
-  - type: database
-    name: database
+    envVars:
+      - key: PORT
+        value: 8081
+
+  # --- PostgreSQL Database ---
+  - type: postgres
+    name: my-postgres
     plan: free
     region: oregon
-    provider: postgres
+    databaseName: myapp
+    user: myuser
+    password: mysecretpassword
+    initScript: database/init.sql
