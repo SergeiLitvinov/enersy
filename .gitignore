@@ -1,0 +1,7 @@
+
+node_modules/
+frontend/dist/
+rust-wasm/target/
+rust-wasm/dist/
+*.log
+.DS_Store
