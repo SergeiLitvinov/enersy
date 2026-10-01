@@ -1,0 +1,4 @@
+{
+  "compilerOptions": {"strict": true, "target": "ES2020", "module": "ESNext", "moduleResolution": "bundler", "lib": ["ES2020", "DOM"], "skipLibCheck": true},
+  "include": ["../../frontend/src/api/ees-api.ts"]
+}

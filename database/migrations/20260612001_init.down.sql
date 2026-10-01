@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS calculation_branch_results CASCADE;
+DROP TABLE IF EXISTS calculation_node_results CASCADE;
+DROP TABLE IF EXISTS calculation_results CASCADE;
+DROP TABLE IF EXISTS circuit_nodes CASCADE;
+DROP TABLE IF EXISTS scheme_component_params CASCADE;
+DROP TABLE IF EXISTS scheme_connections CASCADE;
+DROP TABLE IF EXISTS scheme_components CASCADE;
+DROP TABLE IF EXISTS component_params_template CASCADE;
+DROP TABLE IF EXISTS circuit_schemes CASCADE;
+DROP TABLE IF EXISTS component_types CASCADE;
+DROP TABLE IF EXISTS users CASCADE;

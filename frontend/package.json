@@ -7,13 +7,24 @@
     "react-dom": "^18"
   },
   "devDependencies": {
-    "vite": "^5",
+    "@eslint/js": "^9",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4",
-    "typescript": "^5"
+    "@vitest/coverage-v8": "4.1.11",
+    "eslint": "^9",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vite": "6.4.3",
+    "vitest": "4.1.11"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }

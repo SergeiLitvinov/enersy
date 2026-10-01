@@ -1,49 +1,23 @@
-# Этап 1: Сборка WASM
-FROM rust:1.78 AS wasm-builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Копируем папку rust-wasm из корня проекта
-COPY ../rust-wasm ./rust-wasm
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
-# Входим в папку rust-wasm
-WORKDIR /app/rust-wasm
+COPY frontend/src ./src
+COPY frontend/index.html ./
+COPY frontend/vite.config.ts ./
+COPY frontend/tsconfig.json ./
+COPY frontend/public ./public
 
-# Устанавливаем wasm-pack
-RUN cargo install wasm-pack --locked
+RUN npm run build
 
-# Добавляем target
-RUN rustup target add wasm32-unknown-unknown
+FROM nginx:alpine
 
-# Собираем WASM для web
-RUN wasm-pack build \
-    --target web \
-    --out-name rust_wasm \
-    --out-dir ../dist \
-    --release
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY frontend/nginx-default.conf /etc/nginx/conf.d/default.conf
 
-# Этап 2: Фронтенд
-FROM node:18-alpine AS frontend
-
-WORKDIR /app
-
-# 🔥 Копируем WASM-файлы из dist в public/rust-wasm
-COPY --from=wasm-builder /app/dist /app/public/rust-wasm
-
-# Копируем index.js (если он есть)
-COPY ./frontend/public/rust-wasm/index.js /app/public/rust-wasm/index.js
-
-# Копируем package.json и устанавливаем зависимости
-COPY ./frontend/package.json ./
-RUN npm install
-
-# Копируем остальные исходники
-COPY ./frontend/src ./src
-COPY ./frontend/index.html ./
-COPY ./frontend/vite.config.ts ./
-
-# Публикуем порт
 EXPOSE 3000
 
-# Запускаем Vite
-CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["nginx", "-g", "daemon off;"]

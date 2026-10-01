@@ -1,0 +1,25 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { font-family: Inter, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; } button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--accent-blue, #087f83); outline-offset: 3px; }
+.app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; background: var(--bg-page); color: var(--text-primary); }
+.app-header { display: flex; align-items: center; gap: 36px; flex: 0 0 64px; padding: 0 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-panel); z-index: 30; }
+.app-brand { display: flex; gap: 10px; align-items: center; color: var(--text-primary); text-decoration: none; font-size: 20px; font-weight: 750; letter-spacing: -.6px; }
+.brand-mark { width: 34px; height: 34px; display: grid; place-items: center; background: #087f83; border-radius: 10px; color: white; }
+.brand-mark svg { width: 20px; height: 20px; }
+.app-brand small { display: block; margin-top: 1px; color: var(--text-muted); font-weight: 450; font-size: 10px; letter-spacing: .4px; }
+.app-nav { display: flex; gap: 4px; height: 100%; align-items: center; }
+.nav-btn { border: 0; background: none; display: flex; gap: 8px; align-items: center; border-radius: 8px; color: var(--text-secondary); padding: 10px 14px; font-size: 13px; font-weight: 550; }
+.nav-btn.active { background: var(--accent-blue-light); color: var(--accent-blue); } .nav-btn:hover { background: var(--bg-toolbar); }
+.header-help { margin-left: auto; display: flex; gap: 8px; align-items: center; color: var(--text-secondary); font-size: 12px; text-decoration: none; }
+.app-main { flex: 1; min-height: 0; overflow: hidden; }
+.legacy-api { max-width: 900px; padding: 56px 28px; margin: auto; }
+.legacy-api h2 { margin: 8px 0 16px; font-size: 28px; } .legacy-api p { color: var(--text-secondary); line-height: 1.7; }
+.api-buttons { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
+.api-buttons button { padding: 12px 18px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 10px; }
+.api-result { background: var(--bg-canvas); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .app-header { padding: 0 14px; gap: 14px; } .nav-btn { font-size: 0; padding: 10px; } .nav-btn svg { width: 20px; height: 20px; } .header-help span { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go:
+    name: Go API Gateway
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: enersy_test
+        ports: ['5432:5432']
+        options: --health-cmd="pg_isready -U test_user -d enersy_test" --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      TEST_DATABASE_URL: host=localhost port=5432 user=test_user password=test_pass dbname=enersy_test sslmode=disable
+    defaults:
+      run:
+        working-directory: ./backend-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: ./backend-go/go.sum
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: ./backend-go
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test -race -v ./...
+      - name: Isolated database backup and restore
+        shell: pwsh
+        run: ../scripts/database/Test-DatabaseBackup.ps1
+
+  rust:
+    name: Rust/WASM
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./rust-wasm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+          toolchain: stable
+      - run: cargo check --target wasm32-unknown-unknown
+      - run: cargo test
+      - run: cargo test --manifest-path ../numerics/Cargo.toml --locked --offline
+      - run: cargo clippy --manifest-path ../numerics/Cargo.toml --locked --offline --all-targets -- -D warnings
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
+  julia:
+    name: Julia numerical and HTTP regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - uses: julia-actions/cache@v2
+      - run: julia --project=backend-julia -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+
+  documentation:
+    name: Documentation and generated reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.19.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enersy-documentation
+          path: docs/site/.vitepress/dist
+          if-no-files-found: error

@@ -1,0 +1,6 @@
+# backend-go/.dockerignore
+.git
+*.md
+Dockerfile
+Dockerfile.*
+main_test.go

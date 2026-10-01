@@ -1,34 +1,25 @@
-# backend-go/Dockerfile
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Копируем модульные файлы
-COPY go.mod .
-
-# Скачиваем зависимости
+COPY backend-go/go.mod backend-go/go.sum ./
 RUN go mod download
 
-# Копируем код
-COPY main.go .
+COPY backend-go/*.go ./
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILDTIME=unknown
+RUN go build -ldflags="-X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILDTIME}" -o server .
 
-# Сборка
-RUN go build -o server .
-
-# Финальный образ
 FROM alpine:latest
 
-# Установка сертификатов
 RUN apk --no-cache add ca-certificates
 
-# Рабочая директория
 WORKDIR /app
 
-# Копируем сервер из билдера
 COPY --from=builder /app/server .
+COPY database/migrations ./database/migrations
 
-# Открываем порт
 EXPOSE 8080
 
-# Запуск
 CMD ["./server"]

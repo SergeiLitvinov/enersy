@@ -1,0 +1,5 @@
+.results-table { width: 100%; border-collapse: collapse; }
+.results-table th, .results-table td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+.results-table th { background: var(--bg-table-header); font-weight: 600; font-size: 11px; }
+.results-table td { font-size: 12px; }
+.results-table tbody tr:hover { background: var(--bg-table-hover); }

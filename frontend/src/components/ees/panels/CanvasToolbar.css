@@ -1,0 +1,4 @@
+.toolbar { display: flex; align-items: center; border-bottom: 1px solid var(--border-color); }
+.divider { width: 1px; background: var(--border-color); }
+.group-select, .method-select { border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
+.tool-btn.secondary { background: transparent; color: var(--text-primary); }

@@ -1,0 +1,10 @@
+{
+  "entryPoints": ["frontend/src/api/ees-api.ts"],
+  "tsconfig": "scripts/docs/tsconfig.json",
+  "out": "docs/site/public/api/typescript",
+  "name": "Enersy — TypeScript API",
+  "readme": "none",
+  "disableSources": true,
+  "navigationLinks": {"Руководство": "/guide/quickstart.html", "Справочник": "/reference/index.html"},
+  "treatWarningsAsErrors": true
+}

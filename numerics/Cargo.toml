@@ -1,0 +1,9 @@
+[package]
+name = "enersy-numerics"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Experimental numerical kernels for Enersy; not a power-flow engine"
+
+[lib]
+path = "src/lib.rs"

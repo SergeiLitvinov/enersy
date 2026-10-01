@@ -1,0 +1,6 @@
+# frontend/.dockerignore
+.git
+node_modules
+*.md
+Dockerfile
+dist

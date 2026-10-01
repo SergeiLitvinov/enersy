@@ -10,11 +10,26 @@ export default defineConfig({
     host: '0.0.0.0',
     hmr: {
       clientPort: 3000
+    },
+    proxy: {
+      '/api': {
+        target: 'http://go-api:8080',
+        changeOrigin: true
+      }
     }
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
 });

@@ -1,0 +1,14 @@
+# .dockerignore (project root)
+.git
+.env
+**/node_modules
+**/target
+**/dist
+**/__pycache__
+docs/site/generated
+docs/site/public/api
+docs/site/public/source
+docs/site/.vitepress/cache
+dev.db
+frontend/bundle.js
+injected-index.html

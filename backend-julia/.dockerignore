@@ -1,0 +1,4 @@
+# backend-julia/.dockerignore
+.git
+*.md
+Dockerfile

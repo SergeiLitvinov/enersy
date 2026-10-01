@@ -2,6 +2,17 @@
 node_modules/
 frontend/dist/
 rust-wasm/target/
+numerics/target/
 rust-wasm/dist/
 *.log
 .DS_Store
+__pycache__/
+*.py[cod]
+docs/site/.vitepress/cache/
+docs/site/.vitepress/dist/
+docs/site/generated/
+docs/site/public/api/
+docs/site/public/source/
+.pnpm-store/
+.cache/
+.backups/

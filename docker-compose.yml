@@ -1,4 +1,16 @@
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - go-api
+      - react-frontend
+    restart: unless-stopped
+
   postgres:
     image: postgres:15
     container_name: hybrid-db
@@ -9,34 +21,38 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   go-api:
     build:
-      context: ./backend-go
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend-go/Dockerfile
     container_name: go-api
     ports:
       - "8080:8080"
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
+      - POSTGRES_DB=app_db
+      - POSTGRES_USER=app_user
+      - POSTGRES_PASSWORD=app_pass
+      - CORS_ORIGIN=http://localhost:3000
+      - PORT=8080
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - postgres
-      - python-compute
-      - julia-compute
-    restart: unless-stopped
-
-  python-compute:
-    build:
-      context: ./backend-python
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - PORT=8000
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   julia-compute:
@@ -48,6 +64,8 @@ services:
       - "8001:8001"
     environment:
       - PORT=8001
+    depends_on:
+      - postgres
     restart: unless-stopped
 
   react-frontend:
@@ -57,17 +75,30 @@ services:
     container_name: react-frontend
     ports:
       - "3000:3000"
-    volumes:
-    - ./frontend/src:/app/src
-    - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - NODE_ENV=development
-    stdin_open: true
-    tty: true
     depends_on:
       - go-api
     restart: unless-stopped
+
+  docs:
+    profiles: [docs]
+    build:
+      context: .
+      dockerfile: docs/Dockerfile
+    ports:
+      - "4173:80"
+    restart: unless-stopped
+
+  numerics-check:
+    profiles: [numerics-check]
+    build:
+      context: ./numerics
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ./numerics:/workspace:ro
+    network_mode: none
+    command: ["sh", "-c", "cargo test --locked --offline --target-dir /tmp/target && cargo clippy --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]
+    restart: "no"
 
 volumes:
   postgres_data: {}
