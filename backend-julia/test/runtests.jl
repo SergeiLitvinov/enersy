@@ -2,6 +2,7 @@ using Test, LinearAlgebra, JSON3, HTTP, EnersyCompute
 # Import the executable entrypoint too; it must parse without starting a listener.
 include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
+include("ac_reference.jl")
 withenv("S_BASE_MVA" => "50") do
     @test EC.default_s_base_mva() == 50.0
 end
@@ -9,6 +10,12 @@ end
 component(id, code; params...) = RawComponent(id, code,
     Dict(string(k) => string(v) for (k, v) in params), 0.0, 0.0, 0)
 connection(a, b, ap, bp) = RawConnection(a, b, ap, bp)
+include("compiled_reference.jl")
+include("compiled_network_reference.jl")
+include("q_limits.jl")
+include("q_release.jl")
+include("sparse_solver.jl")
+include("islands.jl")
 
 function fixture(; switch_status=true, emf=true, shunt=nothing)
     gp = Dict("voltage_nom" => "10", "p" => "10", "r" => "0.1", "x" => "0.5")
@@ -25,6 +32,24 @@ function fixture(; switch_status=true, emf=true, shunt=nothing)
         push!(es, connection(3, 6, "left", "top"))
     end
     return cs, es
+end
+
+@testset "Passive equipment rejects artificial energy generation" begin
+    for (id, key, value) in [(1,"r","-0.1"), (4,"r0","-0.1"),
+                             (4,"g0","-0.001"), (4,"circuits","1e100")]
+        cs, es = fixture()
+        component = only(filter(c -> c.id == id, cs))
+        component.params[key] = value
+        error = try
+            calculate(cs, es)
+            nothing
+        catch caught
+            caught
+        end
+        @test error isa EnersyError
+        @test error isa EnersyError && error.kind == EC.CONTRACT &&
+              error.code == (key == "circuits" ? "out_of_range" : "invalid_parameter")
+    end
 end
 
 @testset "Units and input contract" begin
@@ -57,6 +82,48 @@ end
     @test EC.newton_raphson(Y, setup, SolverOptions(max_iterations=result.iterations)).v ≈ result.v
     @test_throws EnersyError EC.newton_raphson(Y, setup, SolverOptions(max_iterations=1))
     @test_throws EnersyError EC.check_state([1.0, NaN], [0.0, 0.0], 1)
+end
+
+@testset "Power flow setup cannot bypass validation" begin
+    for tolerance in [0.0, -1.0, NaN, Inf]
+        @test_throws EnersyError SolverOptions(tolerance, 10)
+        @test_throws EnersyError SolverOptions(tolerance=tolerance)
+    end
+    for iterations in [0, -1, big(typemax(Int))+1]
+        @test_throws EnersyError SolverOptions(1e-8, iterations)
+        @test_throws EnersyError SolverOptions(max_iterations=iterations)
+    end
+    setup(; n=3, slack=1, sv=1.0, angle=0.0, pv=[2], pq=[3], vv=[1.02], pp=[0.3], pl=[-0.5], ql=[-0.2]) =
+        EC.PowerFlowSetup(n, slack, sv, angle, pv, pq, vv, pp, pl, ql)
+    for make in [() -> setup(n=0), () -> setup(slack=0), () -> setup(slack=4),
+                 () -> setup(pv=[1]), () -> setup(pq=[2]), () -> setup(pq=[4]),
+                 () -> setup(pv=Int[], vv=Float64[], pp=Float64[]),
+                 () -> setup(pv=[2,2], vv=[1.0,1.0], pp=[0.0,0.0]),
+                 () -> setup(vv=Float64[]), () -> setup(pl=Float64[]),
+                 () -> setup(sv=NaN), () -> setup(sv=0.0), () -> setup(angle=Inf),
+                 () -> setup(vv=[Inf]), () -> setup(vv=[-1.0]),
+                 () -> setup(pp=[NaN]), () -> setup(pl=[Inf]), () -> setup(ql=[NaN])]
+        @test_throws EnersyError make()
+    end
+    # Typed Float64 inputs used to dispatch to the unchecked default constructor.
+    pv = [2]; pp = [0.3]
+    valid = setup(pv=pv, pp=pp)
+    pv[1] = 99; pp[1] = NaN
+    @test valid.pv == [2] && valid.p_pv == [0.3]
+    valid.pv[1] = 99
+    @test_throws EnersyError EC.newton_raphson(zeros(ComplexF64,3,3),valid,SolverOptions())
+
+    # A one-bus shunt is analytic: S=|V|² conj(Y), injection in p.u.
+    one = EC.PowerFlowSetup(1,1,1.2,0.2,Int[],Int[],Float64[],Float64[],Float64[],Float64[])
+    result = EC.newton_raphson(reshape(ComplexF64[0.5-0.25im],1,1),one,SolverOptions())
+    @test result.p[1] ≈ 0.72 atol=1e-12
+    @test result.q[1] ≈ 0.36 atol=1e-12
+    for y in [ComplexF64(NaN),ComplexF64(Inf)]
+        @test_throws EnersyError EC.newton_raphson(reshape([y],1,1),one,SolverOptions())
+    end
+    huge = EC.PowerFlowSetup(1,1,2.0,0.0,Int[],Int[],Float64[],Float64[],Float64[],Float64[])
+    @test_throws EnersyError EC.newton_raphson(reshape(ComplexF64[floatmax(Float64)],1,1),huge,SolverOptions())
+    @test_throws EnersyError EC.newton_raphson(zeros(ComplexF64,1,1),one,SolverOptions();initial_v=[NaN])
 end
 
 @testset "Jacobian agrees with finite differences at nonzero angles" begin

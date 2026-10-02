@@ -27,8 +27,16 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
     # 3. Топология → модели элементов → типы узлов.
     net = compile_network(components, connections; default_s_base_mva=default_s_base_mva)
     sys = assemble_system(net, sys_base)
+    return calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns)
+end
+
+"""Solve one connected, locally indexed system; orchestration owns global IDs."""
+function calculate_connected(sys::AcSystem, sys_base::BaseSystem, options::SolverOptions,
+                             entry::CapabilityEntry, model_group, method)
+    started_ns = time_ns()
     cls = classify_buses(sys, sys_base)
     setup = power_flow_setup(sys, cls, sys_base)
+    q_limits = source_q_limits(sys, sys_base)
 
     # 4. Y-матрица и численный метод.
     Y = build_admittance(sys)
@@ -36,11 +44,33 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
         "начальное приближение метода Ньютона–Рафсона: |V| = voltage_nom / V_base для PQ-узлов (1 p.u. при отсутствии номинала), " *
         "θ = θ_балансирующего")
     initial_v = [b.v_nom_kv > 0 ? kv_to_pu(b.v_nom_kv, sys_base) : 1.0 for b in sys.buses]
-    result = newton_raphson(Y, setup, options; initial_v=initial_v)
+    result, effective, fixed, events, passes = solve_with_q_limits(Y, setup, options, q_limits; initial_v)
+    cls = BusClassification(cls.slack, cls.slack_component, cls.slack_v_pu, cls.slack_theta_rad,
+                            effective.pv, effective.pq, effective.pv_v,
+                            [s.component_id for bus in effective.pv for s in sys.sources if s.bus == bus])
 
     elapsed_ms = (time_ns() - started_ns) / 1e6
-    return result_dict(sys, cls, result, setup, options, entry, sys_base,
-                       model_group, method, elapsed_ms)
+    response = result_dict(sys, cls, result, effective, options, entry, sys_base,
+                           model_group, method, elapsed_ms)
+    response["solver"]["q_limit_passes"] = passes
+    response["solver"]["q_limit_policy"] = "internal-emf-active-set-pv-pq"
+    response["q_limit_events"] = [merge(event, Dict("component_id"=>only(s.component_id for s in sys.sources if s.bus == event["bus"]))) for event in events]
+    for event in response["q_limit_events"]
+        message = event["to"] == "pq" ?
+            "внутренний узел ЭДС переведён PV→PQ, Q=$(event["q_fixed_pu"] * sys_base.s_base_mva) Мвар; модуль ЭДС больше не фиксирован" :
+            "внутренний узел ЭДС возвращён PQ→PV; восстановлена уставка $(event["v_target_pu"]) p.u."
+        push!(response["warnings"], "генератор $(event["component_id"]): " * message)
+    end
+    for source in response["sources"]
+        bus = source["internal_bus"]
+        source["type"] = node_type_of(bus, cls)
+        source["q_limits_applied"] = haskey(q_limits, bus)
+        source["q_limit_status"] = haskey(fixed, bus) ? "clamped" : haskey(q_limits, bus) ? "within_bounds" : "not_declared"
+        if haskey(q_limits, bus)
+            source["q_min_emf_mvar"], source["q_max_emf_mvar"] = q_limits[bus] .* sys_base.s_base_mva
+        end
+    end
+    return response
 end
 
 """
@@ -84,13 +114,24 @@ end
 """Y-матрица в p.u.: ветви (включая ветви источников) и шунты."""
 function build_admittance(sys::AcSystem)
     n = length(sys.buses)
-    Y = zeros(ComplexF64, n, n)
+    rows, cols, values = Int[], Int[], ComplexF64[]
+    capacity = 4 * length(sys.branch_models) + length(sys.shunts)
+    sizehint!(rows, capacity); sizehint!(cols, capacity); sizehint!(values, capacity)
+    function add(i, j, y)
+        push!(rows, i); push!(cols, j); push!(values, y)
+    end
     for m in sys.branch_models
-        stamp!(Y, m)
+        i, j, t, ys = m.from_bus, m.to_bus, m.ratio, m.y_series
+        add(i, i, ys + m.y_from)
+        add(j, j, ys / (t * t) + m.y_to)
+        add(i, j, -ys / t)
+        add(j, i, -ys / t)
     end
     for s in sys.shunts
-        stamp!(Y, s)
+        add(s.bus, s.bus, s.y_pu)
     end
+    Y = sparse(rows, cols, values, n, n)
+    dropzeros!(Y)
     return Y
 end
 
@@ -267,6 +308,8 @@ function result_dict(sys::AcSystem, cls::BusClassification,
         "solver" => Dict{String,Any}(
             "method" => "newton-raphson",
             "coordinates" => "polar",
+            "matrix_storage" => "csc",
+            "linear_solver" => "SuiteSparse/UMFPACK sparse LU",
             "equations" => number_of_equations(setup),
             "unknowns" => number_of_equations(setup),
             "tolerance_pu" => options.tolerance,

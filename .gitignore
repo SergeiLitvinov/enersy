@@ -13,6 +13,7 @@ docs/site/.vitepress/dist/
 docs/site/generated/
 docs/site/public/api/
 docs/site/public/source/
+docs/site/public/reports/
 .pnpm-store/
 .cache/
 .backups/

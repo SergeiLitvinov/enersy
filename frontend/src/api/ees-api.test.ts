@@ -3,6 +3,41 @@ import { addComponent, addConnection, calculateScheme, calculationErrorMessage, 
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
+it('validates complete island partitions and independent slack references', () => {
+  const nodes = [1, 2].map(id => ({ node_id: id, node_type: 'slack', island: id, voltage: 110, angle: id * 15, phase: 100, quadrature: 20 }));
+  const island_results = [1, 2].map(id => ({ island_id: id, bus_ids: [id], slack_bus: id, slack_component: id + 10,
+    iterations: 1, max_mismatch_pu: 1e-12, computation_time_ms: 2, balance: { residual_p_mw: 0, residual_q_mvar: 0 } }));
+  const result = { success: true, nodes, node_count: 2, iterations: 2, computation_time_ms: 4, method_used: 'newton-raphson', island_results };
+  expect(parseCalculationResult(result)).toEqual(result);
+  for (const patch of [{ bus_ids: [1] }, { bus_ids: [2, 99] }, { slack_bus: 1 }, { island_id: 1 },
+    { iterations: 2 }, { max_mismatch_pu: NaN }, { balance: { residual_p_mw: 0, residual_q_mvar: Infinity } }]) {
+    expect(() => parseCalculationResult({ ...result, island_results: [island_results[0], { ...island_results[1], ...patch }] })).toThrow('некорректный');
+  }
+  expect(() => parseCalculationResult({ ...result, island_results: [island_results[0]] })).toThrow('некорректный');
+  expect(() => parseCalculationResult({ ...result, nodes: [nodes[0], { ...nodes[1], island: 1 }] })).toThrow('некорректный');
+});
+
+const sourceResult = { success: true, nodes: [1, 2].map(node_id => ({ node_id, node_type: 'pq', voltage: 10, angle: 0, phase: 10, quadrature: 0 })), node_count: 2, iterations: 2, computation_time_ms: 3, method_used: 'newton-raphson' };
+const limitedSource = { component_id: 7, type: 'pq', internal_bus: 1, terminal_bus: 2, p_mw: 10, q_mvar: -5,
+  q_limits_applied: true, q_limit_status: 'clamped', q_min_emf_mvar: -20, q_max_emf_mvar: -5 };
+
+it('accepts limited source results and legacy sources without invented bounds', () => {
+  const current = { ...sourceResult, sources: [limitedSource] };
+  expect(parseCalculationResult(current)).toEqual(current);
+  const legacy = { component_id: 8, type: 'slack', internal_bus: 1, terminal_bus: 2, p_mw: 11, q_mvar: 3, q_limits_applied: false };
+  expect(parseCalculationResult({ ...sourceResult, sources: [legacy] }).sources).toEqual([legacy]);
+});
+
+it('rejects nonfinite, duplicated and contradictory source reports', () => {
+  for (const fields of [{ q_mvar: NaN }, { p_mw: Infinity }, { component_id: 0 }, { type: 'pv' },
+    { q_min_emf_mvar: 0 }, { q_max_emf_mvar: undefined }, { q_limit_status: 'unknown' },
+    { q_limits_applied: false }, { terminal_bus: 1.5 }, { terminal_bus: 99 }, { internal_bus: 2 }]) {
+    expect(() => parseCalculationResult({ ...sourceResult, sources: [{ ...limitedSource, ...fields }] })).toThrow('некорректный');
+  }
+  expect(() => parseCalculationResult({ ...sourceResult, sources: [limitedSource, limitedSource] })).toThrow('некорректный');
+  expect(() => parseCalculationResult({ ...sourceResult, nodes: [sourceResult.nodes[0], sourceResult.nodes[0]] })).toThrow('некорректный');
+});
+
 it('preserves the server reason when a connection is rejected', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Оба объекта должны принадлежать выбранной схеме' }) }));
   await expect(addConnection(1, 7, 8, 'top', 'bottom')).rejects.toThrow('принадлежать выбранной схеме');

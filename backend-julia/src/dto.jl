@@ -28,19 +28,24 @@ end
 struct SolverOptions
     tolerance::Float64
     max_iterations::Int
-end
-
-function SolverOptions(; tolerance::Real=1e-8, max_iterations::Integer=50)
+function SolverOptions(tolerance::Real, max_iterations::Integer)
     t = Float64(tolerance)
     (isfinite(t) && t > 0) ||
         throw(contract_error("invalid_tolerance", "solver tolerance must be a positive finite number",
                              detail="tolerance=$(t)"))
-    m = Int(max_iterations)
+    m = try
+        Int(max_iterations)
+    catch
+        throw(contract_error("invalid_max_iterations", "max_iterations is outside the supported integer range"))
+    end
     m > 0 ||
         throw(contract_error("invalid_max_iterations", "max_iterations must be a positive integer",
                              detail="max_iterations=$(max_iterations)"))
-    return SolverOptions(t, m)
+    return new(t, m)
 end
+end
+
+SolverOptions(; tolerance::Real=1e-8, max_iterations::Integer=50) = SolverOptions(tolerance, max_iterations)
 
 """Запрос `/calculate` после нормализации JSON3."""
 struct CalculateRequest

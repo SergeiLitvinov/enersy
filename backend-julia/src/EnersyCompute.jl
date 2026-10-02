@@ -20,6 +20,7 @@ module EnersyCompute
 const VERSION = "0.1.0"
 
 using LinearAlgebra
+using SparseArrays
 using Printf
 using Sockets
 using JSON3
@@ -32,7 +33,10 @@ include("capabilities.jl")
 include("topology.jl")
 include("models.jl")
 include("solver/newton_raphson.jl")
+include("solver/sparse_jacobian.jl")
+include("solver/q_limits.jl")
 include("calculate.jl")
+include("island_calculation.jl")
 include("linear_solve.jl")
 include("http_api.jl")
 

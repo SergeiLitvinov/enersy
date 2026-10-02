@@ -10,6 +10,7 @@ COPY frontend/src ./frontend/src
 COPY backend-go ./backend-go
 COPY backend-julia/src ./backend-julia/src
 COPY backend-julia/test ./backend-julia/test
+COPY backend-julia/benchmark ./backend-julia/benchmark
 COPY rust-wasm/src ./rust-wasm/src
 COPY numerics/src ./numerics/src
 COPY numerics/tests ./numerics/tests

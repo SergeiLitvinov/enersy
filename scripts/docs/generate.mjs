@@ -26,8 +26,14 @@ async function walk(relative) {
   }
   return files;
 }
-const groups = ['frontend/src', 'backend-go', 'backend-julia/src', 'backend-julia/test', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'database'];
+const groups = ['frontend/src', 'backend-go', 'backend-julia/src', 'backend-julia/test', 'backend-julia/benchmark', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'database'];
 const files = (await Promise.all(groups.map(walk))).flat().sort();
+// Publish only explicitly selected, project-owned measurement artifacts.
+const reports = path.join(site, 'public/reports');
+await mkdir(reports, { recursive: true });
+for (const name of ['sparse-ac-2026-10-03.json']) {
+  await writeFile(path.join(reports, name), await readFile(path.join(root, 'docs/reports', name)));
+}
 const index = ['# Справочник исходников', '', 'Автоматически собран из текущего рабочего дерева. Индекс объявлений — текстовый: он не разрешает перегрузки и типы. Полные исходники сохраняют комментарии, Julia docstrings и SQL-ограничения. Для транспортного TypeScript API доступна отдельная семантическая документация TypeDoc.', '', '[Открыть TypeScript API](/api/typescript/index.html)', ''];
 await mkdir(path.join(generated, 'code'), { recursive: true });
 for (const file of files) {

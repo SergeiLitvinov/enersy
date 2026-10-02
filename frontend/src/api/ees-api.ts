@@ -95,10 +95,35 @@ export interface Scheme {
   connections?: SchemeConnection[];
 }
 
+export interface CalculationSource {
+  component_id: number;
+  type: 'slack' | 'pv' | 'pq';
+  internal_bus: number;
+  terminal_bus: number;
+  p_mw: number;
+  q_mvar: number;
+  q_limits_applied: boolean;
+  q_limit_status?: 'clamped' | 'within_bounds' | 'not_declared';
+  q_min_emf_mvar?: number;
+  q_max_emf_mvar?: number;
+}
+
+export interface CalculationIsland {
+  island_id: number;
+  bus_ids: number[];
+  slack_bus: number;
+  slack_component: number;
+  iterations: number;
+  max_mismatch_pu: number;
+  computation_time_ms: number;
+  balance: { residual_p_mw: number; residual_q_mvar: number };
+}
+
 export interface CalculationResult {
   success: boolean;
   error?: string;
   nodes: Array<{
+    island?: number;
     node_id: number;
     node_type: string;
     voltage: number;
@@ -113,6 +138,8 @@ export interface CalculationResult {
   capability?: ComputeCapability;
   warnings?: string[];
   assumptions?: string[];
+  sources?: CalculationSource[];
+  island_results?: CalculationIsland[];
 }
 
 export interface EquipmentModel {
@@ -131,13 +158,68 @@ export function parseCalculationResult(data: unknown): CalculationResult {
   if (result.success !== true || !Array.isArray(result.nodes) || !Number.isSafeInteger(result.node_count) ||
       result.node_count !== result.nodes.length || !finite(result.iterations) || !Number.isSafeInteger(result.iterations) || result.iterations < 0 ||
       !finite(result.computation_time_ms) || result.computation_time_ms < 0 || typeof result.method_used !== 'string') return fail();
+  const nodeIds = new Set<number>();
+  const nodeById = new Map<number, { island?: unknown; node_type: string }>();
   for (const node of result.nodes) {
     if (!node || typeof node !== 'object' || !Number.isSafeInteger(node.node_id) || typeof node.node_type !== 'string' ||
-        !finite(node.voltage) || node.voltage < 0 || !finite(node.angle) || !finite(node.phase) || !finite(node.quadrature)) return fail();
+        !finite(node.voltage) || node.voltage < 0 || !finite(node.angle) || !finite(node.phase) || !finite(node.quadrature) || nodeIds.has(node.node_id)) return fail();
+    nodeIds.add(node.node_id);
+    nodeById.set(node.node_id, node);
   }
   for (const field of ['warnings', 'assumptions']) {
     const values = result[field];
     if (values !== undefined && (!Array.isArray(values) || !values.every(value => typeof value === 'string'))) return fail();
+  }
+  if (result.sources !== undefined) {
+    if (!Array.isArray(result.sources)) return fail();
+    const ids = new Set<number>();
+    for (const raw of result.sources) {
+      if (!raw || typeof raw !== 'object') return fail();
+      const source = raw as Record<string, unknown>;
+      if (!Number.isSafeInteger(source.component_id) || Number(source.component_id) <= 0 || ids.has(Number(source.component_id)) ||
+          !['slack', 'pv', 'pq'].includes(String(source.type)) ||
+          !Number.isSafeInteger(source.internal_bus) || Number(source.internal_bus) <= 0 ||
+          !Number.isSafeInteger(source.terminal_bus) || Number(source.terminal_bus) <= 0 ||
+          !nodeIds.has(Number(source.internal_bus)) || !nodeIds.has(Number(source.terminal_bus)) || source.internal_bus === source.terminal_bus ||
+          !finite(source.p_mw) || !finite(source.q_mvar) || typeof source.q_limits_applied !== 'boolean') return fail();
+      ids.add(Number(source.component_id));
+      if (source.q_limit_status !== undefined && !['clamped', 'within_bounds', 'not_declared'].includes(String(source.q_limit_status))) return fail();
+      if (source.q_limits_applied) {
+        if (!['clamped', 'within_bounds'].includes(String(source.q_limit_status)) || !finite(source.q_min_emf_mvar) ||
+            !finite(source.q_max_emf_mvar) || source.q_min_emf_mvar > source.q_max_emf_mvar ||
+            (source.q_limit_status === 'clamped' && source.type !== 'pq')) return fail();
+      } else if (source.q_limit_status !== undefined && source.q_limit_status !== 'not_declared') return fail();
+    }
+  }
+  if (result.island_results !== undefined) {
+    if (!Array.isArray(result.island_results) || result.island_results.length === 0) return fail();
+    const islandIds = new Set<number>();
+    const assigned = new Set<number>();
+    let totalIterations = 0;
+    for (const raw of result.island_results) {
+      if (!raw || typeof raw !== 'object') return fail();
+      const island = raw as Record<string, unknown>;
+      if (!Number.isSafeInteger(island.island_id) || Number(island.island_id) <= 0 || islandIds.has(Number(island.island_id)) ||
+          !Array.isArray(island.bus_ids) || island.bus_ids.length === 0 ||
+          !Number.isSafeInteger(island.slack_bus) || !island.bus_ids.includes(island.slack_bus) ||
+          !Number.isSafeInteger(island.slack_component) || Number(island.slack_component) <= 0 ||
+          !finite(island.iterations) || !Number.isSafeInteger(island.iterations) || island.iterations < 0 ||
+          !finite(island.max_mismatch_pu) || island.max_mismatch_pu < 0 ||
+          !finite(island.computation_time_ms) || island.computation_time_ms < 0 ||
+          nodeById.get(Number(island.slack_bus))?.node_type !== 'slack') return fail();
+      islandIds.add(Number(island.island_id));
+      totalIterations += island.iterations;
+      for (const id of island.bus_ids) {
+        if (!Number.isSafeInteger(id) || !nodeIds.has(id) || assigned.has(id) ||
+            nodeById.get(id)?.island !== island.island_id) return fail();
+        assigned.add(id);
+      }
+      const balance = island.balance as Record<string, unknown> | undefined;
+      if (!balance || typeof balance !== 'object' || !finite(balance.residual_p_mw) || !finite(balance.residual_q_mvar)) return fail();
+      if (Array.isArray(result.sources) && !result.sources.some(source => source.component_id === island.slack_component &&
+          source.internal_bus === island.slack_bus && source.type === 'slack')) return fail();
+    }
+    if (assigned.size !== nodeIds.size || totalIterations !== result.iterations) return fail();
   }
   if (result.capability !== undefined) {
     const c = result.capability;

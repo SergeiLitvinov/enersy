@@ -47,12 +47,19 @@ struct PowerFlowSetup
     p_pv::Vector{Float64}
     p_pq::Vector{Float64}
     q_pq::Vector{Float64}
-end
-
 function PowerFlowSetup(nbus::Int, slack::Int, slack_v::Real, slack_theta::Real,
                          pv::Vector{Int}, pq::Vector{Int}, pv_v::Vector{Float64},
                          p_pv::Vector{Float64}, p_pq::Vector{Float64},
                          q_pq::Vector{Float64})
+    validate_setup(nbus, slack, slack_v, slack_theta, pv, pq, pv_v, p_pv, p_pq, q_pq)
+    return new(nbus, slack, Float64(slack_v), Float64(slack_theta),
+               copy(pv), copy(pq), copy(pv_v), copy(p_pv), copy(p_pq), copy(q_pq))
+end
+end
+
+function validate_setup(nbus, slack, slack_v, slack_theta, pv, pq, pv_v, p_pv, p_pq, q_pq)
+    nbus > 0 && 1 <= slack <= nbus ||
+        throw(contract_error("inconsistent_setup", "Bus count and slack index must be valid"))
     length(pv) == length(pv_v) == length(p_pv) ||
         throw(contract_error("inconsistent_setup",
             "PV specification must provide one voltage and one active power per PV bus",
@@ -61,9 +68,20 @@ function PowerFlowSetup(nbus::Int, slack::Int, slack_v::Real, slack_theta::Real,
         throw(contract_error("inconsistent_setup",
             "PQ specification must provide one active and one reactive power per PQ bus",
             detail="pq=$(length(pq)) p_pq=$(length(p_pq)) q_pq=$(length(q_pq))"))
-    return PowerFlowSetup(nbus, slack, Float64(slack_v), Float64(slack_theta),
-                          pv, pq, pv_v, p_pv, p_pq, q_pq)
+    buses = vcat([slack], pv, pq)
+    length(buses) == nbus && sort(buses) == collect(1:nbus) ||
+        throw(contract_error("inconsistent_setup", "Slack, PV and PQ must partition all buses exactly once"))
+    isfinite(slack_v) && slack_v > 0 && isfinite(slack_theta) ||
+        throw(contract_error("inconsistent_setup", "Slack voltage must be positive and finite; angle must be finite"))
+    all(v -> isfinite(v) && v > 0, pv_v) ||
+        throw(contract_error("inconsistent_setup", "PV voltage setpoints must be positive and finite"))
+    all(isfinite, p_pv) && all(isfinite, p_pq) && all(isfinite, q_pq) ||
+        throw(contract_error("inconsistent_setup", "Specified powers must be finite in per unit"))
+    return nothing
 end
+
+validate_setup(s::PowerFlowSetup) = validate_setup(s.nbus, s.slack, s.slack_v,
+    s.slack_theta, s.pv, s.pq, s.pv_v, s.p_pv, s.p_pq, s.q_pq)
 
 """Результат расчёта режима: модули и углы узлов, вычисленные инъекции, статистика."""
 struct PowerFlowResult
@@ -87,6 +105,8 @@ number_of_equations(setup::PowerFlowSetup) = 2 * (length(setup.pv) + length(setu
 function bus_powers(Y::AbstractMatrix{ComplexF64}, v::Vector{Float64}, theta::Vector{Float64})
     V = [cis(theta[i]) * v[i] for i in eachindex(v)]
     S = V .* conj.(Y * V)
+    all(isfinite, V) && all(isfinite, S) ||
+        throw(solver_error("non_finite_power", "Computed voltage or bus power is not finite"))
     return (V = V, S = S, P = real.(S), Q = imag.(S))
 end
 
@@ -199,7 +219,7 @@ function jacobian(Y::AbstractMatrix{ComplexF64}, v::Vector{Float64}, theta::Vect
 end
 
 """Решение линейной системы шага Ньютона с диагностикой вырождения."""
-function solve_jacobian(J::Matrix{Float64}, F::Vector{Float64}, iteration::Int)
+function solve_jacobian(J::AbstractMatrix{Float64}, F::Vector{Float64}, iteration::Int)
     F_lu = lu(J; check=false)
     issuccess(F_lu) ||
         throw(solver_error("singular_jacobian",
@@ -213,6 +233,9 @@ function solve_jacobian(J::Matrix{Float64}, F::Vector{Float64}, iteration::Int)
             detail="iteration=$(iteration)"))
     return dx
 end
+
+# Estimating cond through dense SVD would undo the sparse memory bound.
+_cond_estimate(::SparseMatrixCSC) = "not estimated (sparse)"
 
 function _cond_estimate(J::Matrix{Float64})
     n = size(J, 1)
@@ -247,12 +270,19 @@ end
 `non_positive_voltage`).
 """
 function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
-                        options::SolverOptions; initial_v::Union{Nothing,Vector{Float64}}=nothing)
+                        options::SolverOptions; initial_v::Union{Nothing,Vector{Float64}}=nothing,
+                        initial_theta::Union{Nothing,Vector{Float64}}=nothing)
     n = setup.nbus
+    # Public arrays remain mutable: validate again before touching matrix indices.
+    validate_setup(setup)
     size(Y) == (n, n) || throw(contract_error("dimension_mismatch", "Y and setup dimensions differ"))
+    values = Y isa SparseMatrixCSC ? nonzeros(Y) : Y
+    all(isfinite, values) || throw(contract_error("invalid_admittance", "Y must contain only finite admittances"))
     v = initial_v === nothing ? ones(Float64, n) : copy(initial_v)
     length(v) == n || throw(contract_error("dimension_mismatch", "initial voltage size differs"))
-    theta = zeros(Float64, n)
+    theta = initial_theta === nothing ? fill(setup.slack_theta, n) : copy(initial_theta)
+    length(theta) == n || throw(contract_error("dimension_mismatch", "initial angle size differs"))
+    check_state(v, theta, 0)
     v[setup.slack] = setup.slack_v
     v[setup.slack] > 0 ||
         throw(contract_error("invalid_slack_voltage",
@@ -266,12 +296,6 @@ function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
                 detail="node=$(i) v_pu=$(v[i])"))
     end
     theta[setup.slack] = setup.slack_theta
-    for i in setup.pv
-        theta[i] = setup.slack_theta
-    end
-    for i in setup.pq
-        theta[i] = setup.slack_theta
-    end
     check_state(v, theta, 0)
 
     if number_of_equations(setup) == 0

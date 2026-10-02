@@ -5,8 +5,9 @@
 Модели симметричного AC-режима `three-phase`:
 
 * **источник** — ЭДС `E∠δ` за последовательным сопротивлением `r + jx`. ЭДС
-  образует внутренний узел: первый источник становится slack с заданными
-  `|E|` и углом (его P определяется сетью), остальные — PV с заданными P и |E|.
+  образует внутренний узел: явно выбранный источник каждого острова (либо
+  единственный в нём) становится slack с заданными `|E|` и углом,
+  остальные — PV с заданными P и |E|.
   Прежняя реализация объявляла генератор PV-узлом с произвольным
   напряжением и не использовала `r`, `x` (A01);
 * **линия** — π-модель с удельными `r0`, `x0` (Ом/км), `b0`, `g0` (См/км) и
@@ -129,10 +130,13 @@ function line_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSystem,
     b0 = param_number(p, "b0"; required=false, default=0.0, unit="S/km", owner=owner)
     g0 = param_number(p, "g0"; required=false, default=0.0, unit="S/km", owner=owner)
     circuits = param_number(p, "circuits"; required=false, default=1.0, unit="", owner=owner)
+    r0 >= 0 && g0 >= 0 ||
+        throw(contract_error("invalid_parameter", "passive line r0 and g0 must be non-negative",
+                             detail="$(owner) r0=$(r0) g0=$(g0)"))
     (isfinite(circuits) && circuits >= 1 && isinteger(circuits)) ||
         throw(contract_error("invalid_parameter", "circuits must be an integer >= 1",
                              detail="$(owner).circuits=$(circuits)"))
-    n = Int(circuits)
+    n = as_int(circuits, "$(owner).circuits"; positive=true)
     len_km > 0 ||
         throw(contract_error("invalid_parameter", "length must be positive",
                              detail="$(owner).length=$(len_km)"))
@@ -221,6 +225,8 @@ function generator_model(inj::Injection, terminal::Bus, base::BaseSystem,
     p = inj.params
     r = param_number(p, "r"; required=false, default=0.0, unit="Ohm", owner=owner)
     x = param_number(p, "x"; unit="Ohm", owner=owner)
+    r >= 0 || throw(contract_error("invalid_parameter", "generator series resistance must be non-negative",
+                                  detail="$(owner).r=$(r)"))
     (r^2 + x^2) > 0.0 ||
         throw(contract_error("zero_impedance",
                              "generator series impedance must not be zero",
@@ -345,7 +351,10 @@ end
 """
 function source_spec(inj::Injection, base::BaseSystem, assumptions::Vector{String})
     owner = "generator#$(inj.component_id)"
-    v_kv = if inj.has_v_spec && inj.v_spec_kv > 0
+    v_kv = if inj.has_v_spec
+        isfinite(inj.v_spec_kv) && inj.v_spec_kv > 0 ||
+            throw(contract_error("invalid_parameter", "specified generator EMF must be positive and finite",
+                                 detail="$(owner).e=$(inj.v_spec_kv) kV"))
         inj.v_spec_kv
     else
         v = param_number(inj.params, "voltage_nom"; required=false, default=nothing,
@@ -385,6 +394,7 @@ end
 нём не задан, а результат зависит от выбора отсчёта.
 """
 function classify_buses(sys::AcSystem, base::BaseSystem)
+    # The application orchestrator invokes this only on one connected island.
     isempty(sys.sources) &&
         throw(network_error("no_source",
             "Схема не содержит источника: установившийся режим не определён",
@@ -465,7 +475,7 @@ function _check_islands_have_slack(sys::AcSystem, slack::Int)
         throw(network_error("island_without_slack",
             "Остров $(island) не содержит балансирующего узла: отсчёт углов в нём не задан",
             detail="nodes=$(join(sort(nodes), ",")) component_id=$(join(members, ",")); " *
-                   "раздельный расчёт островов — задача CORE-07/DYN"))
+                   "передайте острова через calculate для независимого расчёта"))
     end
     return nothing
 end
