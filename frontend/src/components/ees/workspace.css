@@ -83,6 +83,14 @@
 .results-table-wrap { overflow: auto; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 22px; }
 .results-table caption { text-align: left; padding: 14px 12px; font-size: 12px; font-weight: 600; }
 .results-table th, .results-table td { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.recovery-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.recovery-table th, .recovery-table td { padding: 12px; text-align: left; border-top: 1px solid var(--border-color); }
+.recovery-table td, .recovery-table th { white-space: normal; overflow-wrap: anywhere; min-width: 100px; }
+.recovery-actions { flex-wrap: wrap; }
+.recovery-deletion { display: block; }
+.recovery-deletion p { margin: 0 0 10px; }
+.recovery-deletion > label { display: flex; align-items: flex-start; gap: 8px; }
+.recovery-deletion > label input { flex-shrink: 0; margin-top: 5px; }
 .node-type { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-toolbar); padding: 3px 6px; border-radius: 4px; }
 .result-details { margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: var(--text-secondary); } .result-details summary { cursor: pointer; color: var(--text-primary); font-weight: 550; margin-bottom: 8px; }
 .modal-content { min-width: min(600px,calc(100vw - 32px)); border: 1px solid var(--border-color); box-shadow: 0 24px 100px #07192935; }

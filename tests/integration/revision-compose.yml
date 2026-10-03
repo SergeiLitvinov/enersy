@@ -1,0 +1,57 @@
+# Disposable acceptance environment. Never uses the application database volume.
+name: enersy-revision-acceptance
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: revision_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acceptance -d revision_acceptance"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  go-api:
+    networks: [default, web]
+    build:
+      context: ../..
+      dockerfile: backend-go/Dockerfile
+    environment:
+      DB_HOST: postgres
+      POSTGRES_DB: revision_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+      CORS_ORIGIN: http://localhost:4174
+      JULIA_BASE_URL: http://julia-compute:8001
+    ports:
+      - "127.0.0.1:8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/ready"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+  julia-compute:
+    build:
+      context: ../../backend-julia
+      dockerfile: Dockerfile
+  react-frontend:
+    networks: [default, web]
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "127.0.0.1:4174:3000"
+    depends_on:
+      go-api:
+        condition: service_healthy
+networks:
+  default:
+    internal: true
+  web: {}

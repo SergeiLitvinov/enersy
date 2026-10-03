@@ -12,3 +12,9 @@ docs/site/.vitepress/cache
 dev.db
 frontend/bundle.js
 injected-index.html
+.cache
+.backups
+STO.dxf
+dxf-sto-symbols-v2
+dxf-sto-symbols
+dxf-symbols

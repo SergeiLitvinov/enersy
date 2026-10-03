@@ -56,7 +56,7 @@ func TestComponentCreationPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql"} {
+	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20261003001_component_revision.up.sql"} {
 		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", name))
 		if err != nil {
 			t.Fatal(err)
@@ -79,7 +79,7 @@ func TestComponentCreationPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := createComponentRequest{SchemeID: schemeID, TypeID: typeID, Name: "Источник", EquipmentModelID: &modelID, Params: map[string]string{"p": "12.5"}}
-	id, params, err := createComponent(context.Background(), database, req)
+	id, params, _, err := createComponent(context.Background(), database, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestComponentCreationPostgres(t *testing.T) {
 	}
 	wrong := req
 	wrong.TypeID = otherType
-	if _, _, err = createComponent(context.Background(), database, wrong); err == nil {
+	if _, _, _, err = createComponent(context.Background(), database, wrong); err == nil {
 		t.Fatal("wrong model type accepted")
 	}
 	// Force a failure AFTER insertion of the component and an earlier parameter.
@@ -109,7 +109,7 @@ func TestComponentCreationPostgres(t *testing.T) {
 	}
 	failed := req
 	failed.Params = map[string]string{"a_first": "ok", "z_fail": "reject-new-param"}
-	if _, _, err = createComponent(context.Background(), database, failed); err == nil {
+	if _, _, _, err = createComponent(context.Background(), database, failed); err == nil {
 		t.Fatal("forced write failure accepted")
 	}
 	var count int

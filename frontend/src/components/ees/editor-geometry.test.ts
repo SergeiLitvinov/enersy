@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { connectionPoints, containsComponent, distanceToPolyline, worldPorts } from './editor-geometry';
 import { EditorComponent, EditorConnection } from './editor-utils';
 
-const component = (id: number, x = 0, y = 0, rotation = 0): EditorComponent => ({ id, x, y, rotation, type: 'transmission_line', typeId: 1, name: 'line', params: {} });
+const component = (id: number, x = 0, y = 0, rotation = 0): EditorComponent => ({ id, revision: '1', x, y, rotation, type: 'transmission_line', typeId: 1, name: 'line', params: {} });
 const connection: EditorConnection = { id: 1, from: 1, to: 2, fromPort: 'right', toPort: 'left' };
 
 describe('Editor geometry regressions', () => {

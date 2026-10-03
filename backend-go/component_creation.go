@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -33,11 +34,11 @@ func (e *componentCreationError) Error() string      { return e.message }
 func creationError(message string, status int) error { return &componentCreationError{message, status} }
 
 func validateComponentCreation(req createComponentRequest) error {
-	if req.SchemeID <= 0 || req.TypeID <= 0 || strings.TrimSpace(req.Name) == "" || utf8.RuneCountInString(req.Name) > 100 {
+	if req.SchemeID <= 0 || req.TypeID <= 0 {
 		return creationError("Укажите схему, тип и название оборудования (до 100 символов)", http.StatusBadRequest)
 	}
-	if math.IsNaN(req.X) || math.IsInf(req.X, 0) || math.IsNaN(req.Y) || math.IsInf(req.Y, 0) || math.Abs(req.X) > math.MaxFloat32 || math.Abs(req.Y) > math.MaxFloat32 {
-		return creationError("Некорректные координаты оборудования", http.StatusBadRequest)
+	if err := validateComponentPose(req.X, req.Y, req.Name); err != nil {
+		return err
 	}
 	if req.EquipmentModelID != nil && *req.EquipmentModelID <= 0 {
 		return creationError("Некорректный идентификатор паспортной модели", http.StatusBadRequest)
@@ -46,66 +47,83 @@ func validateComponentCreation(req createComponentRequest) error {
 		return creationError("Слишком много параметров", http.StatusBadRequest)
 	}
 	for key, value := range req.Params {
-		if strings.TrimSpace(key) == "" || utf8.RuneCountInString(key) > 50 || len(value) > 16384 || strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
-			return creationError("Некорректный ключ или значение параметра", http.StatusBadRequest)
+		if err := validateComponentParameter(key, value); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateComponentPose(x, y float64, name string) error {
+	if strings.TrimSpace(name) == "" || utf8.RuneCountInString(name) > 100 || strings.ContainsRune(name, 0) {
+		return creationError("Укажите название оборудования (до 100 символов)", http.StatusBadRequest)
+	}
+	if math.IsNaN(x) || math.IsInf(x, 0) || math.IsNaN(y) || math.IsInf(y, 0) || math.Abs(x) > math.MaxFloat32 || math.Abs(y) > math.MaxFloat32 {
+		return creationError("Некорректные координаты оборудования", http.StatusBadRequest)
+	}
+	return nil
+}
+
+func validateComponentParameter(key, value string) error {
+	if strings.TrimSpace(key) == "" || utf8.RuneCountInString(key) > 50 || len(value) > 16384 || strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
+		return creationError("Некорректный ключ или значение параметра", http.StatusBadRequest)
 	}
 	return nil
 }
 
 // The stored parameters are a snapshot, not a live link to mutable catalogue values.
 // A repeatable-read transaction makes model validation, copying and creation atomic.
-func createComponent(ctx context.Context, database *sql.DB, req createComponentRequest) (int, map[string]string, error) {
+func createComponent(ctx context.Context, database *sql.DB, req createComponentRequest) (int, map[string]string, int64, error) {
 	if err := validateComponentCreation(req); err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	tx, err := database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	defer tx.Rollback()
 	var exists bool
 	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM circuit_schemes WHERE id=$1)", req.SchemeID).Scan(&exists); err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	if !exists {
-		return 0, nil, creationError("Схема не найдена", http.StatusNotFound)
+		return 0, nil, 0, creationError("Схема не найдена", http.StatusNotFound)
 	}
 	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM component_types WHERE id=$1)", req.TypeID).Scan(&exists); err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	if !exists {
-		return 0, nil, creationError("Тип оборудования не найден", http.StatusBadRequest)
+		return 0, nil, 0, creationError("Тип оборудования не найден", http.StatusBadRequest)
 	}
 	params := map[string]string{}
 	if req.EquipmentModelID != nil {
 		var modelType int
 		err = tx.QueryRowContext(ctx, "SELECT component_type_id FROM equipment_models WHERE id=$1", *req.EquipmentModelID).Scan(&modelType)
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, nil, creationError("Паспортная модель не найдена", http.StatusNotFound)
+			return 0, nil, 0, creationError("Паспортная модель не найдена", http.StatusNotFound)
 		}
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, 0, err
 		}
 		if modelType != req.TypeID {
-			return 0, nil, creationError("Паспортная модель не соответствует типу оборудования", http.StatusBadRequest)
+			return 0, nil, 0, creationError("Паспортная модель не соответствует типу оборудования", http.StatusBadRequest)
 		}
 		rows, err := tx.QueryContext(ctx, "SELECT param_key, param_value FROM equipment_model_params WHERE equipment_model_id=$1", *req.EquipmentModelID)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, 0, err
 		}
 		for rows.Next() {
 			var key, value string
 			if err = rows.Scan(&key, &value); err != nil {
 				rows.Close()
-				return 0, nil, err
+				return 0, nil, 0, err
 			}
 			params[key] = value
 		}
 		err = rows.Err()
 		rows.Close()
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, 0, err
 		}
 	}
 	for key, value := range req.Params {
@@ -116,7 +134,7 @@ func createComponent(ctx context.Context, database *sql.DB, req createComponentR
 		(scheme_id, component_type_id, pos_x, pos_y, rotation, custom_name, equipment_model_id)
 		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, req.SchemeID, req.TypeID, req.X, req.Y, req.Rotation, req.Name, req.EquipmentModelID).Scan(&id)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	keys := make([]string, 0, len(params))
 	for key := range params {
@@ -125,13 +143,17 @@ func createComponent(ctx context.Context, database *sql.DB, req createComponentR
 	sort.Strings(keys)
 	for _, key := range keys {
 		if _, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key]); err != nil {
-			return 0, nil, err
+			return 0, nil, 0, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
-		return 0, nil, err
+	var revision int64
+	if err = tx.QueryRowContext(ctx, "SELECT revision FROM scheme_components WHERE id=$1", id).Scan(&revision); err != nil {
+		return 0, nil, 0, err
 	}
-	return id, params, nil
+	if err = tx.Commit(); err != nil {
+		return 0, nil, 0, err
+	}
+	return id, params, revision, nil
 }
 
 func handleComponents(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +180,7 @@ func handleComponents(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Ожидается один JSON-объект", http.StatusBadRequest)
 		return
 	}
-	id, params, err := createComponent(r.Context(), db, req)
+	id, params, revision, err := createComponent(r.Context(), db, req)
 	if err != nil {
 		var validation *componentCreationError
 		if errors.As(err, &validation) {
@@ -169,5 +191,5 @@ func handleComponents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID})
+	json.NewEncoder(w).Encode(map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)})
 }

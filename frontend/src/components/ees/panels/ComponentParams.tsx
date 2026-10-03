@@ -4,13 +4,29 @@ import { EditorComponent } from '../editor-utils';
 interface ComponentParamsProps {
   component: EditorComponent;
   onSave: (k: string, v: string) => void;
+  parameterResets?: Readonly<Record<string, number>>;
 }
 
-export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onSave }) => {
-  const [params, setParams] = useState<Record<string, string>>(component.params || {});
-  const handleChange = (key: string, value: string) => {
-    setParams(p => ({ ...p, [key]: value }));
-  };
+function ParameterInput({ id, confirmed, boolean, placeholder, onSave }: {
+  id: string; confirmed: string; boolean: boolean; placeholder: string; onSave: (value: string) => void;
+}) {
+  const [input, setInput] = useState({ confirmed, value: confirmed });
+  // Adopt new confirmed values only in clean fields. An acknowledgement of an
+  // earlier write must not erase text entered while that request was pending.
+  if (input.confirmed !== confirmed) {
+    setInput({ confirmed, value: input.value === input.confirmed ? confirmed : input.value });
+  }
+  const change = (value: string) => setInput({ confirmed, value });
+  return boolean ? (
+    <input id={id} type="checkbox" checked={input.value === 'true'}
+      onChange={event => { const value = event.target.checked ? 'true' : 'false'; change(value); onSave(value); }} />
+  ) : (
+    <input id={id} type="text" value={input.value} placeholder={placeholder}
+      onChange={event => change(event.target.value)} onBlur={event => { if (event.target.value !== confirmed) onSave(event.target.value); }} />
+  );
+}
+
+export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onSave, parameterResets }) => {
   return (
     <div className="component-params">
       <h3 className="param-title">{component.name}</h3>
@@ -19,13 +35,9 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
       {component.paramTemplate?.map(p => (
         <div key={p.key} className="param-item">
           <label htmlFor={`param-${component.id}-${p.key}`}>{p.name}</label>
-          {p.type === 'boolean' ? (
-            <input id={`param-${component.id}-${p.key}`} type="checkbox" checked={params[p.key] === 'true'}
-              onChange={e => { const value = e.target.checked ? 'true' : 'false'; handleChange(p.key, value); onSave(p.key, value); }} />
-          ) : (
-            <input id={`param-${component.id}-${p.key}`} type="text" value={params[p.key] ?? ''} placeholder={p.default || 'Не задано'}
-              onChange={e => handleChange(p.key, e.target.value)} onBlur={e => { if (e.target.value !== (component.params[p.key] ?? '')) onSave(p.key, e.target.value); }} />
-          )}
+          <ParameterInput key={`${p.key}:${parameterResets?.[p.key] ?? 0}`} id={`param-${component.id}-${p.key}`}
+            confirmed={component.params[p.key] ?? ''} boolean={p.type === 'boolean'} placeholder={p.default || 'Не задано'}
+            onSave={value => onSave(p.key, value)} />
           <span className="param-unit">{p.unit}</span>
         </div>
       ))}

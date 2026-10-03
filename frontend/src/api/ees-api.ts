@@ -1,4 +1,6 @@
 // frontend/src/api/ees-api.ts
+import { componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite, type ComponentWriteResult, type CreatedComponent } from './component-revision';
+export type { ComponentWriteResult, CreatedComponent } from './component-revision';
 
 const API_BASE = '/api/ees';
 
@@ -64,6 +66,7 @@ export interface ComponentParam {
 }
 
 export interface SchemeComponent {
+  revision: string;
   equipmentModelId?: number | null;
   id: number;
   type: string;
@@ -274,7 +277,9 @@ export async function createScheme(name: string, description: string): Promise<{
 export async function getScheme(id: number): Promise<Scheme> {
   const response = await fetch(`${API_BASE}/schemes/${id}`);
   if (!response.ok) throw new Error('Failed to fetch scheme');
-  return response.json();
+  const scheme: Scheme = await response.json();
+  for (const component of scheme.components ?? []) parseComponentRevision(component.revision);
+  return scheme;
 }
 
 export async function deleteScheme(id: number): Promise<void> {
@@ -292,14 +297,14 @@ export async function addComponent(
   name: string,
   equipmentModelId: number | null = null,
   params: Record<string, string> = {}
-): Promise<{ id: number; success: boolean; params: Record<string, string>; equipmentModelId: number | null }> {
+): Promise<CreatedComponent> {
   const response = await fetch(`${API_BASE}/components`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ schemeId, typeId, x, y, rotation, name, equipmentModelId, params }),
   });
   if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(typeof failure.error === 'string' ? failure.error : 'Не удалось сохранить оборудование'); }
-  return response.json();
+  return parseCreatedComponent(await response.json());
 }
 
 export async function updateComponent(
@@ -307,35 +312,47 @@ export async function updateComponent(
   x: number,
   y: number,
   rotation: number,
-  name: string
-): Promise<{ success: boolean }> {
+  name: string,
+  revision: string
+): Promise<ComponentWriteResult> {
   const response = await fetch(`${API_BASE}/components/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: componentRevisionHeaders(revision),
     body: JSON.stringify({ x, y, rotation, name }),
   });
-  if (!response.ok) throw new Error('Failed to update component');
-  return response.json();
+  return readComponentWrite(response);
 }
 
-export async function deleteComponent(id: number): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE}/components/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Failed to delete component');
-  return response.json();
+export async function deleteComponent(id: number, revision: string): Promise<ComponentWriteResult> {
+  const response = await fetch(`${API_BASE}/components/${id}`, { method: 'DELETE', headers: componentRevisionHeaders(revision) });
+  return readComponentWrite(response);
+}
+
+export interface ComponentPatch {
+  pose?: Partial<Pick<SchemeComponent, 'x' | 'y' | 'rotation' | 'name'>>;
+  params?: Record<string, string>;
+}
+
+/** Atomically save only reviewed fields; the server preserves unselected values. */
+export async function patchComponent(id: number, patch: ComponentPatch, revision: string): Promise<ComponentWriteResult> {
+  const response = await fetch(`${API_BASE}/components/${id}`, {
+    method: 'PATCH', headers: componentRevisionHeaders(revision), body: JSON.stringify(patch),
+  });
+  return readComponentWrite(response);
 }
 
 export async function setComponentParam(
   componentId: number,
   key: string,
-  value: string
-): Promise<{ success: boolean }> {
+  value: string,
+  revision: string
+): Promise<ComponentWriteResult> {
   const response = await fetch(`${API_BASE}/components/${componentId}/params`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: componentRevisionHeaders(revision),
     body: JSON.stringify({ key, value }),
   });
-  if (!response.ok) throw new Error('Failed to set component param');
-  return response.json();
+  return readComponentWrite(response);
 }
 
 // Connections

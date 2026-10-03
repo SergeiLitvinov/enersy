@@ -44,7 +44,7 @@ it('preserves the server reason when a connection is rejected', async () => {
 });
 
 it('creates a passport snapshot in one request and keeps server diagnostics', async () => {
-  const created = { id: 7, success: true, params: { voltage_nom: '10' }, equipmentModelId: 3 };
+  const created = { id: 7, revision: '2', success: true, params: { voltage_nom: '10' }, equipmentModelId: 3 };
   const request = vi.fn().mockResolvedValue({ ok: true, json: async () => created });
   vi.stubGlobal('fetch', request);
   expect(await addComponent(1, 2, 10, 20, 0, 'Источник', 3)).toEqual(created);

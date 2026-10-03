@@ -11,14 +11,16 @@ import { CanvasToolbar } from './panels/CanvasToolbar';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { ResultsModal } from './panels/ResultsModal';
 import { ModelSelectModal } from './panels/ModelSelectModal';
-import { setComponentParam, updateComponent, CalculationResult } from '../../api/ees-api';
+import { CalculationResult } from '../../api/ees-api';
 import { Icon } from '../ui/Icon';
 import { NewSchemeDialog } from './panels/NewSchemeDialog';
+import { RecoveryDialog } from './panels/RecoveryDialog';
 import { useNotify } from '../NotificationProvider';
 import './SchemeEditor.css';
 import './workspace.css';
+import type { ComponentWrites } from './component-writes';
 
-export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
+export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites }> = ({ schemeId, writeQueue }) => {
   const { notify } = useNotify();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -34,15 +36,22 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
     library, schemes, currentSchemeId, setCurrentSchemeId,
     handleCreateScheme, handleDeleteScheme,
     addComponent, deleteSelectedComponent, deleteConnection,
-    handleCalculate, updateComponentPosition, addConnection,
-    isCalculating, calculationError, loadedSchemeId,
-  } = useSchemeData(schemeId);
+    handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
+    isCalculating, calculationError, loadedSchemeId, captureView, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
+  } = useSchemeData(schemeId, writeQueue);
+  const [reviewComponent, setReviewComponent] = useState<number | null>(null);
+  useEffect(() => { setReviewComponent(null); }, [currentSchemeId]);
+  const reviewedDraft = failedDrafts.find(draft => draft.componentId === reviewComponent);
+  useEffect(() => {
+    // A resolved dialog must not reopen itself on a later independent conflict.
+    if (reviewComponent !== null && !reviewedDraft) setReviewComponent(null);
+  }, [reviewComponent, reviewedDraft]);
   const activeSchemeRef = useRef(currentSchemeId);
   activeSchemeRef.current = currentSchemeId;
 
   const {
     viewBox, setViewBox,
-    screenToWorld, handleWheel, zoomIn, zoomOut, fitView,
+    screenToWorld, getWorldUnitsPerPixel, handleWheel, zoomIn, zoomOut, fitView,
   } = useCanvasViewport(containerRef);
 
   const [selectedComponent, setSelectedComponent] = useState<number | null>(null);
@@ -68,30 +77,15 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
     setCalcMethod('newton-raphson');
   }, []);
 
-  const onMoveEnd = useCallback((compId: number) => {
-    const comp = components.find(c => c.id === compId);
-    if (comp && currentSchemeId) {
-      updateComponentPosition(comp.id, comp.x, comp.y, comp.rotation, comp.name);
-    }
-  }, [components, currentSchemeId, updateComponentPosition]);
+  const onMoveEnd = useCallback((compId: number, x: number, y: number) => {
+    if (currentSchemeId) void updateComponentPosition(compId, x, y);
+  }, [currentSchemeId, updateComponentPosition]);
 
   const onConnectEnd = useCallback(async (schemeId: number, from: number, to: number, fromPort: string, toPort: string) => {
     await addConnection(schemeId, from, to, fromPort, toPort);
   }, [addConnection]);
 
-  const rotatingComponents = useRef(new Set<number>());
-  const handleRotateComponent = useCallback(async (compId: number) => {
-    const component = components.find(c => c.id === compId);
-    if (!component || rotatingComponents.current.has(compId)) return;
-    const scheme = currentSchemeId;
-    const rotation = ((component.rotation || 0) + 90) % 360;
-    rotatingComponents.current.add(compId);
-    try {
-      await updateComponent(compId, component.x, component.y, rotation, component.name);
-      if (activeSchemeRef.current === scheme) setComponents(prev => prev.map(c => c.id === compId ? { ...c, rotation } : c));
-    } catch { notify('Не удалось сохранить поворот. Повторите действие.', 'error'); }
-    finally { rotatingComponents.current.delete(compId); }
-  }, [components, currentSchemeId, setComponents, notify]);
+  const handleRotateComponent = rotateComponent;
 
   const handleAddComponent = useCallback(async (item: ComponentLibraryItem, wx: number, wy: number) => {
     setPendingDrop({ item, wx, wy });
@@ -101,7 +95,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
     dragMode, dragData, tempLine,
     handleMouseDown, handleMouseMove, handleMouseUp, resetInteraction,
   } = useCanvasInteraction({
-    components, setComponents, connections, screenToWorld, setViewBox,
+    components, setComponents, connections, screenToWorld, getWorldUnitsPerPixel, setViewBox,
     viewBox, containerRef, currentSchemeId,
     onMoveEnd, onConnectEnd,
     onSelectComponent: setSelectedComponent,
@@ -110,17 +104,28 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
 
   const { handleLibDragStart, handleCanvasDrop, handleDragOver } = useDragDrop({ addComponent: handleAddComponent, screenToWorld });
 
+  useEffect(() => {
+    resetInteraction();
+    setPendingDrop(null);
+    setSelectedComponent(null);
+    setSelectedConnection(null);
+    setLastResult(null);
+    setResultsVisible(false);
+  }, [currentSchemeId, resetInteraction]);
+
   const deleteSelectedComponentHandler = useCallback(async () => {
     if (!selectedComponent) return;
+    const isCurrent = captureView();
     await deleteSelectedComponent(selectedComponent);
-    setSelectedComponent(null);
-  }, [selectedComponent, deleteSelectedComponent]);
+    if (isCurrent()) setSelectedComponent(null);
+  }, [selectedComponent, deleteSelectedComponent, captureView]);
 
   const deleteConnectionHandler = useCallback(async () => {
     if (!selectedConnection) return;
+    const isCurrent = captureView();
     await deleteConnection(selectedConnection);
-    setSelectedConnection(null);
-  }, [selectedConnection, deleteConnection]);
+    if (isCurrent()) setSelectedConnection(null);
+  }, [selectedConnection, deleteConnection, captureView]);
 
   const handleCalculateClick = useCallback(async () => {
     const calculatedSchemeId = currentSchemeId;
@@ -138,9 +143,9 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
 
   const onSaveParam = useCallback((k: string, v: string) => {
     if (selectedComponent) {
-      setComponentParam(selectedComponent, k, v).then(() => setComponents(prev => prev.map(c => c.id === selectedComponent ? { ...c, params: { ...c.params, [k]: v } } : c))).catch(() => notify('Не удалось сохранить параметр. Проверьте соединение и повторите ввод.', 'error'));
+      void saveComponentParam(selectedComponent, k, v);
     }
-  }, [selectedComponent, setComponents, notify]);
+  }, [selectedComponent, saveComponentParam]);
 
   // Keyboard
   useEffect(() => {
@@ -180,9 +185,10 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
 
   const handleModelSelectConfirm = useCallback(async (equipmentModelId: number | null) => {
     if (!pendingDrop) return;
+    const isCurrent = captureView();
     await addComponent(pendingDrop.item, pendingDrop.wx, pendingDrop.wy, equipmentModelId);
-    setPendingDrop(null);
-  }, [pendingDrop, addComponent]);
+    if (isCurrent()) setPendingDrop(null);
+  }, [pendingDrop, addComponent, captureView]);
 
   const renderComponent = useCallback((comp: EditorComponent) => {
     const SVGComp = ComponentSVG[comp.type];
@@ -287,6 +293,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
           onResetView={() => fitView(components)}
         />
         {calculationError && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Расчёт не выполнен</strong><p>{calculationError}</p></div></div>}
+        {failedDrafts.length > 0 && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Сохранение требует проверки</strong><p>Неподтверждённые правки сохранены в журнале этой вкладки. Расчёт заблокирован до разрешения проблемы.</p><div className="connection-diagnostics-list">{failedDrafts.map(draft => <p key={draft.componentId}><button className="tool-btn" onClick={() => setReviewComponent(draft.componentId)}>Сверить {draft.base.name} #{draft.componentId}</button></p>)}</div></div></div>}
         {invalidConnections.length > 0 && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Соединения требуют исправления: {invalidConnections.length}</strong><p>Сохранённые данные оставлены для проверки. Выберите связь, чтобы исправить схему или удалить её.</p><div className="connection-diagnostics-list">{invalidConnections.map(c => <p key={c.id}><button className="tool-btn" onClick={() => { setSelectedConnection(c.id); setSelectedComponent(null); }}>Выбрать связь #{c.id}</button> {(c.validationErrors || []).map(reason => connectionReasons[reason] || reason).join('; ')}</p>)}</div></div></div>}
 
         <div className="canvas-scroll" ref={containerRef}
@@ -329,9 +336,11 @@ export const SchemeEditor: React.FC<{ schemeId?: number }> = ({ schemeId }) => {
         selectedConnection={selectedConnection}
         currentSchemeId={currentSchemeId}
         onSaveParam={onSaveParam}
+        parameterResets={selectedComp ? parameterResets[selectedComp.id] : undefined}
       />}
 
       {resultsVisible && lastResult && <ResultsModal result={lastResult} schemeName={schemeName} onClose={closeModal} />}
+      {reviewedDraft && <RecoveryDialog key={`${reviewedDraft.schemeId}:${reviewedDraft.componentId}`} draft={reviewedDraft} onResolve={resolveComponentDraft} onResolveDeletion={resolveComponentDeletion} onClose={() => setReviewComponent(null)} />}
       {createDialog && <NewSchemeDialog onCreate={async (name, description) => { const created = await handleCreateScheme(name, description); if (created) { setLastResult(null); setSelectedComponent(null); setSelectedConnection(null); } return created; }} onClose={() => setCreateDialog(false)} />}
       {pendingDrop && (
         <ModelSelectModal

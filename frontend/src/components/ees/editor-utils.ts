@@ -1,6 +1,7 @@
 import { ComponentParam } from './svg-components';
 
 export interface EditorComponent {
+  revision: string;
   equipmentModelId?: number | null;
   id: number;
   type: string;

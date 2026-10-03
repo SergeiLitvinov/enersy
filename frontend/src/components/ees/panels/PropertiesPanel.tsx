@@ -9,16 +9,17 @@ interface PropertiesPanelProps {
   selectedConnection: number | null;
   currentSchemeId?: number;
   onSaveParam: (k: string, v: string) => void;
+  parameterResets?: Readonly<Record<string, number>>;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
-  selectedComponent, selectedConnection, currentSchemeId, onSaveParam,
+  selectedComponent, selectedConnection, currentSchemeId, onSaveParam, parameterResets,
 }) => {
   return (
     <aside className="properties-panel">
       <div className="panel-heading"><div><p className="eyebrow">Инспектор</p><h2>Свойства объекта</h2></div><Icon name="panel" /></div>
       {selectedComponent ? (
-        <ComponentParams key={selectedComponent.id} component={selectedComponent} onSave={onSaveParam} />
+        <ComponentParams key={selectedComponent.id} component={selectedComponent} onSave={onSaveParam} parameterResets={parameterResets} />
       ) : selectedConnection ? (
         <div className="inspector-empty"><Icon name="link" /><h3>Соединение выбрано</h3><p>Для удаления используйте кнопку соединения на панели инструментов.</p></div>
       ) : (

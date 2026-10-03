@@ -33,7 +33,7 @@ func TestConnectionsPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20260930002_connection_integrity.up.sql"} {
+	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20260930002_connection_integrity.up.sql", "20261003001_component_revision.up.sql"} {
 		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", name))
 		if err != nil {
 			t.Fatal(err)

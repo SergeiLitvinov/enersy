@@ -216,8 +216,9 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 		if allowedOrigin == "*" || allowedOrigin == origin {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		}
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, If-Match")
+		w.Header().Set("Access-Control-Expose-Headers", "ETag")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -537,7 +538,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 		components := []map[string]interface{}{}
 		compRows, err := db.Query(`
 			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation, sc.custom_name,
-			       sc.equipment_model_id, ct.id, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
+			       sc.equipment_model_id, ct.id, sc.revision, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
 			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb)
 			FROM scheme_components sc
 			JOIN component_types ct ON sc.component_type_id = ct.id
@@ -556,8 +557,9 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			var customName sql.NullString
 			var modelID sql.NullInt64
 			var typeID int
+			var revision int64
 			var paramsJSON []byte
-			if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &paramsJSON); err != nil {
+			if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &paramsJSON); err != nil {
 				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -576,7 +578,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			}
 			components = append(components, map[string]interface{}{
 				"id": compID, "type": code, "x": x, "y": y, "rotation": rotation, "name": cname,
-				"params": params, "equipmentModelId": equipmentModelID, "typeId": typeID,
+				"params": params, "equipmentModelId": equipmentModelID, "typeId": typeID, "revision": strconv.FormatInt(revision, 10),
 			})
 		}
 		if err := compRows.Err(); err != nil {
@@ -680,38 +682,7 @@ func handleComponentByIDOrParams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch r.Method {
-	case "PUT":
-		var req struct {
-			X        float64 `json:"x"`
-			Y        float64 `json:"y"`
-			Rotation int     `json:"rotation"`
-			Name     string  `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			sendError(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		_, err := db.Exec(`UPDATE scheme_components SET pos_x = $2, pos_y = $3, rotation = $4, custom_name = $5 WHERE id = $1`,
-			id, req.X, req.Y, req.Rotation, req.Name)
-		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-
-	case "DELETE":
-		_, err := db.Exec("DELETE FROM scheme_components WHERE id = $1", id)
-		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-	}
+	handleComponentMutation(w, r, db, id, false)
 }
 
 func handleComponentParams(w http.ResponseWriter, r *http.Request) {
@@ -719,39 +690,17 @@ func handleComponentParams(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Database not available", http.StatusServiceUnavailable)
 		return
 	}
-
 	parts := strings.Split(r.URL.Path, "/")
-	compID, err := strconv.Atoi(parts[len(parts)-2])
+	if len(parts) < 2 {
+		componentWriteError(w, http.StatusBadRequest, "invalid_component_id", "Некорректный ID оборудования")
+		return
+	}
+	id, err := strconv.Atoi(parts[len(parts)-2])
 	if err != nil {
-		sendError(w, "Invalid component ID", http.StatusBadRequest)
+		componentWriteError(w, http.StatusBadRequest, "invalid_component_id", "Некорректный ID оборудования")
 		return
 	}
-
-	var req struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-	if msg := validateRequired(map[string]interface{}{"key": req.Key, "value": req.Value}); msg != "" {
-		sendError(w, msg, http.StatusBadRequest)
-		return
-	}
-
-	_, err = db.Exec(`
-		INSERT INTO scheme_component_params (scheme_component_id, param_key, param_value)
-		VALUES ($1, $2, $3) ON CONFLICT (scheme_component_id, param_key)
-		DO UPDATE SET param_value = EXCLUDED.param_value`,
-		compID, req.Key, req.Value)
-	if err != nil {
-		sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	handleComponentMutation(w, r, db, id, true)
 }
 
 // ============================================================================

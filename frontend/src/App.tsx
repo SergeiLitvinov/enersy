@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import SchemeEditor from './components/ees/SchemeEditor';
 import './App.css';
 import { Icon } from './components/ui/Icon';
+import { ComponentWrites } from './components/ees/component-writes';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'ees' | 'legacy'>('ees');
+  const writeQueue = useRef(new ComponentWrites());
 
   return (
     <div className="app">
@@ -29,7 +31,7 @@ function App() {
 
       <main className="app-main">
         {activeTab === 'ees' ? (
-          <SchemeEditor />
+          <SchemeEditor writeQueue={writeQueue.current} />
         ) : (
           <LegacyAPI />
         )}

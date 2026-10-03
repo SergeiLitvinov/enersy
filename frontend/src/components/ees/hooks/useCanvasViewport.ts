@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { EditorComponent, getCompSize, ViewBox } from '../editor-utils';
+import { screenToViewBox, viewportTransform } from '../editor-viewport';
 
 const DEFAULT_VIEWBOX: ViewBox = { x: -500, y: -300, w: 1600, h: 1000 };
 
@@ -9,26 +10,19 @@ export function useCanvasViewport(containerRef: React.RefObject<HTMLDivElement |
   viewRef.current = viewBox;
 
   const getZoom = useCallback(() => 1600 / viewRef.current.w, []);
+  const getWorldUnitsPerPixel = useCallback(() => 1 / viewportTransform(viewRef.current,
+    containerRef.current!.getBoundingClientRect()).scale, [containerRef]);
 
   const screenToWorld = useCallback((clientX: number, clientY: number) => {
     const rect = containerRef.current!.getBoundingClientRect();
     const vb = viewRef.current;
-    const sx = (clientX - rect.left) / rect.width;
-    const sy = (clientY - rect.top) / rect.height;
-    return {
-      x: vb.x + sx * vb.w,
-      y: vb.y + sy * vb.h,
-    };
+    return screenToViewBox(vb, rect, clientX, clientY);
   }, [containerRef]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const vb = viewRef.current;
-    const rect = containerRef.current!.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / rect.width;
-    const my = (e.clientY - rect.top) / rect.height;
-    const wx = vb.x + mx * vb.w;
-    const wy = vb.y + my * vb.h;
+    const { x: wx, y: wy } = screenToWorld(e.clientX, e.clientY);
     const factor = e.deltaY > 0 ? 1.1 : 0.9;
     setViewBox({
       x: wx - (wx - vb.x) * factor,
@@ -36,7 +30,7 @@ export function useCanvasViewport(containerRef: React.RefObject<HTMLDivElement |
       w: vb.w * factor,
       h: vb.h * factor,
     });
-  }, [containerRef]);
+  }, [screenToWorld]);
 
   const zoomIn = useCallback(() => {
     setViewBox(v => { const f = 0.9; const cx = v.x + v.w / 2, cy = v.y + v.h / 2; return { x: cx - v.w * f / 2, y: cy - v.h * f / 2, w: v.w * f, h: v.h * f }; });
@@ -69,7 +63,7 @@ export function useCanvasViewport(containerRef: React.RefObject<HTMLDivElement |
 
   return {
     viewBox, setViewBox, viewRef,
-    getZoom, screenToWorld, handleWheel,
+    getZoom, getWorldUnitsPerPixel, screenToWorld, handleWheel,
     zoomIn, zoomOut, resetView, fitView,
   };
 }
