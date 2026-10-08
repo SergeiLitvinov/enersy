@@ -2,12 +2,15 @@ import type { ComponentPatch, SchemeComponent } from '../../api/ees-api';
 import { parseComponentRevision, type ComponentWriteResult } from '../../api/component-revision';
 import { ComponentDrafts, type ComponentDraft, type ComponentIntent } from './component-drafts';
 import { prepareRecoveryPatch } from './component-comparison';
+import { GraphWrites } from './graph-writes';
 
 export type ComponentPose = Pick<SchemeComponent, 'x' | 'y' | 'rotation' | 'name'>;
 
 /** FIFO per object. Recovery keeps failed intents until explicit resolution and a fresh load. */
 export class ComponentWrites {
   readonly drafts = new ComponentDrafts();
+  readonly graph = new GraphWrites();
+  private activity = 0;
   private entries = new Map<number, { tail: Promise<void>; failed: boolean; deleted?: boolean; revision: string; pose?: ComponentPose }>();
 
   private entry(component: Pick<SchemeComponent, 'id' | 'revision'>) {
@@ -33,6 +36,7 @@ export class ComponentWrites {
     recovery?: { schemeId: number; intent: ComponentIntent }): Promise<T | undefined> {
     const entry = this.entry(component);
     const ticket = recovery ? this.drafts.record(recovery.schemeId, component, recovery.intent) : undefined;
+    this.activity++;
     const result = entry.tail.then(async () => {
       if (!isCurrent()) { if (ticket) this.drafts.cancel(ticket); return undefined; }
       try {
@@ -79,6 +83,7 @@ export class ComponentWrites {
   recover(draft: ComponentDraft, server: SchemeComponent, selected: ReadonlySet<string>, isCurrent: () => boolean,
     apply?: (patch: ComponentPatch, revision: string) => Promise<ComponentWriteResult>): Promise<SchemeComponent | undefined> {
     const fields = new Set(selected);
+    this.activity++;
     const compared = { ...server, params: { ...server.params } };
     const entry = this.entry(compared);
     const result = entry.tail.then(async () => {
@@ -108,6 +113,7 @@ export class ComponentWrites {
    */
   recoverDeletion(draft: ComponentDraft, server: SchemeComponent | undefined, mode: 'keep' | 'delete', isCurrent: () => boolean,
     remove?: (revision: string) => Promise<ComponentWriteResult>): Promise<{ deleted: boolean; component?: SchemeComponent } | undefined> {
+    this.activity++;
     const compared = server ? { ...server, params: { ...server.params } } : undefined;
     const entry = this.entry(compared ?? draft.base);
     const result = entry.tail.then(async () => {
@@ -149,9 +155,18 @@ export class ComponentWrites {
     }
   }
 
+  async settleForCalculation(schemeId: number) {
+    for (;;) {
+      const activity = this.activity, graphVersion = this.graph.version;
+      await Promise.all([this.settle(), this.graph.settle(schemeId)]);
+      if (activity === this.activity && graphVersion === this.graph.version) return;
+    }
+  }
+
   reset() { this.entries.clear(); this.drafts.resetBaseline(); }
 
   assertConfirmed(schemeId?: number) {
+    if (schemeId !== undefined) this.graph.assertConfirmed(schemeId);
     if ([...this.entries.values()].some(entry => entry.failed) || (schemeId !== undefined && this.drafts.hasFailed(schemeId))) {
       throw new Error('Сохранение оборудования не подтверждено. Повторно загрузите схему и разрешите конфликт перед расчётом.');
     }

@@ -114,7 +114,9 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
       const params = await api.getComponentParams(item.code);
       // No write was dispatched yet; a selection change cancels this intent.
       if (!isCurrent()) return;
-      const r = await api.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId);
+      const r = await writes.current.graph.run(currentSchemeId,
+        { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, equipmentModelId },
+        () => api.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId));
       if (!isCurrent()) return;
       writes.current.seed(currentSchemeId, {
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
@@ -142,13 +144,14 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
   }, [components, currentSchemeId, captureView, notify]);
 
   const deleteConnection = useCallback(async (id: number) => {
+    if (!currentSchemeId) return;
     const isCurrent = captureView();
     try {
-      await api.deleteConnection(id);
+      await writes.current.graph.run(currentSchemeId, { kind: 'delete-connection', id }, () => api.deleteConnection(id));
       if (!isCurrent()) return;
       setConnections(prev => prev.filter(c => c.id !== id));
-    } catch { notify('Не удалось подтвердить удаление соединения. Повторно загрузите исходную схему.', 'error'); }
-  }, [captureView, notify]);
+    } catch { if (isCurrent()) notify('Удаление соединения не подтверждено. Требуется сверка топологии; расчёт заблокирован.', 'error'); }
+  }, [currentSchemeId, captureView, notify]);
 
   const handleCalculate = useCallback(async (modelGroup?: string, method?: string) => {
     if (!currentSchemeId) { notify('Создайте или выберите схему', 'info'); return null; }
@@ -159,7 +162,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
     setIsCalculating(true);
     setCalculationError('');
     try {
-      await writes.current.settle();
+      await writes.current.settleForCalculation(currentSchemeId);
       if (!isCurrent()) return null;
       writes.current.assertConfirmed(currentSchemeId);
       const result = await api.calculateScheme(currentSchemeId, method, modelGroup);
@@ -201,7 +204,8 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
     if (schemeId !== activeView.current.schemeId) return;
     const isCurrent = captureView();
     try {
-      const r = await api.addConnection(schemeId, from, to, fromPort, toPort);
+      const r = await writes.current.graph.run(schemeId,
+        { kind: 'create-connection', from, to, fromPort, toPort }, () => api.addConnection(schemeId, from, to, fromPort, toPort));
       if (!isCurrent()) return;
       setConnections(prev => [...prev, {
         id: r.id, from, to, fromPort, toPort,

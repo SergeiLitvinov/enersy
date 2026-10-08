@@ -369,13 +369,19 @@ export async function addConnection(
     body: JSON.stringify({ schemeId, from, to, fromPort, toPort }),
   });
   if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(typeof failure.error === 'string' ? failure.error : 'Не удалось сохранить соединение'); }
-  return response.json();
+  const acknowledgement = await response.json();
+  if (!acknowledgement || acknowledgement.success !== true || !Number.isSafeInteger(acknowledgement.id) || acknowledgement.id <= 0) {
+    throw new Error('Создание соединения не подтверждено сервером');
+  }
+  return { id: acknowledgement.id, success: true };
 }
 
 export async function deleteConnection(id: number): Promise<{ success: boolean }> {
   const response = await fetch(`${API_BASE}/connections/${id}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Failed to delete connection');
-  return response.json();
+  const acknowledgement = await response.json();
+  if (!acknowledgement || acknowledgement.success !== true) throw new Error('Удаление соединения не подтверждено сервером');
+  return { success: true };
 }
 
 // Calculation

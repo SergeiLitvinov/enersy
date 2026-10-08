@@ -1,7 +1,23 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { addComponent, addConnection, calculateScheme, calculationErrorMessage, getComputeCapabilities, parseCalculationResult } from './ees-api';
+import { addComponent, addConnection, deleteConnection, calculateScheme, calculationErrorMessage, getComputeCapabilities, parseCalculationResult } from './ees-api';
 
 afterEach(() => { vi.unstubAllGlobals(); });
+
+it('requires explicit connection creation and deletion acknowledgements even for HTTP 200', async () => {
+  const request = vi.fn(); vi.stubGlobal('fetch', request);
+  for (const reply of [null, {}, { success: false, id: 1 }, { success: true, id: 0 }, { success: true, id: '1' }, { success: true, id: 1.5 }]) {
+    request.mockResolvedValue({ ok: true, json: async () => reply });
+    await expect(addConnection(1, 2, 3, 'left', 'right')).rejects.toThrow('не подтверждено');
+  }
+  request.mockResolvedValue({ ok: true, json: async () => ({ success: true, id: 4 }) });
+  expect(await addConnection(1, 2, 3, 'left', 'right')).toEqual({ success: true, id: 4 });
+  for (const reply of [null, {}, { success: false }]) {
+    request.mockResolvedValue({ ok: true, json: async () => reply });
+    await expect(deleteConnection(4)).rejects.toThrow('не подтверждено');
+  }
+  request.mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+  expect(await deleteConnection(4)).toEqual({ success: true });
+});
 
 it('validates complete island partitions and independent slack references', () => {
   const nodes = [1, 2].map(id => ({ node_id: id, node_type: 'slack', island: id, voltage: 110, angle: id * 15, phase: 100, quadrature: 20 }));

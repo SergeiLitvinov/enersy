@@ -147,6 +147,37 @@ test('old calculation cannot unlock the current one or return a stale result', a
   expect(state.isCalculating).toBe(false);
 });
 
+test.each(['create', 'delete', 'component'] as const)('calculation waits for dispatched %s graph mutation', async kind => {
+  const reply = deferred<{ success: true; id: number; revision: string; params: Record<string, string>; equipmentModelId: null }>();
+  vi.mocked(api.addConnection).mockReturnValue(reply.promise);
+  vi.mocked(api.deleteConnection).mockReturnValue(reply.promise);
+  vi.mocked(api.addComponent).mockReturnValue(reply.promise);
+  vi.mocked(api.calculateScheme).mockResolvedValue(result('checked'));
+  let operation!: Promise<void>, calculation!: ReturnType<typeof state.handleCalculate>;
+  await act(async () => {
+    operation = kind === 'create' ? state.addConnection(1, 101, 102, 'left', 'right')
+      : kind === 'delete' ? state.deleteConnection(201) : state.addComponent(item, 10, 20);
+  });
+  await act(async () => { calculation = state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  await settle(() => reply.resolve({ success: true, id: 201, revision: '1', params: {}, equipmentModelId: null }));
+  await operation; await calculation;
+  expect(api.calculateScheme).toHaveBeenCalledOnce();
+});
+
+test('lost graph acknowledgement blocks calculation after reopening, but not another scheme', async () => {
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('network'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'left', 'right'); });
+  await select(2); await select(1);
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(state.calculationError).toContain('топологии');
+  await select(2);
+  vi.mocked(api.calculateScheme).mockResolvedValue(result('other'));
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).toHaveBeenCalledExactlyOnceWith(2, undefined, undefined);
+});
+
 test('captured view expires even when selections are batched back to the same ID', async () => {
   const isCurrent = state.captureView();
   await act(async () => { state.setCurrentSchemeId(2); state.setCurrentSchemeId(1); });
