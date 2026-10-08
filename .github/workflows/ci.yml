@@ -81,6 +81,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
+      - name: Build disposable command acceptance API
+        run: docker compose -f tests/integration/revision-compose.yml build go-api
+      - name: Verify lost TCP acknowledgement after commit
+        run: |
+          docker compose -f tests/integration/revision-compose.yml up -d --wait postgres go-api
+          docker compose -f tests/integration/revision-compose.yml --profile commands run --rm --no-deps connection-command-check
+      - name: Start real Julia reference worker
+        run: docker compose -f tests/integration/revision-compose.yml up -d --wait julia-compute
+      - name: Verify saved equipment through Go and Julia against independent reference
+        shell: pwsh
+        run: ./tests/integration/Test-GoJuliaReference.ps1
+      - name: Remove disposable command acceptance environment
+        if: always()
+        run: docker compose -f tests/integration/revision-compose.yml --profile commands down
 
   julia:
     name: Julia numerical and HTTP regression

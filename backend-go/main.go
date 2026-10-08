@@ -525,19 +525,27 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 		var name, description string
 		var createdAt, updatedAt string
 		var ownerID int
-		err := db.QueryRow("SELECT name, description, created_at, updated_at, owner_id FROM circuit_schemes WHERE id = $1", id).
+		// Metadata, equipment revisions/parameters and connectivity must describe
+		// one committed state, even when another client commits between queries.
+		tx, err := db.BeginTx(r.Context(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+		if err != nil {
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+		err = tx.QueryRowContext(r.Context(), "SELECT name, description, created_at, updated_at, owner_id FROM circuit_schemes WHERE id = $1", id).
 			Scan(&name, &description, &createdAt, &updatedAt, &ownerID)
 		if err == sql.ErrNoRows {
 			sendError(w, "Scheme not found", http.StatusNotFound)
 			return
 		}
 		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
 
 		components := []map[string]interface{}{}
-		compRows, err := db.Query(`
+		compRows, err := tx.QueryContext(r.Context(), `
 			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation, sc.custom_name,
 			       sc.equipment_model_id, ct.id, sc.revision, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
 			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb)
@@ -545,7 +553,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			JOIN component_types ct ON sc.component_type_id = ct.id
 			WHERE sc.scheme_id = $1`, id)
 		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
 		defer compRows.Close()
@@ -561,7 +569,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			var revision int64
 			var paramsJSON []byte
 			if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &paramsJSON); err != nil {
-				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
+				sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 				return
 			}
 			cname := ""
@@ -583,18 +591,18 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if err := compRows.Err(); err != nil {
-			sendError(w, "Database rows error: "+err.Error(), http.StatusInternalServerError)
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
 
 		connections := []map[string]interface{}{}
-		connRows, err := db.Query(`
+		connRows, err := tx.QueryContext(r.Context(), `
 			SELECT c.id, c.from_component_id, c.to_component_id, c.from_port, c.to_port,
 			COALESCE(to_json(v.reasons), '[]'::json)
 			FROM scheme_connections c LEFT JOIN invalid_scheme_connections v ON v.id=c.id
 			WHERE c.scheme_id = $1`, id)
 		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
 		defer connRows.Close()
@@ -604,7 +612,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			var fromPort, toPort string
 			var reasonsJSON []byte
 			if err := connRows.Scan(&connectionID, &from, &to, &fromPort, &toPort, &reasonsJSON); err != nil {
-				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
+				sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 				return
 			}
 			var reasons []string
@@ -618,7 +626,11 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if err := connRows.Err(); err != nil {
-			sendError(w, "Database rows error: "+err.Error(), http.StatusInternalServerError)
+			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			sendError(w, "Could not complete scheme snapshot", http.StatusInternalServerError)
 			return
 		}
 
@@ -754,78 +766,15 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	components := []map[string]interface{}{}
-	connections := []map[string]interface{}{}
-
-	if db != nil {
-		compRows, err := db.Query(`
-			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation
-			FROM scheme_components sc
-			JOIN component_types ct ON sc.component_type_id = ct.id
-			WHERE sc.scheme_id = $1`, schemeID)
-		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer compRows.Close()
-
-		for compRows.Next() {
-			var id int
-			var code string
-			var x, y float64
-			var rotation int
-			if err := compRows.Scan(&id, &code, &x, &y, &rotation); err != nil {
-				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			paramRows, err := db.Query("SELECT param_key, param_value FROM scheme_component_params WHERE scheme_component_id = $1", id)
-			if err != nil {
-				sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			params := map[string]string{}
-			for paramRows.Next() {
-				var key, value string
-				if err := paramRows.Scan(&key, &value); err != nil {
-					paramRows.Close()
-					sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
-					return
-				}
-				params[key] = value
-			}
-			paramRows.Close()
-
-			components = append(components, map[string]interface{}{
-				"id": id, "type": code, "x": x, "y": y, "rotation": rotation, "params": params,
-			})
-		}
-
-		if err := compRows.Err(); err != nil {
-			sendError(w, "Database rows error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		connRows, err := db.Query(`
-			SELECT from_component_id, to_component_id, from_port, to_port
-			FROM scheme_connections WHERE scheme_id = $1`, schemeID)
-		if err != nil {
-			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer connRows.Close()
-
-		for connRows.Next() {
-			var from, to int
-			var fromPort, toPort string
-			if err := connRows.Scan(&from, &to, &fromPort, &toPort); err != nil {
-				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			connections = append(connections, map[string]interface{}{
-				"from": from, "to": to, "fromPort": fromPort, "toPort": toPort,
-			})
-		}
+	input, err := readCalculationInput(r.Context(), db, schemeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		sendError(w, "Scheme not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		slog.Error("calculation input read failed", "scheme_id", schemeID, "error", err)
+		sendError(w, "Could not read calculation snapshot", http.StatusInternalServerError)
+		return
 	}
 
 	// Прокси на Julia
@@ -839,8 +788,8 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	calcReq, err := json.Marshal(map[string]interface{}{
-		"components":  components,
-		"connections": connections,
+		"components":  input.Components,
+		"connections": input.Connections,
 		"modelGroup":  modelGroup,
 		"method":      method,
 	})

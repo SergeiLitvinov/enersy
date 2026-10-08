@@ -76,6 +76,34 @@ test('an unreadable post-retry topology retains the original intention and calcu
   expect(api.calculateScheme).not.toHaveBeenCalled();
 });
 
+test('connection retry refreshes topology without accepting a conflicting parameter draft', async () => {
+  const original = { ...component, params: { voltage_nom: '110' }, paramTemplate: [] };
+  await act(async () => { state.setComponents([original]); });
+  vi.mocked(api.setComponentParam).mockRejectedValue(new ComponentWriteError('conflict', 412, 'component_revision_conflict'));
+  await act(async () => { await state.saveComponentParam(101, 'voltage_nom', '230'); });
+  const draft = state.failedDrafts[0];
+  expect(draft.base.params.voltage_nom).toBe('110');
+  expect(draft.intents).toEqual([{ kind: 'parameter', key: 'voltage_nom', value: '230' }]);
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('TCP acknowledgement lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'right', 'left'); });
+  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1,
+    components: [{ ...component, revision: '2', params: { voltage_nom: '220' } }, { ...component, id: 102 }],
+    connections: [{ id: 201, from: 101, to: 102, fromPort: 'right', toPort: 'left' }] });
+  const review = await state.reviewGraph();
+  vi.mocked(api.addConnection).mockResolvedValue({ id: 201, success: true, commandId: '11111111-1111-4111-8111-111111111111' });
+  await act(async () => { await state.retryGraphConnection(review, review.failures[0].id); });
+  expect(state.connections).toEqual(review.server.connections);
+  expect(state.failedGraph).toHaveLength(0);
+  expect(state.failedDrafts).toEqual([draft]);
+  expect(state.components.find(c => c.id === 101)).toEqual(original);
+  expect(state.components.find(c => c.id === 102)?.revision).toBe('1');
+  expect(state.parameterResets[101]).toBeUndefined();
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(api.setComponentParam).toHaveBeenCalledOnce();
+  expect(api.patchComponent).not.toHaveBeenCalled();
+});
+
 test('graph acceptance refreshes server topology while retaining failed component drafts and poses', async () => {
   await act(async () => { state.setComponents([{ ...component, x: 17, paramTemplate: [] }]); });
   vi.mocked(api.updateComponent).mockRejectedValue(new Error('pose lost'));
