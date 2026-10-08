@@ -11,6 +11,7 @@ export class ComponentWrites {
   readonly drafts = new ComponentDrafts();
   readonly graph = new GraphWrites();
   private activity = 0;
+  get version() { return this.activity; }
   private entries = new Map<number, { tail: Promise<void>; failed: boolean; deleted?: boolean; revision: string; pose?: ComponentPose }>();
 
   private entry(component: Pick<SchemeComponent, 'id' | 'revision'>) {

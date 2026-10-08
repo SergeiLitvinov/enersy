@@ -356,16 +356,26 @@ export async function setComponentParam(
 }
 
 // Connections
+/** Random command identity, also available on local HTTP deployments. */
+export function newConnectionCommandId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export async function addConnection(
   schemeId: number,
   from: number,
   to: number,
   fromPort: string,
-  toPort: string
-): Promise<{ id: number; success: boolean }> {
-  const response = await fetch(`${API_BASE}/connections`, {
+  toPort: string,
+  commandId?: string
+): Promise<{ id: number; success: boolean; commandId?: string }> {
+  const response = await fetch(`${API_BASE}/${commandId === undefined ? 'connections' : 'connection-commands'}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(commandId === undefined ? {} : { 'Idempotency-Key': commandId }) },
     body: JSON.stringify({ schemeId, from, to, fromPort, toPort }),
   });
   if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(typeof failure.error === 'string' ? failure.error : 'Не удалось сохранить соединение'); }
@@ -373,6 +383,10 @@ export async function addConnection(
   if (!acknowledgement || acknowledgement.success !== true || !Number.isSafeInteger(acknowledgement.id) || acknowledgement.id <= 0) {
     throw new Error('Создание соединения не подтверждено сервером');
   }
+  if (commandId !== undefined && acknowledgement.commandId !== commandId.toLowerCase()) {
+    throw new Error('Сервер не подтвердил идентичность команды создания связи');
+  }
+  if (commandId !== undefined) return { id: acknowledgement.id, success: true, commandId: acknowledgement.commandId };
   return { id: acknowledgement.id, success: true };
 }
 

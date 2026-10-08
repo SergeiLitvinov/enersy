@@ -15,6 +15,7 @@ import { CalculationResult } from '../../api/ees-api';
 import { Icon } from '../ui/Icon';
 import { NewSchemeDialog } from './panels/NewSchemeDialog';
 import { RecoveryDialog } from './panels/RecoveryDialog';
+import { GraphRecoveryDialog } from './panels/GraphRecoveryDialog';
 import { useNotify } from '../NotificationProvider';
 import './SchemeEditor.css';
 import './workspace.css';
@@ -38,8 +39,11 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     addComponent, deleteSelectedComponent, deleteConnection,
     handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
     isCalculating, calculationError, loadedSchemeId, captureView, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
+    failedGraph, reviewGraph, acceptGraphServer, retryGraphConnection,
   } = useSchemeData(schemeId, writeQueue);
   const [reviewComponent, setReviewComponent] = useState<number | null>(null);
+  const [reviewTopology, setReviewTopology] = useState(false);
+  useEffect(() => { setReviewTopology(false); }, [currentSchemeId]);
   useEffect(() => { setReviewComponent(null); }, [currentSchemeId]);
   const reviewedDraft = failedDrafts.find(draft => draft.componentId === reviewComponent);
   useEffect(() => {
@@ -293,6 +297,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           onResetView={() => fitView(components)}
         />
         {calculationError && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Расчёт не выполнен</strong><p>{calculationError}</p></div></div>}
+        {failedGraph.length > 0 && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Состав схемы требует сверки</strong><p>Неподтверждённых операций: {failedGraph.length}. Расчёт заблокирован до явного разрешения.</p><button className="tool-btn" onClick={() => { resetInteraction(); setReviewTopology(true); }}>Сверить состав схемы</button></div></div>}
         {failedDrafts.length > 0 && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Сохранение требует проверки</strong><p>Неподтверждённые правки сохранены в журнале этой вкладки. Расчёт заблокирован до разрешения проблемы.</p><div className="connection-diagnostics-list">{failedDrafts.map(draft => <p key={draft.componentId}><button className="tool-btn" onClick={() => setReviewComponent(draft.componentId)}>Сверить {draft.base.name} #{draft.componentId}</button></p>)}</div></div></div>}
         {invalidConnections.length > 0 && <div className="calculation-error" role="alert"><Icon name="alert" /><div><strong>Соединения требуют исправления: {invalidConnections.length}</strong><p>Сохранённые данные оставлены для проверки. Выберите связь, чтобы исправить схему или удалить её.</p><div className="connection-diagnostics-list">{invalidConnections.map(c => <p key={c.id}><button className="tool-btn" onClick={() => { setSelectedConnection(c.id); setSelectedComponent(null); }}>Выбрать связь #{c.id}</button> {(c.validationErrors || []).map(reason => connectionReasons[reason] || reason).join('; ')}</p>)}</div></div></div>}
 
@@ -341,6 +346,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
 
       {resultsVisible && lastResult && <ResultsModal result={lastResult} schemeName={schemeName} onClose={closeModal} />}
       {reviewedDraft && <RecoveryDialog key={`${reviewedDraft.schemeId}:${reviewedDraft.componentId}`} draft={reviewedDraft} onResolve={resolveComponentDraft} onResolveDeletion={resolveComponentDeletion} onClose={() => setReviewComponent(null)} />}
+      {reviewTopology && <GraphRecoveryDialog key={currentSchemeId} onRead={reviewGraph} onAccept={acceptGraphServer} onRetry={retryGraphConnection} onClose={() => setReviewTopology(false)} />}
       {createDialog && <NewSchemeDialog onCreate={async (name, description) => { const created = await handleCreateScheme(name, description); if (created) { setLastResult(null); setSelectedComponent(null); setSelectedConnection(null); } return created; }} onClose={() => setCreateDialog(false)} />}
       {pendingDrop && (
         <ModelSelectModal

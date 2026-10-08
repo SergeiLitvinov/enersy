@@ -6,6 +6,20 @@ import { useNotify } from '../../NotificationProvider';
 import { ComponentWrites, type ComponentPose } from '../component-writes';
 import { ComponentWriteError } from '../../../api/component-revision';
 import type { ComponentDraft } from '../component-drafts';
+import type { GraphReview, GraphSnapshot } from '../graph-writes';
+
+async function readGraphServer(schemeId: number) {
+  const server = await api.getScheme(schemeId);
+  if (server.id !== schemeId || !Array.isArray(server.components) || !Array.isArray(server.connections)) {
+    throw new Error('Сервер не подтвердил полный состав исходной схемы');
+  }
+  const snapshot: GraphSnapshot = { id: server.id, components: server.components, connections: server.connections };
+  const templates = new Map<number, api.ComponentParam[]>();
+  await Promise.all(snapshot.components.map(async component => {
+    templates.set(component.id, await api.getComponentParams(component.type).catch(() => []));
+  }));
+  return { snapshot, templates };
+}
 
 function writeErrorMessage(error: unknown, fallback: string) {
   return error instanceof ComponentWriteError ? error.message : fallback;
@@ -27,6 +41,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
   const activeView = useRef({ schemeId });
   const calculationRequest = useRef<object | null>(null);
   const writes = useRef(writeQueue ?? new ComponentWrites());
+  const graphReviews = useRef(new WeakMap<GraphReview, { isCurrent: () => boolean; version: number; templates: Map<number, api.ComponentParam[]> }>());
   const captureView = useCallback(() => {
     const view = activeView.current;
     return () => activeView.current === view;
@@ -126,7 +141,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
         x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, paramTemplate: params,
       }]);
-    } catch (e) { notify('Не удалось подтвердить сохранение оборудования. Проверьте схему после повторной загрузки.', 'error'); throw e; }
+    } catch (e) { if (isCurrent()) { refreshRecovery(version => version + 1); notify('Не удалось подтвердить сохранение оборудования. Проверьте схему после повторной загрузки.', 'error'); } throw e; }
   }, [currentSchemeId, notify, captureView]);
 
   const deleteSelectedComponent = useCallback(async (id: number) => {
@@ -150,7 +165,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
       await writes.current.graph.run(currentSchemeId, { kind: 'delete-connection', id }, () => api.deleteConnection(id));
       if (!isCurrent()) return;
       setConnections(prev => prev.filter(c => c.id !== id));
-    } catch { if (isCurrent()) notify('Удаление соединения не подтверждено. Требуется сверка топологии; расчёт заблокирован.', 'error'); }
+    } catch { if (isCurrent()) { refreshRecovery(version => version + 1); notify('Удаление соединения не подтверждено. Требуется сверка топологии; расчёт заблокирован.', 'error'); } }
   }, [currentSchemeId, captureView, notify]);
 
   const handleCalculate = useCallback(async (modelGroup?: string, method?: string) => {
@@ -204,14 +219,87 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
     if (schemeId !== activeView.current.schemeId) return;
     const isCurrent = captureView();
     try {
+      const commandId = api.newConnectionCommandId();
       const r = await writes.current.graph.run(schemeId,
-        { kind: 'create-connection', from, to, fromPort, toPort }, () => api.addConnection(schemeId, from, to, fromPort, toPort));
+        { kind: 'create-connection', commandId, from, to, fromPort, toPort }, () => api.addConnection(schemeId, from, to, fromPort, toPort, commandId));
       if (!isCurrent()) return;
       setConnections(prev => [...prev, {
         id: r.id, from, to, fromPort, toPort,
       }]);
-    } catch (err) { notify(err instanceof Error ? err.message : 'Не удалось сохранить соединение', 'error'); }
+    } catch (err) { if (isCurrent()) { refreshRecovery(version => version + 1); notify(err instanceof Error ? err.message : 'Не удалось сохранить соединение', 'error'); } }
   }, [notify, captureView]);
+
+  const reviewGraph = useCallback(async (): Promise<GraphReview> => {
+    if (!currentSchemeId) throw new Error('Выберите исходную схему');
+    const isCurrent = captureView();
+    await writes.current.settleForCalculation(currentSchemeId);
+    if (!isCurrent()) throw new Error('Рабочий контекст изменился. Повторно откройте сверку.');
+    const version = writes.current.version;
+    let templates = new Map<number, api.ComponentParam[]>();
+    const review = await writes.current.graph.review(currentSchemeId, async () => {
+      const read = await readGraphServer(currentSchemeId);
+      templates = read.templates;
+      return read.snapshot;
+    });
+    if (!isCurrent() || version !== writes.current.version) throw new Error('Во время чтения появились правки. Повторно откройте сверку.');
+    graphReviews.current.set(review, { isCurrent, version, templates });
+    return review;
+  }, [currentSchemeId, captureView]);
+
+  const applyGraphSnapshot = useCallback((server: GraphSnapshot, templates: Map<number, api.ComponentParam[]>) => {
+    if (!currentSchemeId || server.id !== currentSchemeId) throw new Error('Рабочая схема изменилась');
+    const failedIds = new Set(writes.current.drafts.failed(currentSchemeId).map(draft => draft.componentId));
+    for (const component of server.components) if (!failedIds.has(component.id)) writes.current.seed(currentSchemeId, component);
+    setComponents(previous => {
+      const local = new Map(previous.map(component => [component.id, component]));
+      const present = new Set(server.components.map(component => component.id));
+      return [
+        ...server.components.map(component => failedIds.has(component.id) && local.has(component.id) ? local.get(component.id)! :
+          { ...component, paramTemplate: local.get(component.id)?.paramTemplate ?? templates.get(component.id) ?? [] }),
+        ...previous.filter(component => failedIds.has(component.id) && !present.has(component.id)),
+      ];
+    });
+    setConnections(server.connections);
+    setCalculationError('');
+  }, [currentSchemeId]);
+
+  const acceptGraphServer = useCallback(async (review: GraphReview, selected: ReadonlySet<number>) => {
+    const context = graphReviews.current.get(review);
+    if (!currentSchemeId || !context?.isCurrent() || context.version !== writes.current.version) {
+      throw new Error('Сравнение устарело. Повторно откройте сверку.');
+    }
+    const server = writes.current.graph.acceptServer(review, currentSchemeId, new Set(selected));
+    applyGraphSnapshot(server, context.templates);
+    graphReviews.current.delete(review);
+    refreshRecovery(version => version + 1);
+  }, [currentSchemeId, applyGraphSnapshot]);
+
+  const retryGraphConnection = useCallback(async (review: GraphReview, failureId: number) => {
+    const context = graphReviews.current.get(review);
+    if (!currentSchemeId || !context?.isCurrent() || context.version !== writes.current.version) {
+      throw new Error('Сравнение устарело. Повторно откройте сверку.');
+    }
+    const expectedGraphVersion = writes.current.graph.versionFor(currentSchemeId) + 1;
+    const unchanged = () => context.isCurrent() && context.version === writes.current.version;
+    const assertFresh = () => {
+      if (!unchanged() || writes.current.graph.versionFor(currentSchemeId) !== expectedGraphVersion) {
+        throw new Error('Во время повтора появились правки. Повторно сверьте состав схемы.');
+      }
+    };
+    try {
+      await writes.current.graph.retryConnection(review, currentSchemeId, failureId, unchanged,
+        intent => api.addConnection(currentSchemeId, intent.from, intent.to, intent.fromPort, intent.toPort, intent.commandId),
+        async () => {
+          assertFresh();
+          const read = await readGraphServer(currentSchemeId);
+          assertFresh();
+          applyGraphSnapshot(read.snapshot, read.templates);
+        });
+    } finally {
+      graphReviews.current.delete(review);
+      if (context.isCurrent()) refreshRecovery(version => version + 1);
+    }
+  }, [currentSchemeId, applyGraphSnapshot]);
 
   const resolveComponentDraft = useCallback(async (draft: ComponentDraft, server: api.SchemeComponent, fields: ReadonlySet<string>, mode: 'apply' | 'accept') => {
     if (draft.schemeId !== currentSchemeId) throw new Error('Повторно откройте исходную схему');
@@ -267,5 +355,6 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites) {
     handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
     isCalculating, calculationError, loadedSchemeId, captureView, resolveComponentDraft, resolveComponentDeletion,
     failedDrafts: currentSchemeId ? writes.current.drafts.failed(currentSchemeId) : [],
+    failedGraph: currentSchemeId ? writes.current.graph.failed(currentSchemeId) : [], reviewGraph, acceptGraphServer, retryGraphConnection,
   };
 }

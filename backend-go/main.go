@@ -87,6 +87,7 @@ func main() {
 	mux.HandleFunc("/api/ees/components", enableCORS(handleComponents))
 	mux.HandleFunc("/api/ees/components/", enableCORS(handleComponentByIDOrParams))
 	mux.HandleFunc("/api/ees/connections", enableCORS(handleConnections))
+	mux.HandleFunc("/api/ees/connection-commands", enableCORS(handleConnectionCommands))
 	mux.HandleFunc("/api/ees/connections/", enableCORS(handleConnectionByID))
 	mux.HandleFunc("/api/ees/calculate/", enableCORS(handleCalculate))
 	mux.HandleFunc("/api/ees/capabilities", enableCORS(handleCapabilities))
@@ -217,7 +218,7 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, If-Match")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, If-Match, Idempotency-Key")
 		w.Header().Set("Access-Control-Expose-Headers", "ETag")
 
 		if r.Method == "OPTIONS" {

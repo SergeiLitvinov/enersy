@@ -1,7 +1,36 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { addComponent, addConnection, deleteConnection, calculateScheme, calculationErrorMessage, getComputeCapabilities, parseCalculationResult } from './ees-api';
+import { addComponent, addConnection, newConnectionCommandId, deleteConnection, calculateScheme, calculationErrorMessage, getComputeCapabilities, parseCalculationResult } from './ees-api';
 
 afterEach(() => { vi.unstubAllGlobals(); });
+
+it('retains an explicit command key and payload when a connection request is repeated', async () => {
+  const first = newConnectionCommandId(), second = newConnectionCommandId();
+  expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  expect(first).not.toBe(second);
+  const request = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, id: 4, commandId: first }) });
+  vi.stubGlobal('fetch', request);
+  await addConnection(1, 2, 3, 'left', 'right', first);
+  await addConnection(1, 2, 3, 'left', 'right', first);
+  expect(request.mock.calls[0]).toEqual(request.mock.calls[1]);
+  expect(request.mock.calls[0][1].headers['Idempotency-Key']).toBe(first);
+  expect(request.mock.calls[0][0]).toBe('/api/ees/connection-commands');
+});
+
+it('never falls back to legacy creation when the protected route is unavailable', async () => {
+  const request = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+  vi.stubGlobal('fetch', request);
+  await expect(addConnection(1, 2, 3, 'left', 'right', '11111111-1111-4111-8111-111111111111')).rejects.toThrow();
+  expect(request).toHaveBeenCalledOnce();
+  expect(request.mock.calls[0][0]).toBe('/api/ees/connection-commands');
+});
+
+it('does not confirm a keyed command with a legacy or unrelated acknowledgement', async () => {
+  const commandId = '11111111-1111-4111-8111-111111111111';
+  for (const returned of [undefined, '22222222-2222-4222-8222-222222222222']) {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, id: 4, commandId: returned }) }));
+    await expect(addConnection(1, 2, 3, 'left', 'right', commandId)).rejects.toThrow('идентичность');
+  }
+});
 
 it('requires explicit connection creation and deletion acknowledgements even for HTTP 200', async () => {
   const request = vi.fn(); vi.stubGlobal('fetch', request);

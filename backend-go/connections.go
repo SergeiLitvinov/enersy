@@ -26,6 +26,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Database not available", http.StatusServiceUnavailable)
 		return
 	}
+	commandKey, err := connectionCommandKey(r)
+	if err != nil {
+		sendError(w, "Idempotency-Key должен содержать один UUID команды", 400)
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	decoder := json.NewDecoder(r.Body)
 	var req connectionRequest
@@ -58,6 +63,22 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if commandKey != "" {
+		id, replayed, err := replayConnectionCommand(r.Context(), tx, req, commandKey)
+		if errors.Is(err, errConnectionCommandConflict) {
+			sendError(w, "Ключ команды уже использован с другими данными", 409)
+			return
+		}
+		if err != nil {
+			sendError(w, "Не удалось проверить подтверждение команды", 500)
+			return
+		}
+		if replayed {
+			w.Header().Set("Idempotency-Replayed", "true")
+			connectionAcknowledgement(w, id, commandKey)
+			return
+		}
+	}
 	endpoints := []struct {
 		id   int
 		port string
@@ -101,10 +122,16 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Соединение не сохранено: проверьте актуальность схемы", 409)
 		return
 	}
+	if commandKey != "" {
+		_, err = tx.ExecContext(r.Context(), `INSERT INTO connection_commands(scheme_id,command_id,payload_hash,connection_id) VALUES($1,$2,$3,$4)`, req.SchemeID, commandKey, connectionPayloadHash(req), id)
+		if err != nil {
+			sendError(w, "Не удалось сохранить подтверждение команды", 500)
+			return
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		sendError(w, "Не удалось подтвердить сохранение соединения", 500)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id, "success": true})
+	connectionAcknowledgement(w, id, commandKey)
 }

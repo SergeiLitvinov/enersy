@@ -33,12 +33,93 @@ beforeEach(async () => {
   vi.mocked(api.getComponentTypes).mockResolvedValue([]);
   vi.mocked(api.getSchemes).mockResolvedValue([]);
   vi.mocked(api.getComponentParams).mockResolvedValue([]);
+  vi.mocked(api.newConnectionCommandId).mockReturnValue('11111111-1111-4111-8111-111111111111');
   vi.mocked(api.addComponent).mockResolvedValue({ id: 103, revision: '1', success: true, params: {}, equipmentModelId: null });
   vi.mocked(api.getScheme).mockImplementation(async id => ({ id, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [], connections: [] }));
   root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<Harness />); });
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); });
+
+test('retry keeps calculation waiting for the fresh topology and does not invent a deleted connection', async () => {
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
+  const review = await state.reviewGraph();
+  const read = deferred<api.Scheme>();
+  vi.mocked(api.getScheme).mockReturnValue(read.promise);
+  vi.mocked(api.addConnection).mockResolvedValue({ id: 9, success: true, commandId: '11111111-1111-4111-8111-111111111111' });
+  let retry!: Promise<void>, calculation!: Promise<api.CalculationResult | null>;
+  await act(async () => { retry = state.retryGraphConnection(review, review.failures[0].id); });
+  await act(async () => { calculation = state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(state.failedGraph).toHaveLength(1);
+  await act(async () => {
+    read.resolve({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [], connections: [] });
+    await retry; await calculation;
+  });
+  expect(state.connections).toEqual([]);
+  expect(state.failedGraph).toHaveLength(0);
+  expect(api.calculateScheme).toHaveBeenCalledOnce();
+  expect(api.addConnection).toHaveBeenLastCalledWith(1, 101, 102, 'a', 'b', '11111111-1111-4111-8111-111111111111');
+});
+
+test('an unreadable post-retry topology retains the original intention and calculation block', async () => {
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
+  const review = await state.reviewGraph();
+  const original = state.failedGraph[0];
+  vi.mocked(api.addConnection).mockResolvedValue({ id: 9, success: true, commandId: '11111111-1111-4111-8111-111111111111' });
+  vi.mocked(api.getScheme).mockRejectedValue(new Error('fresh read failed'));
+  await act(async () => { await expect(state.retryGraphConnection(review, original.id)).rejects.toThrow('fresh read failed'); });
+  expect(state.failedGraph).toEqual([{ ...original, reason: 'fresh read failed' }]);
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+});
+
+test('graph acceptance refreshes server topology while retaining failed component drafts and poses', async () => {
+  await act(async () => { state.setComponents([{ ...component, x: 17, paramTemplate: [] }]); });
+  vi.mocked(api.updateComponent).mockRejectedValue(new Error('pose lost'));
+  await act(async () => { await state.updateComponentPosition(101, 17, 20); });
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('connection lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
+  expect(state.failedGraph).toHaveLength(1);
+  expect(state.failedGraph[0].intent).toEqual({ kind: 'create-connection', commandId: '11111111-1111-4111-8111-111111111111', from: 101, to: 102, fromPort: 'a', toPort: 'b' });
+  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1,
+    components: [{ ...component, revision: '9', x: 999 }, { ...component, id: 102 }],
+    connections: [{ id: 201, from: 101, to: 102, fromPort: 'a', toPort: 'b' }] });
+  let review!: Awaited<ReturnType<typeof state.reviewGraph>>;
+  await act(async () => { review = await state.reviewGraph(); });
+  await act(async () => { await state.acceptGraphServer(review, new Set(review.failures.map(f => f.id))); });
+  expect(state.components.find(c => c.id === 101)?.x).toBe(17);
+  expect(state.components.find(c => c.id === 102)).toBeDefined();
+  expect(state.connections[0].id).toBe(201);
+  expect(state.failedDrafts).toHaveLength(1);
+  expect(state.failedGraph).toHaveLength(0);
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(api.addConnection).toHaveBeenCalledOnce();
+});
+
+test('graph acceptance does not enter a reopened view and does not clear its failure', async () => {
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
+  const review = await state.reviewGraph();
+  await select(2); await select(1);
+  await expect(state.acceptGraphServer(review, new Set(review.failures.map(f => f.id)))).rejects.toThrow('устарело');
+  expect(state.failedGraph).toHaveLength(1);
+});
+
+test('component edits after graph comparison require a new read', async () => {
+  await act(async () => { state.setComponents([{ ...component, paramTemplate: [] }]); });
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('lost'));
+  await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
+  const review = await state.reviewGraph();
+  vi.mocked(api.setComponentParam).mockResolvedValue({ success: true, revision: '2' });
+  await act(async () => { await state.saveComponentParam(101, 'u', '110'); });
+  await expect(state.acceptGraphServer(review, new Set(review.failures.map(f => f.id)))).rejects.toThrow('устарело');
+  expect(state.failedGraph).toHaveLength(1);
+  expect(state.components[0].params.u).toBe('110');
+});
 
 test('component confirmation cannot enter another scheme, including A → B → A', async () => {
   const reply = deferred<Awaited<ReturnType<typeof api.addComponent>>>();

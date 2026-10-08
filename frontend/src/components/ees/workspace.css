@@ -87,6 +87,9 @@
 .recovery-table th, .recovery-table td { padding: 12px; text-align: left; border-top: 1px solid var(--border-color); }
 .recovery-table td, .recovery-table th { white-space: normal; overflow-wrap: anywhere; min-width: 100px; }
 .recovery-actions { flex-wrap: wrap; }
+.graph-retry-notice { display: block; }
+.graph-retry-notice label { display: flex; align-items: flex-start; gap: 8px; }
+.graph-retry-notice input { margin-top: 5px; flex-shrink: 0; }
 .recovery-deletion { display: block; }
 .recovery-deletion p { margin: 0 0 10px; }
 .recovery-deletion > label { display: flex; align-items: flex-start; gap: 8px; }
