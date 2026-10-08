@@ -1,0 +1,4 @@
+DROP INDEX scheme_connections_to_scheme_idx;
+DROP INDEX scheme_connections_from_scheme_idx;
+DROP INDEX scheme_connections_scheme_idx;
+DROP INDEX scheme_components_scheme_idx;

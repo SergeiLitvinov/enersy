@@ -31,7 +31,7 @@ const files = (await Promise.all(groups.map(walk))).flat().sort();
 // Publish only explicitly selected, project-owned measurement artifacts.
 const reports = path.join(site, 'public/reports');
 await mkdir(reports, { recursive: true });
-for (const name of ['sparse-ac-2026-10-03.json']) {
+for (const name of ['sparse-ac-2026-10-03.json', 'storage-snapshot-2026-10-08.json']) {
   await writeFile(path.join(reports, name), await readFile(path.join(root, 'docs/reports', name)));
 }
 const index = ['# Справочник исходников', '', 'Автоматически собран из текущего рабочего дерева. Индекс объявлений — текстовый: он не разрешает перегрузки и типы. Полные исходники сохраняют комментарии, Julia docstrings и SQL-ограничения. Для транспортного TypeScript API доступна отдельная семантическая документация TypeDoc.', '', '[Открыть TypeScript API](/api/typescript/index.html)', ''];

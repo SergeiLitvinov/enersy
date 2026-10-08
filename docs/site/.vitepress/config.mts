@@ -25,6 +25,7 @@ export default defineConfig({
         { text: 'Реестр дефектов', link: '/development/defects' },
         { text: 'Численная проверка', link: '/development/numerical-validation' },
         { text: 'Разреженные расчёты', link: '/development/sparse-compute' },
+        { text: 'Профиль хранения', link: '/development/storage-profile' },
         { text: 'Обновление базы', link: '/development/database' },
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },

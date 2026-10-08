@@ -1,6 +1,27 @@
 # Disposable acceptance environment. Never uses the application database volume.
 name: enersy-revision-acceptance
 services:
+  snapshot-profile-check:
+    image: golang:1.24-alpine
+    profiles: [snapshot-profile]
+    networks: [default, web]
+    cpus: 2
+    mem_limit: 1g
+    working_dir: /workspace/backend-go
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache:/reports
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      GOMAXPROCS: 2
+      TEST_DATABASE_URL: host=postgres port=5432 user=acceptance password=disposable_acceptance dbname=revision_acceptance sslmode=disable
+      ENERSY_SNAPSHOT_PROFILE_OUTPUT: /reports/snapshot-profile.json
+    command: ["sh", "-c", "go vet ./... && go test -run '^TestCalculationSnapshotProfilePostgres$$' -v -count=1 ./..."]
+    depends_on:
+      postgres:
+        condition: service_healthy
   connection-command-fault:
     image: node:20-alpine
     profiles: [browser-fault]

@@ -1,0 +1,292 @@
+{
+  "started_utc": "2026-10-08T20:51:24Z",
+  "contract": "enersy.storage-snapshot-profile.v1",
+  "go": "go1.24.13",
+  "os": "linux",
+  "arch": "amd64",
+  "visible_cpus": 16,
+  "gomaxprocs": 2,
+  "postgresql": "PostgreSQL 15.18 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "fixture": "deterministic busbar chain, IDs 1..N, voltage_nom=110 kV, N-1 right-to-left links; storage only",
+  "measurements": [
+    {
+      "components": 1000,
+      "connections": 999,
+      "first_read": {
+        "milliseconds": 5.982846,
+        "allocated_bytes": 1087840
+      },
+      "samples": [
+        {
+          "milliseconds": 4.777265,
+          "allocated_bytes": 1088128
+        },
+        {
+          "milliseconds": 6.469911,
+          "allocated_bytes": 1087936
+        },
+        {
+          "milliseconds": 5.686441,
+          "allocated_bytes": 1091504
+        },
+        {
+          "milliseconds": 5.546219,
+          "allocated_bytes": 1089664
+        },
+        {
+          "milliseconds": 5.530494,
+          "allocated_bytes": 1089680
+        },
+        {
+          "milliseconds": 5.610443,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 5.390978,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 5.125243,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.823595,
+          "allocated_bytes": 1087504
+        },
+        {
+          "milliseconds": 3.870899,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.800292,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.850038,
+          "allocated_bytes": 1090096
+        },
+        {
+          "milliseconds": 5.09338,
+          "allocated_bytes": 1090992
+        },
+        {
+          "milliseconds": 3.801854,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 4.363905,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.822105,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.731289,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.780423,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.686881,
+          "allocated_bytes": 1087408
+        },
+        {
+          "milliseconds": 3.782486,
+          "allocated_bytes": 1092144
+        }
+      ],
+      "p50_milliseconds": 3.870899,
+      "p95_milliseconds": 5.686441,
+      "p50_allocated_bytes": 1087408
+    },
+    {
+      "components": 10000,
+      "connections": 9999,
+      "first_read": {
+        "milliseconds": 30.15452,
+        "allocated_bytes": 13454944
+      },
+      "samples": [
+        {
+          "milliseconds": 27.014444,
+          "allocated_bytes": 13454560
+        },
+        {
+          "milliseconds": 28.568226,
+          "allocated_bytes": 13454512
+        },
+        {
+          "milliseconds": 26.957304,
+          "allocated_bytes": 13454528
+        },
+        {
+          "milliseconds": 25.970273,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 29.750564,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 27.506963,
+          "allocated_bytes": 13454784
+        },
+        {
+          "milliseconds": 25.896039,
+          "allocated_bytes": 13455168
+        },
+        {
+          "milliseconds": 29.777656,
+          "allocated_bytes": 13454592
+        },
+        {
+          "milliseconds": 27.912889,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 28.491319,
+          "allocated_bytes": 13454592
+        },
+        {
+          "milliseconds": 27.215124,
+          "allocated_bytes": 13454560
+        },
+        {
+          "milliseconds": 31.870666,
+          "allocated_bytes": 13454592
+        },
+        {
+          "milliseconds": 26.64141,
+          "allocated_bytes": 13454544
+        },
+        {
+          "milliseconds": 26.13824,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 26.404268,
+          "allocated_bytes": 13454592
+        },
+        {
+          "milliseconds": 26.443215,
+          "allocated_bytes": 13454512
+        },
+        {
+          "milliseconds": 27.667334,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 29.551156,
+          "allocated_bytes": 13454688
+        },
+        {
+          "milliseconds": 29.701569,
+          "allocated_bytes": 13454576
+        },
+        {
+          "milliseconds": 27.562381,
+          "allocated_bytes": 13454592
+        }
+      ],
+      "p50_milliseconds": 27.506963,
+      "p95_milliseconds": 29.777656,
+      "p50_allocated_bytes": 13454576
+    },
+    {
+      "components": 100000,
+      "connections": 99999,
+      "first_read": {
+        "milliseconds": 1309.899807,
+        "allocated_bytes": 145594496
+      },
+      "samples": [
+        {
+          "milliseconds": 1050.466746,
+          "allocated_bytes": 145594224
+        },
+        {
+          "milliseconds": 1214.649084,
+          "allocated_bytes": 145594496
+        },
+        {
+          "milliseconds": 653.224193,
+          "allocated_bytes": 145594320
+        },
+        {
+          "milliseconds": 385.698615,
+          "allocated_bytes": 145594256
+        },
+        {
+          "milliseconds": 397.706454,
+          "allocated_bytes": 145594256
+        },
+        {
+          "milliseconds": 343.647018,
+          "allocated_bytes": 145594544
+        },
+        {
+          "milliseconds": 339.375721,
+          "allocated_bytes": 145594368
+        },
+        {
+          "milliseconds": 360.433898,
+          "allocated_bytes": 145594288
+        },
+        {
+          "milliseconds": 337.959434,
+          "allocated_bytes": 145594832
+        },
+        {
+          "milliseconds": 371.571456,
+          "allocated_bytes": 145594528
+        },
+        {
+          "milliseconds": 363.881777,
+          "allocated_bytes": 145595040
+        },
+        {
+          "milliseconds": 342.235018,
+          "allocated_bytes": 145594720
+        },
+        {
+          "milliseconds": 358.697579,
+          "allocated_bytes": 145594240
+        },
+        {
+          "milliseconds": 337.449803,
+          "allocated_bytes": 145594800
+        },
+        {
+          "milliseconds": 330.991344,
+          "allocated_bytes": 145594224
+        },
+        {
+          "milliseconds": 328.310833,
+          "allocated_bytes": 145594176
+        },
+        {
+          "milliseconds": 365.180426,
+          "allocated_bytes": 145594224
+        },
+        {
+          "milliseconds": 378.588743,
+          "allocated_bytes": 145594240
+        },
+        {
+          "milliseconds": 392.268802,
+          "allocated_bytes": 145594640
+        },
+        {
+          "milliseconds": 423.337861,
+          "allocated_bytes": 145594896
+        }
+      ],
+      "p50_milliseconds": 363.881777,
+      "p95_milliseconds": 1050.466746,
+      "p50_allocated_bytes": 145594320
+    }
+  ]
+}
