@@ -30,6 +30,12 @@
 .project-schemes textarea { width: 100%; min-height: 80px; resize: vertical; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-canvas); margin-bottom: 14px; }
 .project-schemes .project-create input { margin-bottom: 14px; }
 .project-graph { margin-top: 28px; }
+.project-editor { width: 100%; min-width: 0; }
+.projects-workspace:has(.project-editor) { padding-top: 20px; }
+.projects-workspace:has(.project-editor) .projects-intro { display: none; }
+.project-editor-body { height: min(800px, 85vh); min-height: 520px; border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden; }
+.project-editor-body[aria-busy="true"] { pointer-events: none; opacity: .65; }
+.project-editor-source { margin-top: 12px; color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
 .project-graph > p { color: var(--text-secondary); margin: 12px 0; }
 .scheme-preview { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
 .scheme-preview-canvas { position: relative; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-canvas); min-width: 0; }

@@ -22,7 +22,7 @@ import './workspace.css';
 import type { ComponentWrites } from './component-writes';
 import type { SchemeTransport } from './scheme-transport';
 
-export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites; transport?: SchemeTransport }> = ({ schemeId, writeQueue, transport }) => {
+export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites; transport?: SchemeTransport; manageSchemes?: boolean }> = ({ schemeId, writeQueue, transport, manageSchemes = true }) => {
   const { notify } = useNotify();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -69,6 +69,16 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const [createDialog, setCreateDialog] = useState(false);
   const [libraryVisible, setLibraryVisible] = useState(() => window.innerWidth > 1000);
   const [inspectorVisible, setInspectorVisible] = useState(() => window.innerWidth > 1200);
+  useEffect(() => {
+    let previousWidth = window.innerWidth;
+    const resize = () => {
+      const nextWidth = window.innerWidth;
+      if (previousWidth > 1000 && nextWidth <= 1000) { setLibraryVisible(false); setInspectorVisible(false); }
+      previousWidth = nextWidth;
+    };
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
   const fittedSchemeRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (currentSchemeId && loadedSchemeId === currentSchemeId && components.length && fittedSchemeRef.current !== currentSchemeId) {
@@ -264,6 +274,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   return (
     <div className="scheme-editor-container" data-library={libraryVisible} data-inspector={inspectorVisible}>
       {libraryVisible && <LibraryPanel
+        manageSchemes={manageSchemes}
         library={library}
         schemes={schemes}
         currentSchemeId={currentSchemeId}

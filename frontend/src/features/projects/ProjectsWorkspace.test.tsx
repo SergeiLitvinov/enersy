@@ -5,6 +5,8 @@ import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { ProjectsWorkspace } from './ProjectsWorkspace';
 import { listProjects, logout, readSession } from '../../api/projects-api';
 vi.mock('../../api/projects-api', () => ({ listProjects: vi.fn(), readSession: vi.fn(), logout: vi.fn(), login: vi.fn(), createProject: vi.fn() }));
+const navigatorExit = vi.hoisted(() => vi.fn());
+vi.mock('./ProjectSchemes', () => ({ ProjectSchemes: () => { React.useEffect(() => () => navigatorExit(), []); return <p data-private-context>Private selected graph</p>; } }));
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 const account = { accountId: '9007199254740993', sessionId: '2', expiresAt: '2026-10-11T00:00:00Z' };
@@ -27,16 +29,31 @@ test('logout hides private data before the server reply, even when logout fails'
   expect(host.querySelector('[role=alert]')?.textContent).toContain('Network unavailable');
   expect(host.textContent).not.toContain('Private network');
 });
-test('focus revalidation clears the old account before showing the new account', async () => {
+test('focus revalidation masks the old account before replacing it with the new account', async () => {
   await act(async () => root.render(<ProjectsWorkspace />));
   let resolve!: (value: typeof account) => void;
   vi.mocked(readSession).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
   vi.mocked(listProjects).mockResolvedValue({ items: [{ id: '8', name: 'Other account', role: 'viewer' }], nextAfterId: '' });
   await act(async () => window.dispatchEvent(new Event('focus')));
-  expect(host.textContent).not.toContain('Private network');
+  expect(host.querySelector('[hidden]')?.textContent).toContain('Private network');
   await act(async () => resolve({ ...account, accountId: '9' }));
   expect(host.textContent).toContain('Other account');
   expect(host.textContent).not.toContain('Private network');
+});
+test('same identity and project role restore the mounted private context; changed role destroys it', async () => {
+  await act(async () => root.render(<ProjectsWorkspace />));
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Открыть проект Private network')!.click());
+  const context = host.querySelector('[data-private-context]');
+  let resolve!: (value: typeof account) => void;
+  vi.mocked(readSession).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(host.querySelector('[hidden]')?.contains(context)).toBe(true);
+  expect(navigatorExit).not.toHaveBeenCalled();
+  await act(async () => resolve(account));
+  expect(host.querySelector('[data-private-context]')).toBe(context); expect(host.querySelector('[hidden]')).toBeNull();
+  vi.mocked(listProjects).mockResolvedValue({ items: [{ id: '7', name: 'Private network', role: 'viewer' }], nextAfterId: '' });
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(navigatorExit).toHaveBeenCalledOnce(); expect(host.querySelector('[data-private-context]')).toBeNull();
 });
 test('unmount aborts a private read and its late response never triggers a project read', async () => {
   let resolve!: (value: typeof account) => void;

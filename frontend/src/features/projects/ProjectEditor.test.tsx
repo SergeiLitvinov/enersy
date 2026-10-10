@@ -1,0 +1,54 @@
+// @vitest-environment jsdom
+import React, { act, StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { ProjectEditor } from './ProjectEditor';
+import { createProjectEditorTransport } from './project-editor-transport';
+import type { ComponentWrites } from '../../components/ees/component-writes';
+import type { SchemeTransport } from '../../components/ees/scheme-transport';
+vi.mock('./project-editor-transport', () => ({ createProjectEditorTransport: vi.fn(() => ({})) }));
+let editor: { writeQueue: ComponentWrites; transport: SchemeTransport; manageSchemes: boolean };
+vi.mock('../../components/ees/SchemeEditor', () => ({ SchemeEditor: (props: typeof editor) => { editor = props; return <p>Scoped editor</p>; } }));
+let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
+const project = { id: '8', name: 'Private project', role: 'owner' as const };
+const graph = { id: '1', projectId: '8', name: 'Private graph', description: '', topologyRevision: '0', components: [], connections: [] };
+beforeEach(() => { vi.clearAllMocks(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); host = document.createElement('div'); root = createRoot(host); });
+afterEach(async () => { await act(async () => root.unmount()); vi.restoreAllMocks(); });
+test('StrictMode restart creates a live scope; unmount cancels it and a new project gets a fresh queue', async () => {
+  await act(async () => root.render(<StrictMode><ProjectEditor project={project} graph={graph} onClose={() => {}} /></StrictMode>));
+  const calls = vi.mocked(createProjectEditorTransport).mock.calls;
+  expect(calls[0][0].signal.aborted).toBe(true); expect(calls[calls.length - 1][0].signal.aborted).toBe(false);
+  expect(editor.manageSchemes).toBe(false);
+  const oldQueue = editor.writeQueue, oldSignal = calls[calls.length - 1][0].signal;
+  await act(async () => root.render(<ProjectEditor key="other" project={{ ...project, id: '9' }} graph={{ ...graph, projectId: '9' }} onClose={() => {}} />));
+  expect(oldSignal.aborted).toBe(true); expect(editor.writeQueue).not.toBe(oldQueue);
+  expect(calls[calls.length - 1][0].projectId).toBe('9');
+});
+test('closing waits for in-flight writes and preserves failed intentions when dismissal is cancelled', async () => {
+  const close = vi.fn(); const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  await act(async () => root.render(<ProjectEditor project={project} graph={graph} onClose={close} />));
+  let reject!: (error: Error) => void;
+  const pending = editor.writeQueue.graph.run(1, { kind: 'delete-connection', id: 10 }, () => new Promise((_, no) => { reject = no; }));
+  const observed = pending.catch(() => {});
+  await act(async () => host.querySelector('button')!.click());
+  expect(close).not.toHaveBeenCalled(); expect(host.textContent).toContain('Ожидаем подтверждений');
+  await act(async () => { reject(new Error('Lost acknowledgement')); await observed; });
+  expect(confirm).toHaveBeenCalledOnce(); expect(close).not.toHaveBeenCalled();
+  expect(editor.writeQueue.graph.failed(1)).toHaveLength(1);
+  const signal = vi.mocked(createProjectEditorTransport).mock.calls[0][0].signal;
+  expect(signal.aborted).toBe(false);
+  confirm.mockReturnValue(true);
+  await act(async () => host.querySelector('button')!.click());
+  expect(close).toHaveBeenCalledOnce(); expect(signal.aborted).toBe(true);
+});
+test('revoked access clears editor and provenance; late calculation cannot restore either', async () => {
+  const unavailable = vi.fn();
+  await act(async () => root.render(<ProjectEditor project={project} graph={graph} onClose={() => {}} onUnavailable={unavailable} />));
+  const options = vi.mocked(createProjectEditorTransport).mock.calls[0][0];
+  const source = { projectId: '8', schemeId: '1', topologyRevision: '4', inputSha256: 'a'.repeat(64) };
+  await act(async () => options.onCalculation?.(source)); expect(host.textContent).toContain('SHA-256');
+  await act(async () => options.onUnavailable?.());
+  expect(options.signal.aborted).toBe(true); expect(unavailable).toHaveBeenCalledOnce();
+  expect(host.textContent).not.toContain('Scoped editor'); expect(host.textContent).not.toContain('SHA-256');
+  await act(async () => options.onCalculation?.(source)); expect(host.textContent).not.toContain('SHA-256');
+});

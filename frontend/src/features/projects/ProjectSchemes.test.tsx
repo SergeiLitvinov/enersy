@@ -10,8 +10,12 @@ beforeEach(() => { vi.resetAllMocks(); Object.assign(globalThis,{IS_REACT_ACT_EN
   vi.mocked(listProjectSchemes).mockResolvedValue({items:[{id:'1',name:'Scheme A',description:''},{id:'2',name:'Scheme B',description:''}],nextAfterId:''}); });
 afterEach(async () => { await act(async () => root.unmount()); });
 test('viewer sees schemes without a creation form',async () => {
+  vi.mocked(readProjectScheme).mockResolvedValue({id:'1',projectId:'8',name:'Graph',description:'',topologyRevision:'0',components:[],connections:[]});
   await act(async () => root.render(<ProjectSchemes project={{id:'8',name:'Private',role:'viewer'}} onBack={()=>{}} />));
   expect(host.textContent).toContain('Scheme A'); expect(host.querySelector('form')).toBeNull();
+  await act(async () => [...host.querySelectorAll('button')].find(button=>button.textContent==='Scheme A')!.click());
+  expect(host.textContent).toContain('Graph');
+  expect([...host.querySelectorAll('button')].some(button=>button.textContent==='Редактировать схему')).toBe(false);
 });
 test('revoked access clears the graph and asks the parent to revalidate the session',async () => {
   vi.mocked(listProjectSchemes).mockRejectedValue(new SessionError(404,'Unavailable'));

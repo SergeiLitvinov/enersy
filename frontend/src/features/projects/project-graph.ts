@@ -1,4 +1,5 @@
 import type { EditorComponent, EditorConnection } from '../../components/ees/editor-utils';
+import { parseComponentRevision } from '../../api/component-revision';
 export interface ProjectGraph { id: string; projectId: string; name: string; description: string; topologyRevision: string; components: EditorComponent[]; connections: EditorConnection[] }
 const row = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Некорректный снимок схемы');
@@ -13,8 +14,8 @@ const rendererId = (value: unknown): number => {
 const text = (value: unknown): string => { if (typeof value !== 'string') throw new Error('Некорректный текст снимка'); return value; };
 const finite = (value: unknown): number => { if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 3.4028234663852886e38) throw new Error('Некорректная геометрия схемы'); return value; };
 const revision = (value: unknown, zero = false): string => {
-  if (typeof value !== 'string' || !(zero ? /^(0|[1-9][0-9]*)$/ : /^[1-9][0-9]*$/).test(value)) throw new Error('Некорректная ревизия схемы');
-  return value;
+  if (zero && value === '0') return value;
+  return parseComponentRevision(value);
 };
 export function parseProjectGraph(value: unknown, projectId: string, schemeId: string): ProjectGraph {
   const graph = row(value);

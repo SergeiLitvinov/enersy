@@ -11,11 +11,12 @@ test('renderer conversion preserves exact parent IDs and revisions', () => {
 });
 test('different parent, rounded IDs, incomplete graph and duplicate IDs are rejected', () => {
   expect(() => parseProjectGraph(graph,'7',graph.id)).toThrow();
-  for (const replacement of [{id:1},{id:'9007199254740993'},{rotation:0.5},{x:Infinity},{params:{voltage_nom:110}}]) {
+  for (const replacement of [{id:1},{id:'9007199254740993'},{rotation:0.5},{x:Infinity},{params:{voltage_nom:110}},{revision:'0'},{revision:'9223372036854775808'}]) {
     expect(() => parseProjectGraph({...graph,components:[{...component,...replacement}]},graph.projectId,graph.id)).toThrow();
   }
   expect(() => parseProjectGraph({...graph,connections:null},graph.projectId,graph.id)).toThrow();
   expect(() => parseProjectGraph({...graph,components:[component,component]},graph.projectId,graph.id)).toThrow();
+  expect(() => parseProjectGraph({...graph,topologyRevision:'9223372036854775808'},graph.projectId,graph.id)).toThrow();
 });
 test('unknown type names cannot inherit executable objects from symbol size maps', () => {
   expect(getCompSize('constructor')).toEqual({w:30,h:30});

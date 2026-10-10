@@ -5,22 +5,23 @@ import { Icon } from '../../ui/Icon';
 import './LibraryPanel.css';
 
 interface LibraryPanelProps {
+  manageSchemes?: boolean;
   library: ComponentLibraryItem[]; schemes: { id: number; name: string }[]; currentSchemeId?: number; theme: string;
   onThemeToggle: () => void; onCreateScheme: () => void; onSelectScheme: (id: number) => void; onDeleteScheme: (id: number) => void;
   onLibDragStart: (e: React.DragEvent, item: ComponentLibraryItem) => void;
   onAddItem: (item: ComponentLibraryItem) => void;
 }
-export const LibraryPanel: React.FC<LibraryPanelProps> = ({ library, schemes, currentSchemeId, theme, onThemeToggle, onCreateScheme, onSelectScheme, onDeleteScheme, onLibDragStart, onAddItem }) => {
+export const LibraryPanel: React.FC<LibraryPanelProps> = ({ library, schemes, currentSchemeId, theme, onThemeToggle, onCreateScheme, onSelectScheme, onDeleteScheme, onLibDragStart, onAddItem, manageSchemes = true }) => {
   const [query, setQuery] = useState('');
   const filtered = library.filter(i => `${i.name} ${i.code}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   return <aside className="library-panel" aria-label="Каталог оборудования и схемы">
     <div className="panel-heading"><div><p className="eyebrow">Проект</p><h2>Схемы сети</h2></div><button className="icon-button" aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'} onClick={onThemeToggle}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div>
-    <button className="tool-btn primary full-width" onClick={onCreateScheme}><Icon name="plus" /> Новая схема</button>
+    {manageSchemes && <button className="tool-btn primary full-width" onClick={onCreateScheme}><Icon name="plus" /> Новая схема</button>}
     <div className="schemes-list">
       {schemes.length === 0 && <p className="small-empty">Создайте первую схему, чтобы начать работу.</p>}
       {schemes.map(s => <div key={s.id} className={`scheme-row ${currentSchemeId === s.id ? 'active' : ''}`}>
         <button className="scheme-select" onClick={() => onSelectScheme(s.id)} aria-pressed={currentSchemeId === s.id}><Icon name="folder" /><span>{s.name}</span></button>
-        <button className="scheme-row-delete" onClick={() => onDeleteScheme(s.id)} aria-label={`Удалить схему ${s.name}`}><Icon name="trash" width="14" height="14" /></button>
+        {manageSchemes && <button className="scheme-row-delete" onClick={() => onDeleteScheme(s.id)} aria-label={`Удалить схему ${s.name}`}><Icon name="trash" width="14" height="14" /></button>}
       </div>)}
     </div>
     <div className="catalog-heading"><h2>Оборудование</h2><span className="count-badge">{library.length}</span></div>

@@ -3,6 +3,7 @@ import { getScheme, type SchemeComponent } from '../../../api/ees-api';
 import { Dialog } from '../../ui/Dialog';
 import type { ComponentDraft } from '../component-drafts';
 import { compareComponentDraft, type ComponentComparisonRow } from '../component-comparison';
+import type { SchemeTransport } from '../scheme-transport';
 
 const statusLabels: Record<ComponentComparisonRow['status'], string> = {
   pending: 'Можно сверить с исходной версией', server_changed: 'Изменено на сервере',
@@ -11,7 +12,7 @@ const statusLabels: Record<ComponentComparisonRow['status'], string> = {
 const display = (value: ComponentComparisonRow['base']) => value === undefined ? 'Не задано'
   : value === '' ? 'Пустая строка' : typeof value === 'boolean' ? value ? 'Да' : 'Нет' : String(value);
 
-export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, readScheme = getScheme }: { draft: ComponentDraft; onClose: () => void; readScheme?: typeof getScheme;
+export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, readScheme = getScheme }: { draft: ComponentDraft; onClose: () => void; readScheme?: SchemeTransport['getScheme'];
   onResolve?: (draft: ComponentDraft, server: SchemeComponent, fields: ReadonlySet<string>, mode: 'apply' | 'accept') => Promise<void>;
   onResolveDeletion?: (draft: ComponentDraft, server: SchemeComponent | undefined, mode: 'keep' | 'delete') => Promise<void> }) {
   const [server, setServer] = useState<SchemeComponent>();
