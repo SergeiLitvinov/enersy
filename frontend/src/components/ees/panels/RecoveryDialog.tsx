@@ -11,7 +11,7 @@ const statusLabels: Record<ComponentComparisonRow['status'], string> = {
 const display = (value: ComponentComparisonRow['base']) => value === undefined ? 'Не задано'
   : value === '' ? 'Пустая строка' : typeof value === 'boolean' ? value ? 'Да' : 'Нет' : String(value);
 
-export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion }: { draft: ComponentDraft; onClose: () => void;
+export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, readScheme = getScheme }: { draft: ComponentDraft; onClose: () => void; readScheme?: typeof getScheme;
   onResolve?: (draft: ComponentDraft, server: SchemeComponent, fields: ReadonlySet<string>, mode: 'apply' | 'accept') => Promise<void>;
   onResolveDeletion?: (draft: ComponentDraft, server: SchemeComponent | undefined, mode: 'keep' | 'delete') => Promise<void> }) {
   const [server, setServer] = useState<SchemeComponent>();
@@ -30,13 +30,13 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion }:
   useEffect(() => {
     let active = true;
     setBusy(true); setError(''); setServer(undefined); setSelected(new Set()); setDeleteConfirmed(false);
-    getScheme(draft.schemeId).then(scheme => {
+    readScheme(draft.schemeId).then(scheme => {
       if (active) setServer(scheme.components?.find(component => component.id === draft.componentId));
     }).catch(reason => {
       if (active) setError(reason instanceof Error ? reason.message : 'Не удалось загрузить актуальную схему');
     }).finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [draft, request]);
+  }, [draft, request, readScheme]);
   const rows = compareComponentDraft(draft, server);
   const hasDeletion = draft.intents.some(intent => intent.kind === 'delete');
   const perform = async (action: () => Promise<void>) => {

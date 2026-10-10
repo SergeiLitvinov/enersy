@@ -95,6 +95,9 @@ jobs:
       - name: Verify saved equipment through Go and Julia against independent reference
         shell: pwsh
         run: ./tests/integration/Test-GoJuliaReference.ps1
+      - name: Verify private project calculation against independent reference
+        shell: pwsh
+        run: ./tests/integration/Test-GoJuliaReference.ps1 -ProjectMode
       - name: Remove disposable command acceptance environment
         if: always()
         run: docker compose -f tests/integration/revision-compose.yml --profile commands down

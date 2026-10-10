@@ -21,6 +21,25 @@ function deferred<T>() {
 let state: ReturnType<typeof useSchemeData>;
 let root: Root;
 function Harness({ queue }: { queue?: ComponentWrites }) { state = useSchemeData(1, queue); return <span>{state.currentSchemeId}</span>; }
+test('an injected scope handles graph reads, parameter writes, recovery reads and calculation without legacy graph calls', async () => {
+  const getScheme = vi.fn().mockResolvedValue({ id:1,name:'Scoped',description:'',created_at:'',updated_at:'',components:[component],connections:[] });
+  const scoped = { ...api, getSchemes:vi.fn().mockResolvedValue([{id:1,name:'Scoped'}]), getScheme,
+    setComponentParam:vi.fn().mockResolvedValue({success:true,revision:'2'}), calculateScheme:vi.fn().mockResolvedValue(result('experimental')),
+    addConnection:vi.fn().mockRejectedValue(new Error('Lost scoped acknowledgement')) };
+  vi.mocked(api.getSchemes).mockClear(); vi.mocked(api.getScheme).mockClear();
+  function ScopedHarness() { state=useSchemeData(1,undefined,scoped); return null; }
+  await act(async () => root.render(<ScopedHarness />));
+  expect(state.components).toHaveLength(1);
+  await act(async () => { await state.saveComponentParam(101,'voltage_nom','110'); });
+  expect(scoped.setComponentParam).toHaveBeenCalledWith(101,'voltage_nom','110','1');
+  await act(async () => { await state.handleCalculate('three-phase','newton-raphson'); await state.addConnection(1,101,102,'right','left'); });
+  await act(async () => { await state.reviewGraph(); });
+  expect(getScheme).toHaveBeenCalledTimes(2);
+  expect(scoped.calculateScheme).toHaveBeenCalledWith(1,'newton-raphson','three-phase');
+  expect(api.getSchemes).not.toHaveBeenCalled(); expect(api.getScheme).not.toHaveBeenCalled();
+  expect(api.setComponentParam).not.toHaveBeenCalled(); expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(api.addConnection).not.toHaveBeenCalled();
+});
 const item = { id: 1, code: 'busbar', name: 'Шина', category: 'test', description: '' };
 const component = { id: 101, revision: '1', type: 'busbar', typeId: 1, name: 'Шина', x: 0, y: 0, rotation: 0, params: {} };
 const result = (error: string): api.CalculationResult => ({ success: false, error, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' });

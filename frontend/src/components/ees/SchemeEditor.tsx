@@ -20,8 +20,9 @@ import { useNotify } from '../NotificationProvider';
 import './SchemeEditor.css';
 import './workspace.css';
 import type { ComponentWrites } from './component-writes';
+import type { SchemeTransport } from './scheme-transport';
 
-export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites }> = ({ schemeId, writeQueue }) => {
+export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites; transport?: SchemeTransport }> = ({ schemeId, writeQueue, transport }) => {
   const { notify } = useNotify();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -40,7 +41,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
     isCalculating, calculationError, loadedSchemeId, captureView, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
     failedGraph, reviewGraph, acceptGraphServer, retryGraphConnection,
-  } = useSchemeData(schemeId, writeQueue);
+  } = useSchemeData(schemeId, writeQueue, transport);
   const [reviewComponent, setReviewComponent] = useState<number | null>(null);
   const [reviewTopology, setReviewTopology] = useState(false);
   useEffect(() => { setReviewTopology(false); }, [currentSchemeId]);
@@ -345,7 +346,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
       />}
 
       {resultsVisible && lastResult && <ResultsModal result={lastResult} schemeName={schemeName} onClose={closeModal} />}
-      {reviewedDraft && <RecoveryDialog key={`${reviewedDraft.schemeId}:${reviewedDraft.componentId}`} draft={reviewedDraft} onResolve={resolveComponentDraft} onResolveDeletion={resolveComponentDeletion} onClose={() => setReviewComponent(null)} />}
+      {reviewedDraft && <RecoveryDialog key={`${reviewedDraft.schemeId}:${reviewedDraft.componentId}`} draft={reviewedDraft} readScheme={transport?.getScheme} onResolve={resolveComponentDraft} onResolveDeletion={resolveComponentDeletion} onClose={() => setReviewComponent(null)} />}
       {reviewTopology && <GraphRecoveryDialog key={currentSchemeId} onRead={reviewGraph} onAccept={acceptGraphServer} onRetry={retryGraphConnection} onClose={() => setReviewTopology(false)} />}
       {createDialog && <NewSchemeDialog onCreate={async (name, description) => { const created = await handleCreateScheme(name, description); if (created) { setLastResult(null); setSelectedComponent(null); setSelectedConnection(null); } return created; }} onClose={() => setCreateDialog(false)} />}
       {pendingDrop && (

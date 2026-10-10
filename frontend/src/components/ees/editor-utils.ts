@@ -108,7 +108,7 @@ export function getPorts(type: string, w: number, h: number): Port[] {
 }
 
 export function getCompSize(type: string) {
-  return COMP_SIZES[type] || { w: 30, h: 30 };
+  return Object.prototype.hasOwnProperty.call(COMP_SIZES, type) ? COMP_SIZES[type] : { w: 30, h: 30 };
 }
 
 export function getPortDirection(name: string): string {

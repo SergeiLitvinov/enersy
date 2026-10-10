@@ -36,6 +36,13 @@ test('a late earlier comparison cannot replace the refreshed server version', as
 });
 
 const serverScheme: Scheme = { id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [{ ...draft.base, revision: '8', x: 100 }] };
+test('conflict recovery uses the supplied scheme scope and never reads the legacy scheme API',async () => {
+  const readScheme=vi.fn().mockResolvedValue(serverScheme);
+  await act(async () => root.render(<RecoveryDialog draft={draft} readScheme={readScheme} onClose={()=>{}} />));
+  expect(readScheme).toHaveBeenCalledWith(draft.schemeId);
+  expect(getScheme).not.toHaveBeenCalled();
+  expect(container.querySelector('table')).not.toBeNull();
+});
 const button = (label: string) => [...container.querySelectorAll('button')].find(item => item.textContent === label)!;
 async function chooseX() {
   await act(async () => (container.querySelector('input[type=checkbox]') as HTMLInputElement).click());

@@ -3,9 +3,10 @@ import SchemeEditor from './components/ees/SchemeEditor';
 import './App.css';
 import { Icon } from './components/ui/Icon';
 import { ComponentWrites } from './components/ees/component-writes';
+import { ProjectsWorkspace } from './features/projects/ProjectsWorkspace';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'ees' | 'legacy'>('ees');
+  const [activeTab, setActiveTab] = useState<'ees' | 'legacy' | 'projects'>('ees');
   const writeQueue = useRef(new ComponentWrites());
 
   return (
@@ -13,6 +14,7 @@ function App() {
       <header className="app-header">
         <a className="app-brand" href="/" aria-label="Enersy — рабочее пространство"><span className="brand-mark"><Icon name="grid" /></span><span>Enersy <small>Power system studio</small></span></a>
         <nav className="app-nav">
+          <button className={`nav-btn ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')} aria-label="Мои проекты"><Icon name="folder" /> Мои проекты</button>
           <button
             className={`nav-btn ${activeTab === 'ees' ? 'active' : ''}`}
             onClick={() => setActiveTab('ees')}
@@ -30,7 +32,7 @@ function App() {
       </header>
 
       <main className="app-main">
-        {activeTab === 'ees' ? (
+        {activeTab === 'projects' ? <ProjectsWorkspace /> : activeTab === 'ees' ? (
           <SchemeEditor writeQueue={writeQueue.current} />
         ) : (
           <LegacyAPI />
