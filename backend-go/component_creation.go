@@ -82,72 +82,16 @@ func createComponent(ctx context.Context, database *sql.DB, req createComponentR
 		return 0, nil, 0, err
 	}
 	defer tx.Rollback()
-	var exists bool
-	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM circuit_schemes WHERE id=$1)", req.SchemeID).Scan(&exists); err != nil {
-		return 0, nil, 0, err
-	}
-	if !exists {
+	var scheme int
+	err = tx.QueryRowContext(ctx, "SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL FOR UPDATE", req.SchemeID).Scan(&scheme)
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil, 0, creationError("Схема не найдена", http.StatusNotFound)
 	}
-	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM component_types WHERE id=$1)", req.TypeID).Scan(&exists); err != nil {
-		return 0, nil, 0, err
-	}
-	if !exists {
-		return 0, nil, 0, creationError("Тип оборудования не найден", http.StatusBadRequest)
-	}
-	params := map[string]string{}
-	if req.EquipmentModelID != nil {
-		var modelType int
-		err = tx.QueryRowContext(ctx, "SELECT component_type_id FROM equipment_models WHERE id=$1", *req.EquipmentModelID).Scan(&modelType)
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, nil, 0, creationError("Паспортная модель не найдена", http.StatusNotFound)
-		}
-		if err != nil {
-			return 0, nil, 0, err
-		}
-		if modelType != req.TypeID {
-			return 0, nil, 0, creationError("Паспортная модель не соответствует типу оборудования", http.StatusBadRequest)
-		}
-		rows, err := tx.QueryContext(ctx, "SELECT param_key, param_value FROM equipment_model_params WHERE equipment_model_id=$1", *req.EquipmentModelID)
-		if err != nil {
-			return 0, nil, 0, err
-		}
-		for rows.Next() {
-			var key, value string
-			if err = rows.Scan(&key, &value); err != nil {
-				rows.Close()
-				return 0, nil, 0, err
-			}
-			params[key] = value
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return 0, nil, 0, err
-		}
-	}
-	for key, value := range req.Params {
-		params[key] = value
-	}
-	var id int
-	err = tx.QueryRowContext(ctx, `INSERT INTO scheme_components
-		(scheme_id, component_type_id, pos_x, pos_y, rotation, custom_name, equipment_model_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, req.SchemeID, req.TypeID, req.X, req.Y, req.Rotation, req.Name, req.EquipmentModelID).Scan(&id)
 	if err != nil {
 		return 0, nil, 0, err
 	}
-	keys := make([]string, 0, len(params))
-	for key := range params {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		if _, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key]); err != nil {
-			return 0, nil, 0, err
-		}
-	}
-	var revision int64
-	if err = tx.QueryRowContext(ctx, "SELECT revision FROM scheme_components WHERE id=$1", id).Scan(&revision); err != nil {
+	id, params, revision, err := createComponentInTx(ctx, tx, req)
+	if err != nil {
 		return 0, nil, 0, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -192,4 +136,60 @@ func handleComponents(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)})
+}
+
+func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentRequest) (int, map[string]string, int64, error) {
+	var err error
+	var exists bool
+	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM component_types WHERE id=$1)", req.TypeID).Scan(&exists); err != nil {
+		return 0, nil, 0, err
+	}
+	if !exists {
+		return 0, nil, 0, creationError("Тип оборудования не найден", http.StatusBadRequest)
+	}
+	params := map[string]string{}
+	if req.EquipmentModelID != nil {
+		var modelType int
+		var snapshot []byte
+		err = tx.QueryRowContext(ctx, `SELECT m.component_type_id,
+         COALESCE((SELECT jsonb_object_agg(param_key,param_value) FROM equipment_model_params WHERE equipment_model_id=m.id),'{}'::jsonb)
+         FROM equipment_models m WHERE m.id=$1`, *req.EquipmentModelID).Scan(&modelType, &snapshot)
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil, 0, creationError("Паспортная модель не найдена", http.StatusNotFound)
+		}
+		if err != nil {
+			return 0, nil, 0, err
+		}
+		if modelType != req.TypeID {
+			return 0, nil, 0, creationError("Паспортная модель не соответствует типу оборудования", http.StatusBadRequest)
+		}
+		if err = json.Unmarshal(snapshot, &params); err != nil {
+			return 0, nil, 0, err
+		}
+	}
+	for key, value := range req.Params {
+		params[key] = value
+	}
+	var id int
+	err = tx.QueryRowContext(ctx, `INSERT INTO scheme_components
+		(scheme_id, component_type_id, pos_x, pos_y, rotation, custom_name, equipment_model_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, req.SchemeID, req.TypeID, req.X, req.Y, req.Rotation, req.Name, req.EquipmentModelID).Scan(&id)
+	if err != nil {
+		return 0, nil, 0, err
+	}
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key]); err != nil {
+			return 0, nil, 0, err
+		}
+	}
+	var revision int64
+	if err = tx.QueryRowContext(ctx, "SELECT revision FROM scheme_components WHERE id=$1", id).Scan(&revision); err != nil {
+		return 0, nil, 0, err
+	}
+	return id, params, revision, nil
 }

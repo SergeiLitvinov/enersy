@@ -9,14 +9,29 @@ import (
 	"strconv"
 )
 
-type projectsHTTP struct{ auth *authHTTP }
+type projectsHTTP struct {
+	auth      *authHTTP
+	workerURL string
+}
 
 func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !handler.auth.prepare(w, r) {
 		return
 	}
 	if r.URL.Path != "/api/projects" {
-		sendError(w, "Not found", 404)
+		if handler.calculate(w, r) {
+			return
+		}
+		if handler.connections(w, r) {
+			return
+		}
+		if handler.components(w, r) {
+			return
+		}
+		if handler.schemes(w, r) {
+			return
+		}
+		handler.members(w, r)
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodPost {

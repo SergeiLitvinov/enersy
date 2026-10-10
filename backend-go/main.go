@@ -89,8 +89,9 @@ func main() {
 	mux := http.NewServeMux()
 	auth := newAuthHTTP(db, cfg.AuthOrigin, cfg.AuthCookieSecure)
 	mux.Handle("/api/auth/", auth)
-	mux.Handle("/api/projects", projectsHTTP{auth: auth})
-	mux.Handle("/api/projects/", projectsHTTP{auth: auth})
+	projectHTTP := projectsHTTP{auth: auth, workerURL: cfg.JuliaBaseURL}
+	mux.Handle("/api/projects", projectHTTP)
+	mux.Handle("/api/projects/", projectHTTP)
 
 	// Healthcheck
 	mux.HandleFunc("/health", handleHealth)
@@ -471,7 +472,7 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		rows, err := db.Query("SELECT id, name, description, created_at, updated_at, owner_id FROM circuit_schemes ORDER BY updated_at DESC")
+		rows, err := db.QueryContext(r.Context(), "SELECT id, name, description, created_at, updated_at, owner_id FROM circuit_schemes WHERE project_id IS NULL ORDER BY updated_at DESC")
 		if err != nil {
 			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -543,125 +544,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		var name, description string
-		var createdAt, updatedAt string
-		var ownerID int
-		// Metadata, equipment revisions/parameters and connectivity must describe
-		// one committed state, even when another client commits between queries.
-		tx, err := db.BeginTx(r.Context(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
-		if err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-		defer tx.Rollback()
-		err = tx.QueryRowContext(r.Context(), "SELECT name, description, created_at, updated_at, owner_id FROM circuit_schemes WHERE id = $1", id).
-			Scan(&name, &description, &createdAt, &updatedAt, &ownerID)
-		if err == sql.ErrNoRows {
-			sendError(w, "Scheme not found", http.StatusNotFound)
-			return
-		}
-		if err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-
-		components := []map[string]interface{}{}
-		compRows, err := tx.QueryContext(r.Context(), `
-			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation, sc.custom_name,
-			       sc.equipment_model_id, ct.id, sc.revision, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
-			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb)
-			FROM scheme_components sc
-			JOIN component_types ct ON sc.component_type_id = ct.id
-			WHERE sc.scheme_id = $1`, id)
-		if err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-		defer compRows.Close()
-
-		for compRows.Next() {
-			var compID int
-			var code string
-			var x, y float64
-			var rotation int
-			var customName sql.NullString
-			var modelID sql.NullInt64
-			var typeID int
-			var revision int64
-			var paramsJSON []byte
-			if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &paramsJSON); err != nil {
-				sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-				return
-			}
-			cname := ""
-			if customName.Valid {
-				cname = customName.String
-			}
-			params := map[string]string{}
-			if err := json.Unmarshal(paramsJSON, &params); err != nil {
-				sendError(w, "Invalid stored parameters", http.StatusInternalServerError)
-				return
-			}
-			var equipmentModelID any
-			if modelID.Valid {
-				equipmentModelID = modelID.Int64
-			}
-			components = append(components, map[string]interface{}{
-				"id": compID, "type": code, "x": x, "y": y, "rotation": rotation, "name": cname,
-				"params": params, "equipmentModelId": equipmentModelID, "typeId": typeID, "revision": strconv.FormatInt(revision, 10),
-			})
-		}
-		if err := compRows.Err(); err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-
-		connections := []map[string]interface{}{}
-		connRows, err := tx.QueryContext(r.Context(), `
-			SELECT c.id, c.from_component_id, c.to_component_id, c.from_port, c.to_port,
-			COALESCE(to_json(v.reasons), '[]'::json)
-			FROM scheme_connections c LEFT JOIN invalid_scheme_connections v ON v.id=c.id
-			WHERE c.scheme_id = $1`, id)
-		if err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-		defer connRows.Close()
-
-		for connRows.Next() {
-			var connectionID, from, to int
-			var fromPort, toPort string
-			var reasonsJSON []byte
-			if err := connRows.Scan(&connectionID, &from, &to, &fromPort, &toPort, &reasonsJSON); err != nil {
-				sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-				return
-			}
-			var reasons []string
-			if err := json.Unmarshal(reasonsJSON, &reasons); err != nil {
-				sendError(w, "Connection diagnostics error", http.StatusInternalServerError)
-				return
-			}
-			connections = append(connections, map[string]interface{}{
-				"id": connectionID, "validationErrors": reasons,
-				"from": from, "to": to, "fromPort": fromPort, "toPort": toPort,
-			})
-		}
-		if err := connRows.Err(); err != nil {
-			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			sendError(w, "Could not complete scheme snapshot", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id": id, "name": name, "description": description,
-			"created_at": createdAt, "updated_at": updatedAt, "owner_id": ownerID,
-			"components": components, "connections": connections,
-		})
-
+		serveSchemeSnapshot(w, r, db, id, 0, "")
 	case "PUT":
 		var req struct {
 			Name        string `json:"name"`
@@ -671,19 +554,27 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			sendError(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		_, err := db.Exec("UPDATE circuit_schemes SET name = $2, description = $3 WHERE id = $1",
+		result, err := db.ExecContext(r.Context(), "UPDATE circuit_schemes SET name = $2, description = $3 WHERE id = $1 AND project_id IS NULL",
 			id, req.Name, req.Description)
 		if err != nil {
 			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if count, err := result.RowsAffected(); err != nil || count == 0 {
+			sendError(w, "Scheme not found", 404)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 
 	case "DELETE":
-		_, err := db.Exec("DELETE FROM circuit_schemes WHERE id = $1", id)
+		result, err := db.ExecContext(r.Context(), "DELETE FROM circuit_schemes WHERE id = $1 AND project_id IS NULL", id)
 		if err != nil {
 			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if count, err := result.RowsAffected(); err != nil || count == 0 {
+			sendError(w, "Scheme not found", 404)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -758,9 +649,16 @@ func handleConnectionByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("DELETE FROM scheme_connections WHERE id = $1", id)
+	result, err := db.ExecContext(r.Context(), `WITH legacy AS MATERIALIZED (
+ SELECT c.id FROM scheme_connections c JOIN circuit_schemes s ON s.id=c.scheme_id
+ WHERE c.id=$1 AND s.project_id IS NULL FOR UPDATE OF s)
+ DELETE FROM scheme_connections c USING legacy WHERE c.id=legacy.id`, id)
 	if err != nil {
 		sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if count, err := result.RowsAffected(); err != nil || count == 0 {
+		sendError(w, "Connection not found", 404)
 		return
 	}
 
@@ -835,7 +733,12 @@ func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // Preserve structured diagnostics and propagate cancellation to the worker.
 func proxyJulia(w http.ResponseWriter, r *http.Request, path string, body []byte) {
-	req, err := http.NewRequestWithContext(r.Context(), r.Method, juliaBaseURL+path, bytes.NewReader(body))
+	proxyCompute(w, r, juliaBaseURL, path, body, nil)
+}
+
+// Commit only a complete valid response, optionally after a fresh authorization check.
+func proxyCompute(w http.ResponseWriter, r *http.Request, workerURL, path string, body []byte, beforeCommit func() bool) {
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, workerURL+path, bytes.NewReader(body))
 	if err != nil {
 		sendError(w, "Failed to create request: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -863,6 +766,9 @@ func proxyJulia(w http.ResponseWriter, r *http.Request, path string, body []byte
 	// Syntax validation does not establish numerical or endpoint schema validity.
 	if !json.Valid(respBody) {
 		sendError(w, "Invalid Julia JSON response", http.StatusBadGateway)
+		return
+	}
+	if beforeCommit != nil && !beforeCommit() {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

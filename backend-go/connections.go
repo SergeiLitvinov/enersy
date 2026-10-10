@@ -63,6 +63,16 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	var legacyScheme int
+	err = tx.QueryRowContext(r.Context(), `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL FOR UPDATE`, req.SchemeID).Scan(&legacyScheme)
+	if errors.Is(err, sql.ErrNoRows) {
+		sendError(w, "Схема не найдена", 404)
+		return
+	}
+	if err != nil {
+		sendError(w, "Не удалось проверить схему", 500)
+		return
+	}
 	if commandKey != "" {
 		id, replayed, err := replayConnectionCommand(r.Context(), tx, req, commandKey)
 		if errors.Is(err, errConnectionCommandConflict) {
@@ -79,55 +89,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	endpoints := []struct {
-		id   int
-		port string
-	}{{req.From, req.FromPort}, {req.To, req.ToPort}}
-	domains := make([]string, 0, 2)
-	for _, endpoint := range endpoints {
-		var schemeID, typeID int
-		err = tx.QueryRowContext(r.Context(), "SELECT scheme_id,component_type_id FROM scheme_components WHERE id=$1 FOR KEY SHARE", endpoint.id).Scan(&schemeID, &typeID)
-		if errors.Is(err, sql.ErrNoRows) {
-			sendError(w, "Объект соединения не найден", 404)
-			return
-		}
-		if err != nil {
-			sendError(w, "Не удалось проверить объект соединения", 500)
-			return
-		}
-		if schemeID != req.SchemeID {
-			sendError(w, "Оба объекта должны принадлежать выбранной схеме", 422)
-			return
-		}
-		var domain string
-		err = tx.QueryRowContext(r.Context(), "SELECT domain FROM component_type_ports WHERE component_type_id=$1 AND port_name=$2", typeID, endpoint.port).Scan(&domain)
-		if errors.Is(err, sql.ErrNoRows) {
-			sendError(w, "Неизвестный порт объекта: "+endpoint.port, 422)
-			return
-		}
-		if err != nil {
-			sendError(w, "Не удалось проверить порт", 500)
-			return
-		}
-		domains = append(domains, domain)
-	}
-	if domains[0] != domains[1] {
-		sendError(w, "Порты относятся к несовместимым физическим доменам", 422)
-		return
-	}
-	var id int
-	err = tx.QueryRowContext(r.Context(), `INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port)
-		VALUES($1,$2,$3,$4,$5) RETURNING id`, req.SchemeID, req.From, req.To, req.FromPort, req.ToPort).Scan(&id)
+	id, err := insertConnectionInTx(r.Context(), tx, req, commandKey, true)
 	if err != nil {
-		sendError(w, "Соединение не сохранено: проверьте актуальность схемы", 409)
-		return
-	}
-	if commandKey != "" {
-		_, err = tx.ExecContext(r.Context(), `INSERT INTO connection_commands(scheme_id,command_id,payload_hash,connection_id) VALUES($1,$2,$3,$4)`, req.SchemeID, commandKey, connectionPayloadHash(req), id)
-		if err != nil {
-			sendError(w, "Не удалось сохранить подтверждение команды", 500)
-			return
+		var failure *connectionWriteFailure
+		if errors.As(err, &failure) {
+			sendError(w, failure.message, failure.status)
+		} else {
+			sendError(w, "Не удалось сохранить соединение", 500)
 		}
+		return
 	}
 	if err = tx.Commit(); err != nil {
 		sendError(w, "Не удалось подтвердить сохранение соединения", 500)

@@ -24,8 +24,13 @@ func mutateComponentRevision(ctx context.Context, database *sql.DB, id int, expe
 		return 0, err
 	}
 	defer tx.Rollback()
+	var scheme int
+	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM circuit_schemes s JOIN scheme_components sc ON sc.scheme_id=s.id
+ WHERE sc.id=$1 AND s.project_id IS NULL FOR UPDATE OF s`, id).Scan(&scheme); err != nil {
+		return 0, err
+	}
 	var revision int64
-	if err = tx.QueryRowContext(ctx, `SELECT revision FROM scheme_components WHERE id=$1 FOR UPDATE`, id).Scan(&revision); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT revision FROM scheme_components WHERE id=$1 AND scheme_id=$2 FOR UPDATE`, id, scheme).Scan(&revision); err != nil {
 		return 0, err
 	}
 	if revision != expected {

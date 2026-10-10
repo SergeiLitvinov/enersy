@@ -23,13 +23,19 @@ type calculationConnection struct {
 }
 
 type calculationInput struct {
-	Components  []calculationComponent
-	Connections []calculationConnection
+	Components       []calculationComponent
+	Connections      []calculationConnection
+	TopologyRevision int64
+	AuthorAccountID  int64
 }
 
 // Read a coherent input and release the database before contacting the worker.
 // This is an in-memory request snapshot, not a persisted Study/Run revision.
 func readCalculationInput(ctx context.Context, database *sql.DB, schemeID int) (calculationInput, error) {
+	return readCalculationInputScope(ctx, database, schemeID, 0, "")
+}
+
+func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID int, project int64, token string) (calculationInput, error) {
 	input := calculationInput{Components: []calculationComponent{}, Connections: []calculationConnection{}}
 	tx, err := database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
@@ -37,13 +43,28 @@ func readCalculationInput(ctx context.Context, database *sql.DB, schemeID int) (
 	}
 	defer tx.Rollback()
 	var id int
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM circuit_schemes WHERE id=$1`, schemeID).Scan(&id); err != nil {
+	query := `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL`
+	args := []any{schemeID}
+	if project > 0 {
+		hash, err := sessionTokenHash(token)
+		if err != nil {
+			return input, sql.ErrNoRows
+		}
+		query = `SELECT cs.id,cs.topology_revision,a.id FROM circuit_schemes cs JOIN projects p ON p.id=cs.project_id
+ JOIN auth_sessions s ON s.token_hash=$3 JOIN auth_accounts a ON a.id=s.account_id
+ LEFT JOIN project_members m ON m.project_id=p.id AND m.account_id=a.id
+ WHERE cs.id=$1 AND p.id=$2 AND s.revoked_at IS NULL AND s.expires_at>statement_timestamp() AND a.disabled_at IS NULL
+ AND (p.owner_account_id=a.id OR m.role IN ('admin','editor'))`
+		if err := tx.QueryRowContext(ctx, query, schemeID, project, hash).Scan(&id, &input.TopologyRevision, &input.AuthorAccountID); err != nil {
+			return input, err
+		}
+	} else if err := tx.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
 		return input, err
 	}
 	components, err := tx.QueryContext(ctx, `SELECT sc.id,ct.code,sc.pos_x,sc.pos_y,sc.rotation,
 	 COALESCE((SELECT jsonb_object_agg(param_key,param_value) FROM scheme_component_params
 	 WHERE scheme_component_id=sc.id),'{}'::jsonb)
-	 FROM scheme_components sc JOIN component_types ct ON ct.id=sc.component_type_id WHERE sc.scheme_id=$1`, schemeID)
+	 FROM scheme_components sc JOIN component_types ct ON ct.id=sc.component_type_id WHERE sc.scheme_id=$1 ORDER BY sc.id`, schemeID)
 	if err != nil {
 		return input, err
 	}
@@ -63,7 +84,7 @@ func readCalculationInput(ctx context.Context, database *sql.DB, schemeID int) (
 		return input, err
 	}
 	connections, err := tx.QueryContext(ctx, `SELECT from_component_id,to_component_id,from_port,to_port
-	 FROM scheme_connections WHERE scheme_id=$1`, schemeID)
+	 FROM scheme_connections WHERE scheme_id=$1 ORDER BY id`, schemeID)
 	if err != nil {
 		return input, err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 )
+
+type componentRevisionWriter func(context.Context, *sql.DB, int, int64, func(*sql.Tx) error, bool) (int64, error)
 
 // A single strong entity tag carries the exact BIGINT revision. Wildcards and
 // lists would allow an editor to overwrite a state it never actually loaded.
@@ -80,6 +83,10 @@ func componentMutationReply(w http.ResponseWriter, revision int64, err error) {
 }
 
 func handleComponentMutation(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, params bool) {
+	handleComponentMutationWith(w, r, database, id, params, mutateComponentRevision)
+}
+
+func handleComponentMutationWith(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, params bool, write componentRevisionWriter) {
 	method := http.MethodPut
 	if params {
 		method = http.MethodPost
@@ -101,7 +108,7 @@ func handleComponentMutation(w http.ResponseWriter, r *http.Request, database *s
 		return
 	}
 	if r.Method == http.MethodPatch {
-		handleComponentPatch(w, r, database, id, expected)
+		handleComponentPatchWith(w, r, database, id, expected, write)
 		return
 	}
 	var mutation func(*sql.Tx) error
@@ -154,6 +161,6 @@ func handleComponentMutation(w http.ResponseWriter, r *http.Request, database *s
 			return err
 		}
 	}
-	revision, err := mutateComponentRevision(r.Context(), database, id, expected, mutation, r.Method == http.MethodDelete)
+	revision, err := write(r.Context(), database, id, expected, mutation, r.Method == http.MethodDelete)
 	componentMutationReply(w, revision, err)
 }

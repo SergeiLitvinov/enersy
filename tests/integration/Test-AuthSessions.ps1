@@ -10,9 +10,17 @@ $logins = @("auth-a-$suffix", "auth-b-$suffix")
 $password = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 $accounts = [Collections.Generic.List[long]]::new()
 $projects = [Collections.Generic.List[long]]::new()
-function Auth-Request($Session,[string]$Method,[string]$Path,$Body=$null,[string]$RequestOrigin=$origin) {
+function Auth-Request($Session,[string]$Method,[string]$Path,$Body=$null,[string]$RequestOrigin=$origin,[string]$Match='',[string]$IdempotencyKey='') {
     $arguments = @{ Uri="$baseUri$Path"; Method=$Method; WebSession=$Session; TimeoutSec=30; SkipHttpErrorCheck=$true }
     if ($RequestOrigin) { $arguments.Headers=@{ Origin=$RequestOrigin } }
+    if ($Match) {
+        if (-not $arguments.ContainsKey('Headers')) { $arguments.Headers=@{} }
+        $arguments.Headers['If-Match']=$Match
+    }
+    if ($IdempotencyKey) {
+        if (-not $arguments.ContainsKey('Headers')) { $arguments.Headers=@{} }
+        $arguments.Headers['Idempotency-Key']=$IdempotencyKey
+    }
     if ($null -ne $Body) { $arguments.Body=ConvertTo-Json -InputObject $Body -Compress; $arguments.ContentType='application/json' }
     Invoke-WebRequest @arguments
 }
@@ -58,6 +66,97 @@ try {
     if (@($tailPage.items).Count -ne 1 -or $tailPage.items[0].id -ne [string]$projects[1]) { throw 'Project cursor repeated or leaked a row' }
     $foreignPage = (Auth-Request $other GET '/api/projects').Content | ConvertFrom-Json
     if (@($foreignPage.items).Count -ne 1 -or $foreignPage.items[0].id -ne [string]$projects[2]) { throw 'Foreign projects leaked to another user' }
+    $schemePath = "/api/projects/$($projects[0])/schemes"
+    $schemeName = "Private scheme $suffix"
+    $response = Auth-Request $first POST $schemePath @{name=$schemeName;description='Disposable private fixture'}
+    if ([int]$response.StatusCode -ne 201) { throw 'Private scheme creation failed' }
+    $scheme = $response.Content | ConvertFrom-Json
+    $schemeId = 0L
+    if (-not [long]::TryParse([string]$scheme.id,[ref]$schemeId) -or $schemeId -le 0) { throw 'Invalid private scheme ID' }
+    $privateSchemePath = "$schemePath/$schemeId"
+    $schemePage = (Auth-Request $second GET "$schemePath`?limit=1").Content | ConvertFrom-Json
+    if (@($schemePage.items).Count -ne 1 -or $schemePage.items[0].id -ne [string]$schemeId -or $schemePage.items[0].name -ne $schemeName -or $schemePage.nextAfterId -ne [string]$schemeId) { throw 'Project scheme page incorrect' }
+    $emptySchemePage = (Auth-Request $second GET "$schemePath`?limit=1&afterId=$schemeId").Content | ConvertFrom-Json
+    if (@($emptySchemePage.items).Count -ne 0) { throw 'Project scheme cursor repeated a row' }
+    if ([int](Auth-Request $other GET $privateSchemePath).StatusCode -ne 404) { throw 'Foreign user reads private scheme' }
+    foreach ($method in @('GET','PUT','DELETE')) {
+        $response = Auth-Request $first $method "/api/ees/schemes/$schemeId" @{name='Unauthorized';description=''}
+        if ([int]$response.StatusCode -ne 404) { throw "Legacy scheme $method bypasses project rights" }
+    }
+    $legacySchemes = Auth-Request $first GET '/api/ees/schemes'
+    if ([int]$legacySchemes.StatusCode -ne 200 -or $legacySchemes.Content.Contains($schemeName)) { throw 'Legacy list exposes private scheme' }
+    if ([int](Auth-Request $first POST "/api/ees/calculate/$schemeId").StatusCode -ne 404) { throw 'Legacy calculation exposes private scheme' }
+    $types = (Auth-Request $first GET '/api/ees/component-types').Content | ConvertFrom-Json
+    $busType = @($types | Where-Object code -eq 'busbar')
+    if ($busType.Count -ne 1) { throw 'Shared busbar type unavailable' }
+    $componentsPath = "$privateSchemePath/components"
+    $response = Auth-Request $first POST $componentsPath @{typeId=[string]$busType[0].id;name='Private bus';params=@{voltage_nom='220'}}
+    if ([int]$response.StatusCode -ne 201) { throw 'Private equipment creation failed' }
+    $component = $response.Content | ConvertFrom-Json
+    $componentPath = "$componentsPath/$($component.id)"
+    $componentTag = '"'+$component.revision+'"'
+    $response = Auth-Request $second PATCH $componentPath @{pose=@{x=10};params=@{voltage_nom='230'}} $origin $componentTag
+    if ([int]$response.StatusCode -ne 200) { throw 'Independent owner session cannot patch equipment' }
+    $updatedComponent = $response.Content | ConvertFrom-Json
+    if ([int](Auth-Request $first PATCH $componentPath @{pose=@{x=99}} $origin $componentTag).StatusCode -ne 412) { throw 'Stale equipment revision overwrote changes' }
+    $componentTag = '"'+$updatedComponent.revision+'"'
+    $response = Auth-Request $first PATCH "/api/ees/components/$($component.id)" @{pose=@{x=99}} $origin $componentTag
+    if ([int]$response.StatusCode -ne 404) { throw 'Legacy component route bypasses project rights' }
+    $response = Auth-Request $first POST $componentsPath @{typeId=[string]$busType[0].id;name='Second private bus'}
+    if ([int]$response.StatusCode -ne 201) { throw 'Second private equipment creation failed' }
+    $secondBus = $response.Content | ConvertFrom-Json
+    $graph = (Auth-Request $second GET $privateSchemePath).Content | ConvertFrom-Json
+    $topologyTag = '"'+$graph.topologyRevision+'"'
+    $commandsPath = "$privateSchemePath/connection-commands"
+    $connectionKey = [guid]::NewGuid().ToString()
+    $connectionBody = @{from=[string]$component.id;to=[string]$secondBus.id;fromPort='RIGHT';toPort='left'}
+    $response = Auth-Request $first POST $commandsPath $connectionBody $origin $topologyTag $connectionKey
+    if ([int]$response.StatusCode -ne 201) { throw 'Private connection creation failed' }
+    $connection = $response.Content | ConvertFrom-Json
+    $connectionPath = "$privateSchemePath/connections/$($connection.id)"
+    $response = Auth-Request $second POST $commandsPath $connectionBody $origin $topologyTag $connectionKey
+    $replayedConnection = $response.Content | ConvertFrom-Json
+    if ([int]$response.StatusCode -ne 200 -or $replayedConnection.id -ne $connection.id -or $response.Headers['Idempotency-Replayed'] -ne 'true') { throw 'Independent session duplicated connection command' }
+    $rosterPath = "/api/projects/$($projects[0])/members"
+    $memberPath = "$rosterPath/$($accounts[1])"
+    $roster = (Auth-Request $second GET $rosterPath).Content | ConvertFrom-Json
+    if ($roster.revision -ne '0' -or @($roster.items).Count -ne 0) { throw 'Initial project roster incorrect' }
+    $response = Auth-Request $first PUT $memberPath @{role='viewer'} $origin '"0"'
+    if ([int]$response.StatusCode -ne 200) { throw 'Owner cannot add viewer' }
+    $shared = (Auth-Request $other GET '/api/projects').Content | ConvertFrom-Json
+    if (@($shared.items).Count -ne 2 -or $shared.items[0].role -ne 'viewer') { throw 'Shared project not visible to member' }
+    $snapshot = (Auth-Request $other GET $privateSchemePath).Content | ConvertFrom-Json
+    if ($snapshot.id -ne [string]$schemeId -or $snapshot.projectId -ne [string]$projects[0] -or $snapshot.name -ne $schemeName) { throw 'Shared scheme snapshot incorrect' }
+    if ([int](Auth-Request $other POST $schemePath @{name='Viewer cannot create'}).StatusCode -ne 404) { throw 'Viewer creates a scheme' }
+    if ([int](Auth-Request $other PATCH $componentPath @{pose=@{x=88}} $origin $componentTag).StatusCode -ne 404) { throw 'Viewer changes equipment' }
+    if ([int](Auth-Request $other POST $commandsPath $connectionBody $origin $topologyTag $connectionKey).StatusCode -ne 404) { throw 'Viewer replays connection command' }
+    $response = Auth-Request $other PUT $memberPath @{role='admin'} $origin '"1"'
+    if ([int]$response.StatusCode -ne 404) { throw 'Viewer escalated own role' }
+    $response = Auth-Request $first PUT $memberPath @{role='admin'} $origin '"1"'
+    if ([int]$response.StatusCode -ne 200) { throw 'Owner cannot change member role' }
+    $roster = (Auth-Request $other GET $rosterPath).Content | ConvertFrom-Json
+    if ($roster.revision -ne '2' -or $roster.items[0].role -ne 'admin') { throw 'Admin roster incorrect' }
+    $response = Auth-Request $other POST "$componentPath/params" @{key='voltage_nom';value='240'} $origin $componentTag
+    if ([int]$response.StatusCode -ne 200) { throw 'Admin cannot change equipment parameter' }
+    $updatedComponent = $response.Content | ConvertFrom-Json
+    $componentTag = '"'+$updatedComponent.revision+'"'
+    if ([int](Auth-Request $other DELETE $connectionPath $null $origin $topologyTag).StatusCode -ne 412) { throw 'Stale topology deletes connection' }
+    $connectionTag = '"'+$connection.topologyRevision+'"'
+    if ([int](Auth-Request $other DELETE $connectionPath $null $origin $connectionTag).StatusCode -ne 200) { throw 'Admin cannot delete connection' }
+    $response = Auth-Request $first POST $commandsPath $connectionBody $origin $topologyTag $connectionKey
+    $deletedConnection = $response.Content | ConvertFrom-Json
+    if ([int]$response.StatusCode -ne 200 -or -not $deletedConnection.deleted -or $deletedConnection.id -ne $connection.id) { throw 'Replay resurrected deleted connection' }
+    $response = Auth-Request $other DELETE $memberPath $null $origin '"2"'
+    if ([int]$response.StatusCode -ne 200) { throw 'Admin cannot leave project' }
+    if ([int](Auth-Request $other GET $rosterPath).StatusCode -ne 404) { throw 'Removed member reads roster' }
+    if ([int](Auth-Request $other GET $privateSchemePath).StatusCode -ne 404) { throw 'Removed member reads scheme' }
+    if ([int](Auth-Request $other POST $commandsPath $connectionBody $origin $topologyTag $connectionKey).StatusCode -ne 404) { throw 'Removed member reads connection acknowledgement' }
+    if ([int](Auth-Request $other DELETE $componentPath $null $origin $componentTag).StatusCode -ne 404) { throw 'Removed member deletes equipment' }
+    if ([int](Auth-Request $first DELETE $componentPath $null $origin $componentTag).StatusCode -ne 200) { throw 'Owner cannot delete equipment' }
+    $private = (Auth-Request $other GET '/api/projects').Content | ConvertFrom-Json
+    if (@($private.items).Count -ne 1 -or $private.items[0].id -ne [string]$projects[2]) { throw 'Removed member retains shared project' }
+    $response = Auth-Request $first PUT $memberPath @{role='viewer'} $origin '"2"'
+    if ([int]$response.StatusCode -ne 409) { throw 'Stale membership command overwrote roster' }
     $response = Auth-Request $first POST '/api/auth/logout' $null 'http://foreign.example'
     if ([int]$response.StatusCode -ne 403) { throw 'Foreign Origin accepted' }
     Check-Session $first 200
@@ -76,7 +175,7 @@ try {
     if ([int](Auth-Request $first GET '/api/projects').StatusCode -ne 401) { throw 'Revoked session reads private projects' }
     $response = Auth-Request $first POST '/api/auth/login' @{login=$logins[0];password='Incorrect test-only password'}
     if ([int]$response.StatusCode -ne 401) { throw 'Wrong password accepted' }
-    [pscustomobject]@{Checks='passed';Users=2;IndependentSessions=3;PrivateProjects=3;Transport='Docker HTTP localhost; insecure cookie override only on disposable fixture'}
+    [pscustomobject]@{Checks='passed';Users=2;IndependentSessions=3;PrivateProjects=3;Membership='viewer/admin/removal/conflict passed';Schemes='private/shared/legacy isolation passed';Equipment='creation/patch/parameter/conflict/deletion passed';Connections='creation/replay/topology/deletion/access passed';Transport='Docker HTTP localhost; insecure cookie override only on disposable fixture'}
 }
 finally {
     if ($accounts.Count -gt 0) {
@@ -85,6 +184,9 @@ finally {
         $names = ($logins | ForEach-Object { "'$_'" }) -join ','
         if ($projects.Count -gt 0) {
             $projectIds = $projects -join ','
+            $schemeSql = "DELETE FROM circuit_schemes WHERE project_id IN ($projectIds) AND project_id IN (SELECT id FROM projects WHERE owner_account_id IN ($ids));"
+            & docker compose -f $compose exec -T postgres psql -U acceptance -d revision_acceptance -v ON_ERROR_STOP=1 -c $schemeSql
+            if ($LASTEXITCODE -ne 0) { throw 'Disposable private scheme cleanup failed' }
             $projectSql = "DELETE FROM projects WHERE id IN ($projectIds) AND owner_account_id IN ($ids);"
             & docker compose -f $compose exec -T postgres psql -U acceptance -d revision_acceptance -v ON_ERROR_STOP=1 -c $projectSql
             if ($LASTEXITCODE -ne 0) { throw 'Disposable project cleanup failed' }

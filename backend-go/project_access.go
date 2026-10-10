@@ -36,7 +36,6 @@ type projectAccess struct {
 type projectStore struct{ database *sql.DB }
 
 // No caller-supplied owner ID. This requires an already issued trusted session.
-// Project HTTP routes have not been wired yet.
 func (store projectStore) Create(ctx context.Context, token, name string) (int64, error) {
 	name = strings.TrimSpace(name)
 	if !utf8.ValidString(name) || strings.ContainsRune(name, 0) || utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 200 {
