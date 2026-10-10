@@ -63,11 +63,23 @@ export async function listProjects(signal: AbortSignal, afterId = ''): Promise<P
   const data = record(await request(`/api/projects?limit=20${afterId ? `&afterId=${afterId}` : ''}`, 'GET', signal));
   if (!Array.isArray(data.items) || (data.nextAfterId !== undefined && !decimal(data.nextAfterId))) throw new Error('Некорректный список проектов');
   const items = data.items.map(value => {
-    const item = record(value);
-    if (!decimal(item.id) || typeof item.name !== 'string' || !['owner', 'admin', 'editor', 'viewer'].includes(String(item.role))) throw new Error('Некорректная карточка проекта');
-    return { id: item.id, name: item.name, role: item.role as Project['role'] };
+    return parseProject(value);
   });
   return { items, nextAfterId: typeof data.nextAfterId === 'string' ? data.nextAfterId : '' };
+}
+function parseProject(value: unknown): Project {
+  const item = record(value);
+  if (!decimal(item.id) || BigInt(item.id) > 9223372036854775807n || typeof item.name !== 'string' ||
+      typeof item.role !== 'string' || !['owner', 'admin', 'editor', 'viewer'].includes(item.role)) throw new Error('Некорректная карточка проекта');
+  return { id: item.id, name: item.name, role: item.role as Project['role'] };
+}
+export async function readProject(project: string, signal: AbortSignal): Promise<Project> {
+  if (!decimal(project) || BigInt(project) > 9223372036854775807n) throw new Error('Некорректный ID проекта');
+  signal.throwIfAborted();
+  const result = parseProject(await request(`/api/projects/${project}`, 'GET', signal));
+  signal.throwIfAborted();
+  if (result.id !== project) throw new Error('Ответ относится к другому проекту');
+  return result;
 }
 export async function createProject(name: string, signal: AbortSignal): Promise<void> {
   const data = record(await request('/api/projects', 'POST', signal, { name }));

@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type projectsHTTP struct {
@@ -19,6 +20,12 @@ func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path != "/api/projects" {
+		if handler.drafts(w, r) {
+			return
+		}
+		if handler.detail(w, r) {
+			return
+		}
 		if handler.calculate(w, r) {
 			return
 		}
@@ -121,4 +128,37 @@ func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(struct {
 		ID string `json:"id"`
 	}{strconv.FormatInt(id, 10)})
+}
+
+func (handler projectsHTTP) detail(w http.ResponseWriter, r *http.Request) bool {
+	part := strings.TrimPrefix(r.URL.Path, "/api/projects/")
+	if part == r.URL.Path || strings.Contains(part, "/") {
+		return false
+	}
+	id, err := positiveProjectID(part)
+	if err != nil {
+		sendError(w, "Not found", 404)
+		return true
+	}
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		sendError(w, "Method not allowed", 405)
+		return true
+	}
+	token, err := handler.auth.token(r)
+	if err != nil {
+		sendError(w, "Session unavailable", 401)
+		return true
+	}
+	project, err := (projectStore{database: handler.auth.database}).Read(r.Context(), token, id)
+	if errors.Is(err, errSessionUnavailable) {
+		sendError(w, "Session unavailable", 401)
+	} else if errors.Is(err, errProjectUnavailable) {
+		sendError(w, "Not found", 404)
+	} else if err != nil {
+		sendError(w, "Project service unavailable", 503)
+	} else {
+		json.NewEncoder(w).Encode(project)
+	}
+	return true
 }

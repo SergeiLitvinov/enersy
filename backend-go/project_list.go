@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strconv"
 	"time"
 )
@@ -16,6 +17,41 @@ type projectView struct {
 type projectPage struct {
 	Items       []projectView `json:"items"`
 	NextAfterID string        `json:"nextAfterId,omitempty"`
+}
+
+// Read verifies the session and project membership in the same statement.
+// A missing/foreign project is indistinguishable; no separate unguarded read.
+func (store projectStore) Read(ctx context.Context, token string, id int64) (projectView, error) {
+	if id <= 0 {
+		return projectView{}, errProjectUnavailable
+	}
+	hash, err := sessionTokenHash(token)
+	if err != nil {
+		return projectView{}, errSessionUnavailable
+	}
+	var account int64
+	var project sql.NullInt64
+	var name, role sql.NullString
+	var created sql.NullTime
+	err = store.database.QueryRowContext(ctx, `SELECT actor.account_id,p.id,p.name,p.role,p.created_at
+ FROM (SELECT s.account_id FROM auth_sessions s JOIN auth_accounts a ON a.id=s.account_id
+ WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>statement_timestamp()
+ AND a.disabled_at IS NULL) actor
+ LEFT JOIN LATERAL (
+ SELECT p.id,p.name,p.created_at,CASE WHEN p.owner_account_id=actor.account_id THEN 'owner' ELSE m.role END AS role
+ FROM projects p LEFT JOIN project_members m ON m.project_id=p.id AND m.account_id=actor.account_id
+ WHERE p.id=$2 AND (p.owner_account_id=actor.account_id OR m.role IN ('admin','editor','viewer'))
+ ) p ON true`, hash, id).Scan(&account, &project, &name, &role, &created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return projectView{}, errSessionUnavailable
+	}
+	if err != nil {
+		return projectView{}, err
+	}
+	if !project.Valid {
+		return projectView{}, errProjectUnavailable
+	}
+	return projectView{ID: strconv.FormatInt(project.Int64, 10), Name: name.String, Role: role.String, CreatedAt: created.Time}, nil
 }
 
 // One statement verifies the session and reads only authorized project rows.

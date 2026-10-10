@@ -21,10 +21,12 @@ import './SchemeEditor.css';
 import './workspace.css';
 import type { ComponentWrites } from './component-writes';
 import type { SchemeTransport } from './scheme-transport';
+import { editorShortcutAllowed } from './editor-shortcuts';
 
 export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentWrites; transport?: SchemeTransport; manageSchemes?: boolean }> = ({ schemeId, writeQueue, transport, manageSchemes = true }) => {
   const { notify } = useNotify();
   const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('enersy-theme') || 'light');
@@ -165,7 +167,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   // Keyboard
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable], dialog[open]')) return;
+      if (!editorShortcutAllowed(editorRef.current, e.target)) return;
       if (e.key === '/') { e.preventDefault(); setLibraryVisible(true); setInspectorVisible(false); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[aria-label="Поиск оборудования"]')?.focus()); }
       if (e.key === 'Escape') { setSelectedComponent(null); setSelectedConnection(null); if (window.innerWidth <= 1000) { setLibraryVisible(false); setInspectorVisible(false); } }
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -272,7 +274,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const schemeName = schemes.find(s => s.id === currentSchemeId)?.name || 'Новая рабочая схема';
 
   return (
-    <div className="scheme-editor-container" data-library={libraryVisible} data-inspector={inspectorVisible}>
+    <div ref={editorRef} className="scheme-editor-container" data-library={libraryVisible} data-inspector={inspectorVisible}>
       {libraryVisible && <LibraryPanel
         manageSchemes={manageSchemes}
         library={library}

@@ -2,6 +2,35 @@
 
 API доступен через nginx на `http://localhost`. Это описание существующих маршрутов; формальный OpenAPI-контракт ещё предстоит внедрить.
 
+## Сессии и приватные проекты
+
+Защищённые маршруты используют cookie-сессию, точный Origin для записей и ответы no-store. ID и ревизии в проектном JSON — строки. Подробные тела, ограничения, статусы и правила конфликтов приведены в [контракте сессий и проектов](../development/sessions). Каталог и схемы без проекта остаются общими; вход не присваивает им приватные права.
+
+| Маршрут | Метод | Назначение |
+| --- | --- | --- |
+| `/api/auth/login` | POST | Вход существующей локальной учётной записью |
+| `/api/auth/session` | GET | Проверка текущей сессии |
+| `/api/auth/logout` | POST | Выход из текущей сессии |
+| `/api/auth/logout-all` | POST | Выход из всех сессий текущего аккаунта |
+| `/api/projects` | GET, POST | Приватный список / создание проекта |
+| `/api/projects/{projectId}` | GET | Карточка выбранного доступного проекта независимо от пагинации |
+| `/api/projects/{projectId}/members` | GET | Список участников и ревизия для owner/admin |
+| `/api/projects/{projectId}/members/{accountId}` | PUT, DELETE | Назначение роли / удаление участника с If-Match |
+| `/api/projects/{projectId}/schemes` | GET, POST | Список / создание схемы проекта |
+| `/api/projects/{projectId}/schemes/{schemeId}` | GET | Согласованный граф доступной схемы |
+| `/api/projects/{projectId}/schemes/{schemeId}/drafts` | GET | Карточки собственных активных журналов без payload |
+| `/api/projects/{projectId}/schemes/{schemeId}/drafts/{workspaceId}` | GET, PUT, DELETE | Приватный журнал рабочего контекста с независимыми If-Match/ETag; хранение ещё не подключено к UI |
+| `/api/projects/{projectId}/schemes/{schemeId}/components` | POST | Создание оборудования с паспортом и параметрами |
+| `/api/projects/{projectId}/schemes/{schemeId}/components/{id}` | PUT, PATCH, DELETE | Геометрия / частичная правка / удаление с ревизией объекта |
+| `/api/projects/{projectId}/schemes/{schemeId}/components/{id}/params` | POST | Запись параметра с ревизией объекта |
+| `/api/projects/{projectId}/schemes/{schemeId}/connection-commands` | POST | Создание/повтор связи с UUID и ревизией топологии |
+| `/api/projects/{projectId}/schemes/{schemeId}/connections/{id}` | DELETE | Удаление связи с ревизией топологии |
+| `/api/projects/{projectId}/schemes/{schemeId}/calculate?modelGroup=three-phase&method=newton-raphson` | POST | Синхронный расчёт захваченного входа с ревизией топологии и SHA-256 |
+
+Чтение графа доступно owner/admin/editor/viewer; записи и расчёт — owner/admin/editor. Фактическая цепочка вложенного объекта до проекта проверяется сервером. Удаление/редактирование метаданных приватной схемы и проекта через HTTP пока не поддержано; постоянные Study/Run и управление заданиями также ещё не подключены.
+
+## Общие и legacy-маршруты
+
 | Маршрут | Метод | Назначение |
 | --- | --- | --- |
 | `/api/ees/component-types` | GET | Типы оборудования |

@@ -1,7 +1,25 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { listProjects, readSession, login, logout } from './projects-api';
+import { listProjects, readProject, readSession, login, logout } from './projects-api';
 afterEach(() => vi.unstubAllGlobals());
 const signal = new AbortController().signal;
+test('selected project is read independently of pagination with exact scoped ID', async () => {
+  const project = { id: '9007199254740993', name: 'Selected', role: 'editor' };
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(project)));
+  vi.stubGlobal('fetch', fetcher);
+  expect(await readProject(project.id, signal)).toEqual(project);
+  expect(fetcher).toHaveBeenCalledWith('/api/projects/9007199254740993', expect.objectContaining({ method: 'GET', signal, cache: 'no-store', credentials: 'same-origin' }));
+});
+test('project detail rejects foreign replies, invalid IDs and revoked access without fallback', async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ id: '8', name: 'Wrong parent', role: 'owner' })))
+    .mockResolvedValueOnce(new Response('{}', { status: 404 }));
+  vi.stubGlobal('fetch', fetcher);
+  await expect(readProject('7', signal)).rejects.toThrow('другому проекту');
+  await expect(readProject('7', signal)).rejects.toMatchObject({ status: 404 });
+  await expect(readProject('9223372036854775808', signal)).rejects.toThrow('ID проекта');
+  const controller = new AbortController(); controller.abort();
+  await expect(readProject('7', controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
 test('empty project page and exact BIGINT session IDs follow the real server contract', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ accountId: '9007199254740993', sessionId: '9007199254740994', expiresAt: '2026-10-11T00:00:00Z' })))
     .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }))));

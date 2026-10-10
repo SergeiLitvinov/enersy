@@ -118,6 +118,41 @@ func TestProjectsHTTPPostgres(t *testing.T) {
 	if len(list(tokens[1].Token, "/api/projects").Items) != 1 {
 		t.Fatal("revoked membership still visible")
 	}
+	detail := func(token, id, role string) {
+		t.Helper()
+		rec := request(token, "GET", "/api/projects/"+id, "", "")
+		var project projectView
+		if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &project) != nil || project.ID != id || project.Role != role || project.Name == "" {
+			t.Fatalf("project detail invalid: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	detail(tokens[0].Token, next, "owner") // Not the first page with limit=1.
+	detail(second.Token, first, "owner")
+	for _, role := range []string{"viewer", "editor", "admin"} {
+		if _, err := database.ExecContext(ctx, `INSERT INTO project_members(project_id,account_id,role) VALUES($1,$2,$3)
+ ON CONFLICT(project_id,account_id) DO UPDATE SET role=EXCLUDED.role`, first, accounts[1], role); err != nil {
+			t.Fatal(err)
+		}
+		detail(tokens[1].Token, first, role)
+	}
+	if _, err := database.ExecContext(ctx, `DELETE FROM project_members WHERE project_id=$1 AND account_id=$2`, first, accounts[1]); err != nil {
+		t.Fatal(err)
+	}
+	for _, boundary := range []struct {
+		token, id string
+		status    int
+	}{
+		{tokens[1].Token, first, 404}, {tokens[2].Token, foreign, 404}, {tokens[0].Token, "9223372036854775807", 404},
+		{tokens[0].Token, "01", 404}, {tokens[0].Token, "9223372036854775808", 404}, {"", first, 401},
+	} {
+		rec := request(boundary.token, "GET", "/api/projects/"+boundary.id, "", "")
+		if rec.Code != boundary.status || strings.Contains(rec.Body.String(), "One") || strings.Contains(rec.Body.String(), "Private foreign name") {
+			t.Fatalf("project detail boundary: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	if rec := request(tokens[0].Token, "POST", "/api/projects/"+first, `{}`, auth.origin); rec.Code != 405 || rec.Header().Get("Allow") != "GET" {
+		t.Fatal("project detail accepted mutation")
+	}
 	for _, test := range []struct {
 		method, path, body, origin string
 		want                       int
@@ -143,6 +178,10 @@ func TestProjectsHTTPPostgres(t *testing.T) {
 	if rec := request(tokens[0].Token, "GET", "/api/projects", "", ""); rec.Code != 401 || strings.Contains(rec.Body.String(), "One") {
 		t.Fatal("revoked session reads projects")
 	}
+	if rec := request(tokens[0].Token, "GET", "/api/projects/"+first, "", ""); rec.Code != 401 {
+		t.Fatal("revoked session reads project detail")
+	}
+	detail(second.Token, first, "owner")
 	if rec := request(tokens[0].Token, "POST", "/api/projects", `{"name":"Denied"}`, auth.origin); rec.Code != 401 {
 		t.Fatal("revoked session creates project")
 	}
@@ -164,11 +203,18 @@ func TestProjectsHTTPPostgres(t *testing.T) {
 	if rec := request(second.Token, "GET", "/api/projects", "", ""); rec.Code != 401 {
 		t.Fatal("disabled owner reads projects")
 	}
+	if rec := request(second.Token, "GET", "/api/projects/"+first, "", ""); rec.Code != 401 {
+		t.Fatal("disabled owner reads project detail")
+	}
 	if _, err := database.ExecContext(ctx, `INSERT INTO projects(id,owner_account_id,name) VALUES(9007199254740993,$1,'Large identifier')`, accounts[1]); err != nil {
 		t.Fatal(err)
 	}
 	large := list(tokens[1].Token, "/api/projects?limit=1&afterId="+foreign)
 	if len(large.Items) != 1 || large.Items[0].ID != "9007199254740993" || large.NextAfterID != "9007199254740993" {
 		t.Fatal("project BIGINT cursor lost precision")
+	}
+	detail(tokens[1].Token, "9007199254740993", "owner")
+	if _, err := (projectStore{database: database}).Read(canceled, tokens[1].Token, 9007199254740993); !errors.Is(err, context.Canceled) {
+		t.Fatal("project detail ignored cancellation")
 	}
 }

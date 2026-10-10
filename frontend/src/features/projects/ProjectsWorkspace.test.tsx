@@ -3,8 +3,8 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { ProjectsWorkspace } from './ProjectsWorkspace';
-import { listProjects, logout, readSession } from '../../api/projects-api';
-vi.mock('../../api/projects-api', () => ({ listProjects: vi.fn(), readSession: vi.fn(), logout: vi.fn(), login: vi.fn(), createProject: vi.fn() }));
+import { listProjects, logout, readProject, readSession, SessionError } from '../../api/projects-api';
+vi.mock('../../api/projects-api', async importOriginal => ({ ...await importOriginal<typeof import('../../api/projects-api')>(), listProjects: vi.fn(), readProject: vi.fn(), readSession: vi.fn(), logout: vi.fn(), login: vi.fn(), createProject: vi.fn() }));
 const navigatorExit = vi.hoisted(() => vi.fn());
 vi.mock('./ProjectSchemes', () => ({ ProjectSchemes: () => { React.useEffect(() => () => navigatorExit(), []); return <p data-private-context>Private selected graph</p>; } }));
 let host: HTMLDivElement;
@@ -16,6 +16,7 @@ beforeEach(() => {
   host = document.createElement('div'); root = createRoot(host);
   vi.mocked(readSession).mockResolvedValue(account);
   vi.mocked(listProjects).mockResolvedValue({ items: [{ id: '7', name: 'Private network', role: 'owner' }], nextAfterId: '' });
+  vi.mocked(readProject).mockResolvedValue({ id: '7', name: 'Private network', role: 'owner' });
 });
 afterEach(async () => { await act(async () => root.unmount()); });
 test('logout hides private data before the server reply, even when logout fails', async () => {
@@ -51,9 +52,32 @@ test('same identity and project role restore the mounted private context; change
   expect(navigatorExit).not.toHaveBeenCalled();
   await act(async () => resolve(account));
   expect(host.querySelector('[data-private-context]')).toBe(context); expect(host.querySelector('[hidden]')).toBeNull();
-  vi.mocked(listProjects).mockResolvedValue({ items: [{ id: '7', name: 'Private network', role: 'viewer' }], nextAfterId: '' });
+  vi.mocked(readProject).mockResolvedValue({ id: '7', name: 'Private network', role: 'viewer' });
   await act(async () => window.dispatchEvent(new Event('focus')));
   expect(navigatorExit).toHaveBeenCalledOnce(); expect(host.querySelector('[data-private-context]')).toBeNull();
+});
+test('focus preserves a selected project outside the first page, but revoked membership clears it', async () => {
+  await act(async () => root.render(<ProjectsWorkspace />));
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Открыть проект Private network')!.click());
+  const context = host.querySelector('[data-private-context]');
+  vi.mocked(listProjects).mockResolvedValue({ items: [{ id: '1', name: 'First page', role: 'owner' }], nextAfterId: '1' });
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(readProject).toHaveBeenCalledWith('7', expect.any(AbortSignal));
+  expect(host.querySelector('[data-private-context]')).toBe(context);
+  expect(navigatorExit).not.toHaveBeenCalled();
+  vi.mocked(readProject).mockRejectedValue(new SessionError(404, 'Not found'));
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(navigatorExit).toHaveBeenCalledOnce();
+  expect(host.querySelector('[data-private-context]')).toBeNull();
+  expect(host.textContent).toContain('First page');
+});
+test('a replacement session never reads the previous session selected project', async () => {
+  await act(async () => root.render(<ProjectsWorkspace />));
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Открыть проект Private network')!.click());
+  vi.mocked(readSession).mockResolvedValue({ ...account, sessionId: '3' });
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(readProject).not.toHaveBeenCalled();
+  expect(navigatorExit).toHaveBeenCalledOnce();
 });
 test('unmount aborts a private read and its late response never triggers a project read', async () => {
   let resolve!: (value: typeof account) => void;

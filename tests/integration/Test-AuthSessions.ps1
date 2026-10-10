@@ -21,7 +21,7 @@ function Auth-Request($Session,[string]$Method,[string]$Path,$Body=$null,[string
         if (-not $arguments.ContainsKey('Headers')) { $arguments.Headers=@{} }
         $arguments.Headers['Idempotency-Key']=$IdempotencyKey
     }
-    if ($null -ne $Body) { $arguments.Body=ConvertTo-Json -InputObject $Body -Compress; $arguments.ContentType='application/json' }
+    if ($null -ne $Body) { $arguments.Body=ConvertTo-Json -InputObject $Body -Depth 16 -Compress; $arguments.ContentType='application/json' }
     Invoke-WebRequest @arguments
 }
 function Check-Session($Session,[int]$Expected) {
@@ -146,10 +146,41 @@ try {
     $response = Auth-Request $first POST $commandsPath $connectionBody $origin $topologyTag $connectionKey
     $deletedConnection = $response.Content | ConvertFrom-Json
     if ([int]$response.StatusCode -ne 200 -or -not $deletedConnection.deleted -or $deletedConnection.id -ne $connection.id) { throw 'Replay resurrected deleted connection' }
+    $draftGraph = (Auth-Request $first GET $privateSchemePath).Content | ConvertFrom-Json
+    $draftComponent = @($draftGraph.components | Where-Object id -eq $component.id)[0]
+    $draftPayload = @{formatVersion=1;components=@(@{componentId=[string]$component.id;base=@{
+        id=[string]$draftComponent.id;typeId=[string]$draftComponent.typeId;type=[string]$draftComponent.type;
+        equipmentModelId=$draftComponent.equipmentModelId;revision=[string]$draftComponent.revision;
+        name=$draftComponent.name;x=$draftComponent.x;y=$draftComponent.y;rotation=$draftComponent.rotation;params=$draftComponent.params
+    };intents=@(@{kind='parameter';key='voltage_nom';value='250'});reason='Disposable pending edit'});graph=@(@{intent=@{
+        kind='create-connection';commandId=$connectionKey;from=[string]$component.id;to=[string]$secondBus.id;
+        fromPort='right';toPort='left';expectedTopologyRevision=[string]$draftGraph.topologyRevision
+    };reason='Historical fixture command'})}
+    $draftsPath = "$privateSchemePath/drafts"
+    $draftWorkspace = [guid]::NewGuid().ToString()
+    $draftPath = "$draftsPath/$draftWorkspace"
+    $emptyJournal = @{formatVersion=1;components=@();graph=@()}
+    $response = Auth-Request $first PUT $draftPath $draftPayload $origin '"0"'
+    if ([int]$response.StatusCode -ne 200 -or $response.Headers['ETag'] -ne '"1"') { throw 'Private draft creation failed' }
+    $response = Auth-Request $second GET $draftPath
+    $storedDraft = $response.Content | ConvertFrom-Json
+    if ([int]$response.StatusCode -ne 200 -or $storedDraft.revision -ne '1' -or $storedDraft.workspaceId -ne $draftWorkspace -or $storedDraft.payload.components[0].intents[0].value -ne '250' -or $storedDraft.payload.graph[0].intent.commandId -ne $connectionKey) { throw 'Independent session lost draft payload or command identity' }
+    if ([int](Auth-Request $other GET $draftPath).StatusCode -ne 404) { throw 'Shared admin reads another account draft' }
+    if ([int](Auth-Request $other DELETE $draftPath $null $origin '"1"').StatusCode -ne 404) { throw 'Shared admin deletes another account draft' }
+    if ([int](Auth-Request $other PUT $draftPath $emptyJournal $origin '"0"').StatusCode -ne 200) { throw 'Draft namespaces collide between accounts' }
+    $list = Auth-Request $second GET $draftsPath
+    if ([int]$list.StatusCode -ne 200 -or $list.Content.Contains('"payload"')) { throw 'Draft list exposes bodies' }
+    if ([int](Auth-Request $second PUT $draftPath $draftPayload $origin '"1"').StatusCode -ne 200) { throw 'Draft update failed' }
+    if ([int](Auth-Request $first PUT $draftPath $emptyJournal $origin '"1"').StatusCode -ne 412) { throw 'Draft CAS lost private intentions' }
+    $afterDraft = (Auth-Request $first GET $privateSchemePath).Content | ConvertFrom-Json
+    if ($afterDraft.topologyRevision -ne $draftGraph.topologyRevision -or @($afterDraft.components | Where-Object id -eq $component.id)[0].params.voltage_nom -ne '240') { throw 'Saving a journal changed the physical scheme' }
+    if ([int](Auth-Request $second DELETE $draftPath $null $origin '"2"').StatusCode -ne 200) { throw 'Draft deletion failed' }
+    if ([int](Auth-Request $first GET $draftPath).StatusCode -ne 404 -or [int](Auth-Request $first PUT $draftPath $draftPayload $origin '"0"').StatusCode -ne 404) { throw 'Deleted workspace UUID was reused' }
     $response = Auth-Request $other DELETE $memberPath $null $origin '"2"'
     if ([int]$response.StatusCode -ne 200) { throw 'Admin cannot leave project' }
     if ([int](Auth-Request $other GET $rosterPath).StatusCode -ne 404) { throw 'Removed member reads roster' }
     if ([int](Auth-Request $other GET $privateSchemePath).StatusCode -ne 404) { throw 'Removed member reads scheme' }
+    if ([int](Auth-Request $other GET $draftPath).StatusCode -ne 404) { throw 'Removed member reads retained private journal' }
     if ([int](Auth-Request $other POST $commandsPath $connectionBody $origin $topologyTag $connectionKey).StatusCode -ne 404) { throw 'Removed member reads connection acknowledgement' }
     if ([int](Auth-Request $other DELETE $componentPath $null $origin $componentTag).StatusCode -ne 404) { throw 'Removed member deletes equipment' }
     if ([int](Auth-Request $first DELETE $componentPath $null $origin $componentTag).StatusCode -ne 200) { throw 'Owner cannot delete equipment' }
@@ -175,7 +206,7 @@ try {
     if ([int](Auth-Request $first GET '/api/projects').StatusCode -ne 401) { throw 'Revoked session reads private projects' }
     $response = Auth-Request $first POST '/api/auth/login' @{login=$logins[0];password='Incorrect test-only password'}
     if ([int]$response.StatusCode -ne 401) { throw 'Wrong password accepted' }
-    [pscustomobject]@{Checks='passed';Users=2;IndependentSessions=3;PrivateProjects=3;Membership='viewer/admin/removal/conflict passed';Schemes='private/shared/legacy isolation passed';Equipment='creation/patch/parameter/conflict/deletion passed';Connections='creation/replay/topology/deletion/access passed';Transport='Docker HTTP localhost; insecure cookie override only on disposable fixture'}
+    [pscustomobject]@{Checks='passed';Users=2;IndependentSessions=3;PrivateProjects=3;Membership='viewer/admin/removal/conflict passed';Schemes='private/shared/legacy isolation passed';Equipment='creation/patch/parameter/conflict/deletion passed';Connections='creation/replay/topology/deletion/access passed';Drafts='private account/workspace/CAS/payload/tombstone/removal passed';Transport='Docker HTTP localhost; insecure cookie override only on disposable fixture'}
 }
 finally {
     if ($accounts.Count -gt 0) {

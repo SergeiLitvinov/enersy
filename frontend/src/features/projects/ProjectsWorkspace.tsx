@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { createProject, listProjects, login, logout, readSession, type Identity, type Project, type ProjectPage } from '../../api/projects-api';
+import { createProject, listProjects, login, logout, readProject, readSession, SessionError, type Identity, type Project, type ProjectPage } from '../../api/projects-api';
 import { ProjectSchemes } from './ProjectSchemes';
 import { Icon } from '../../components/ui/Icon';
 import './projects.css';
@@ -20,7 +20,7 @@ export function ProjectsWorkspace() {
   const current = useRef<{ version: number; controller?: AbortController; busy: boolean }>({ version: 0, busy: false });
   // Focus masks the mounted private context while validating its identity/role.
   // Explicit navigation/auth operations discard the old context immediately.
-  const perform = useCallback(async (task: (signal: AbortSignal) => Promise<{ identity: Identity | null; page: ProjectPage }>, preserve = false) => {
+  const perform = useCallback(async (task: (signal: AbortSignal) => Promise<{ identity: Identity | null; page: ProjectPage; selected?: Project | null }>, preserve = false) => {
     current.current.controller?.abort();
     const controller = new AbortController();
     const version = ++current.current.version;
@@ -34,7 +34,8 @@ export function ProjectsWorkspace() {
       const result = await task(controller.signal);
       if (current.current.version === version) {
         if (preserve && (result.identity?.accountId !== previous.identity?.accountId || result.identity?.sessionId !== previous.identity?.sessionId ||
-            (project && result.page.items.find(item => item.id === project.id)?.role !== project.role))) selectProject(null);
+            (project && (result.selected?.id !== project.id || result.selected?.role !== project.role)))) selectProject(null);
+        else if (preserve && project && result.selected) selectProject(result.selected);
         setView({ ...result, busy: false, error: '' });
       }
     } catch (error) {
@@ -43,9 +44,21 @@ export function ProjectsWorkspace() {
     } finally { if (current.current.version === version) current.current.busy = false; }
   }, []);
   const refresh = useCallback((preserve = false) => perform(async signal => {
+    const previous = privateView.current.identity;
+    const project = privateProject.current;
     const identity = await readSession(signal);
     signal.throwIfAborted();
-    return { identity, page: identity ? await listProjects(signal) : emptyPage };
+    if (!identity) return { identity, page: emptyPage };
+    const sameContext = preserve && project && identity.accountId === previous?.accountId && identity.sessionId === previous?.sessionId;
+    const [page, selected] = await Promise.all([
+      listProjects(signal),
+      sameContext ? readProject(project.id, signal).catch(error => {
+        if (error instanceof SessionError && error.status === 404) return null;
+        throw error;
+      }) : Promise.resolve(null),
+    ]);
+    signal.throwIfAborted();
+    return { identity, page, selected };
   }, preserve), [perform]);
   useEffect(() => {
     void refresh();
