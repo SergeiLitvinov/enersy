@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -42,6 +44,43 @@ func TestComputeUnavailable(t *testing.T) {
 	handleCapabilities(rec, httptest.NewRequest("GET", "/", nil))
 	if rec.Code != 503 || !strings.Contains(rec.Body.String(), "unreachable") {
 		t.Fatalf("unavailable status: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestComputeMalformedJSON(t *testing.T) {
+	for _, body := range []string{"", " \n\t", "<html>upstream failure</html>", `{"success":true`, `{"success":true}{"other":1}`, `{"value":NaN}`} {
+		t.Run(fmt.Sprintf("%q", body), func(t *testing.T) {
+			for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(status)
+					io.WriteString(w, body)
+				}))
+				previous := juliaBaseURL
+				juliaBaseURL = server.URL
+				rec := httptest.NewRecorder()
+				proxyJulia(rec, httptest.NewRequest("POST", "/", nil), "/calculate", []byte(`{}`))
+				juliaBaseURL = previous
+				server.Close()
+				if rec.Code != http.StatusBadGateway || !json.Valid(rec.Body.Bytes()) || !strings.Contains(rec.Body.String(), "Invalid Julia JSON response") {
+					t.Fatalf("malformed worker document accepted: upstream=%d gateway=%d body=%s", status, rec.Code, rec.Body.String())
+				}
+			}
+		})
+	}
+}
+
+func TestComputeValidJSONPreserved(t *testing.T) {
+	// Keep this a transport check: a valid JSON document is not proof of physics.
+	body := " \n" + `{"success":true,"value":1.2345678901234567,"unicode":"напряжение"}` + "\n"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, body) }))
+	defer server.Close()
+	previous := juliaBaseURL
+	juliaBaseURL = server.URL
+	defer func() { juliaBaseURL = previous }()
+	rec := httptest.NewRecorder()
+	proxyJulia(rec, httptest.NewRequest("POST", "/", nil), "/calculate", []byte(`{}`))
+	if rec.Code != http.StatusOK || rec.Body.String() != body {
+		t.Fatalf("valid worker document changed: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -20,7 +19,7 @@ func TestSchemeAccessIndexesPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), "20261008002_") {
+		if entry.IsDir() || entry.Name() >= "20261008002_" {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(migrations, entry.Name()))

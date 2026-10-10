@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"expvar"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -37,30 +38,36 @@ var corsOrigin string
 var juliaBaseURL string
 
 type Config struct {
-	DBHost       string
-	DBPort       string
-	DBName       string
-	DBUser       string
-	DBPassword   string
-	Port         string
-	CORSOrigin   string
-	JuliaBaseURL string
+	DBHost           string
+	DBPort           string
+	DBName           string
+	DBUser           string
+	DBPassword       string
+	Port             string
+	CORSOrigin       string
+	JuliaBaseURL     string
+	AuthOrigin       string
+	AuthCookieSecure bool
 }
 
 func loadConfig() Config {
 	return Config{
-		DBHost:       getEnv("DB_HOST", "postgres"),
-		DBPort:       getEnv("DB_PORT", "5432"),
-		DBName:       getEnv("POSTGRES_DB", "app_db"),
-		DBUser:       getEnv("POSTGRES_USER", "app_user"),
-		DBPassword:   getEnv("POSTGRES_PASSWORD", "app_pass"),
-		Port:         getEnv("PORT", "8080"),
-		CORSOrigin:   getEnv("CORS_ORIGIN", "*"),
-		JuliaBaseURL: getEnv("JULIA_BASE_URL", "http://julia-compute:8001"),
+		DBHost:           getEnv("DB_HOST", "postgres"),
+		DBPort:           getEnv("DB_PORT", "5432"),
+		DBName:           getEnv("POSTGRES_DB", "app_db"),
+		DBUser:           getEnv("POSTGRES_USER", "app_user"),
+		DBPassword:       getEnv("POSTGRES_PASSWORD", "app_pass"),
+		Port:             getEnv("PORT", "8080"),
+		CORSOrigin:       getEnv("CORS_ORIGIN", "*"),
+		JuliaBaseURL:     getEnv("JULIA_BASE_URL", "http://julia-compute:8001"),
+		AuthOrigin:       getEnv("AUTH_ORIGIN", ""),
+		AuthCookieSecure: getEnv("AUTH_COOKIE_SECURE", "true") != "false",
 	}
 }
 
 func main() {
+	provision := flag.Bool("provision-account", false, "Provision a local account from JSON on stdin, then exit")
+	flag.Parse()
 	cfg := loadConfig()
 	corsOrigin = cfg.CORSOrigin
 	juliaBaseURL = cfg.JuliaBaseURL
@@ -68,8 +75,22 @@ func main() {
 	slog.Info("starting server", "port", cfg.Port, "cors_origin", cfg.CORSOrigin)
 
 	initDB(cfg)
+	if *provision {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		defer db.Close()
+		if err := provisionAccount(ctx, db, os.Stdin, os.Stdout); err != nil {
+			slog.Error("account provision failed")
+			os.Exit(1)
+		}
+		return
+	}
 
 	mux := http.NewServeMux()
+	auth := newAuthHTTP(db, cfg.AuthOrigin, cfg.AuthCookieSecure)
+	mux.Handle("/api/auth/", auth)
+	mux.Handle("/api/projects", projectsHTTP{auth: auth})
+	mux.Handle("/api/projects/", projectsHTTP{auth: auth})
 
 	// Healthcheck
 	mux.HandleFunc("/health", handleHealth)
@@ -836,6 +857,12 @@ func proxyJulia(w http.ResponseWriter, r *http.Request, path string, body []byte
 	}
 	if len(respBody) > computeBodyLimit {
 		sendError(w, "Compute response exceeds size limit", http.StatusBadGateway)
+		return
+	}
+	// Validate before committing the upstream status or exposing any partial body.
+	// Syntax validation does not establish numerical or endpoint schema validity.
+	if !json.Valid(respBody) {
+		sendError(w, "Invalid Julia JSON response", http.StatusBadGateway)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

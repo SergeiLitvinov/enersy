@@ -26,6 +26,7 @@ export default defineConfig({
         { text: 'Численная проверка', link: '/development/numerical-validation' },
         { text: 'Разреженные расчёты', link: '/development/sparse-compute' },
         { text: 'Профиль хранения', link: '/development/storage-profile' },
+        { text: 'Пользователи и сессии', link: '/development/sessions' },
         { text: 'Обновление базы', link: '/development/database' },
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },

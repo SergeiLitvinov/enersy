@@ -75,6 +75,8 @@ services:
       POSTGRES_PASSWORD: disposable_acceptance
       CORS_ORIGIN: http://localhost:4174
       JULIA_BASE_URL: http://julia-compute:8001
+      AUTH_ORIGIN: http://localhost:4174
+      AUTH_COOKIE_SECURE: "false"
     ports:
       - "127.0.0.1:8084:8080"
     depends_on:
