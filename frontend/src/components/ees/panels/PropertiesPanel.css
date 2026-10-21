@@ -25,6 +25,20 @@
   padding: 8px;
 }
 
+.switch-state-control {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-toolbar);
+}
+.switch-state-control h4 { margin: 0 0 8px; font-size: 13px; }
+.switch-state-control p { font-size: 12px; line-height: 1.6; color: var(--text-secondary); overflow-wrap: anywhere; }
+.switch-state-control [role="group"] { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.switch-state-control [aria-pressed="true"] { border-color: var(--accent-blue); color: var(--accent-blue); }
+.switch-state-control [aria-pressed="true"]:disabled { opacity: 1; }
+.switch-state-control [role="alert"] { color: var(--accent-red); }
+
 .param-title {
   font-size: 14px;
   font-weight: 600;
@@ -72,3 +86,18 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+.terminal-inspector { padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.terminal-inspector h3 { font-size: 14px; margin: 16px 0 10px; }
+.terminal-card { border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px; padding: 12px; margin: 10px 0; }
+.terminal-card h4 { font-size: 12px; margin: 0 0 8px; }
+.terminal-note, .terminal-edge small, .terminal-card small { color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
+.terminal-card small { display: block; }
+.terminal-edge { padding: 10px 0; border-top: 1px solid var(--border-color); }
+.terminal-edge > span { display: block; margin-top: 6px; }
+.terminal-link { background: none; border: 0; color: var(--accent-blue); font: inherit; font-weight: 600; text-align: left; cursor: pointer; padding: 2px 0; }
+.terminal-link:hover { text-decoration: underline; }
+.terminal-link:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.terminal-unresolved { color: var(--text-primary); border-left: 3px solid var(--accent-blue); padding-left: 8px; line-height: 1.6; }
+.inspector-sections { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.inspector-sections .tool-btn { font-size: 11px; flex: 1; justify-content: center; padding: 8px; }
+.inspector-sections [aria-pressed="true"] { color: var(--accent-blue); border-color: var(--accent-blue); background: var(--accent-blue-selected); }

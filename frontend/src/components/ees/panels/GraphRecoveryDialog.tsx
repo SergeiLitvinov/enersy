@@ -4,7 +4,7 @@ import type { GraphFailure, GraphReview } from '../graph-writes';
 
 function describe(failure: GraphFailure) {
   const intent = failure.intent;
-  if (intent.kind === 'create-component') return `Добавить «${intent.name}», тип #${intent.typeId}, паспорт ${intent.equipmentModelId ?? 'не выбран'}, положение (${intent.x}, ${intent.y})`;
+  if (intent.kind === 'create-component') return `Добавить «${intent.name}», тип #${intent.typeId}, паспорт ${intent.projectPassportVersionId ? `проекта, версия #${intent.projectPassportVersionId}` : intent.equipmentModelId ?? 'не выбран'}, положение (${intent.x}, ${intent.y})`;
   if (intent.kind === 'delete-connection') return `Удалить связь #${intent.id}`;
   return `Соединить #${intent.from}:${intent.fromPort} → #${intent.to}:${intent.toPort}`;
 }
@@ -14,6 +14,7 @@ function observed(failure: GraphFailure, review: GraphReview) {
   if (intent.kind === 'create-component') {
     const candidates = review.server.components.filter(component => component.typeId === intent.typeId &&
       component.name === intent.name && (component.equipmentModelId ?? null) === intent.equipmentModelId &&
+      (component.projectPassportVersionId ?? null) === (intent.projectPassportVersionId ?? null) &&
       component.x === intent.x && component.y === intent.y);
     return candidates.length ? `Совпадают указанные признаки: ${candidates.map(component => `«${component.name}» #${component.id}`).join(', ')}. Это не доказательство выполнения команды.` : 'Объектов с такими признаками нет. Исходная команда могла выполниться, а объект — измениться.';
   }

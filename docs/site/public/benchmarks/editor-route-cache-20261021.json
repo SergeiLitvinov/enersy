@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "node": "v20.20.2",
+  "platform": "linux",
+  "arch": "x64",
+  "dataset": "100-column line grid, spacing 200/150, rotations 0/90/180/270; middle object moves diagonally one unit per commit",
+  "scope": "CPU committed routing only; 5 warmup + 30 measured updates, complete-rebuild parity outside timing. Includes O(N+E) snapshot/map scans; excludes spatial indexes, adjacency rebuild, React, SVG, FPS and HTTP.",
+  "cases": [
+    {
+      "components": 1000,
+      "connections": 999,
+      "samples": 30,
+      "recomputedRoutes": 2,
+      "reusedRoutes": 997,
+      "incrementalRouteUpdateMs": {
+        "p50": 0.16009900000000243,
+        "p95": 0.38316999999995005,
+        "max": 0.41607400000000894
+      },
+      "fullRouteRebuildMs": {
+        "p50": 7.571479000000011,
+        "p95": 10.504702000000009,
+        "max": 12.11603599999998
+      },
+      "exactPathParity": true
+    },
+    {
+      "components": 10000,
+      "connections": 9999,
+      "samples": 30,
+      "recomputedRoutes": 2,
+      "reusedRoutes": 9997,
+      "incrementalRouteUpdateMs": {
+        "p50": 3.704291999999896,
+        "p95": 3.958351999999877,
+        "max": 4.45671399999992
+      },
+      "fullRouteRebuildMs": {
+        "p50": 77.73849599999994,
+        "p95": 90.99581200000011,
+        "max": 91.70643399999994
+      },
+      "exactPathParity": true
+    },
+    {
+      "components": 20000,
+      "connections": 19999,
+      "samples": 30,
+      "recomputedRoutes": 2,
+      "reusedRoutes": 19997,
+      "incrementalRouteUpdateMs": {
+        "p50": 8.349003000001176,
+        "p95": 10.255517999999938,
+        "max": 10.869662999999491
+      },
+      "fullRouteRebuildMs": {
+        "p50": 167.5604540000004,
+        "p95": 190.01418999999987,
+        "max": 193.98481300000003
+      },
+      "exactPathParity": true
+    }
+  ],
+  "hardware": {
+    "cpu_model": "AMD Ryzen 7 7700 8-Core Processor"
+  },
+  "esbuild": "0.25.12",
+  "source_sha256": {
+    "src/domain/spatial-index.ts": "2e696ccef5172fa2a48b8ece43897928d6e42232770bedb775047fb8f95c5204",
+    "src/domain/diagram-routing.ts": "5f0b8f821e05d826b191236b7507b0ce36a2cf8b3332d2410e34a1207dd2ba7c",
+    "src/components/ees/editor-picking.ts": "9a47a497258e49b9af0204b4f4e4fa4e83449aa723850b007ae8048f47744769",
+    "src/components/ees/editor-geometry.ts": "2ffb2dae2b040e6e3132cadc37138dbc832a14553df029659d14baadc3782903",
+    "src/components/ees/editor-route-cache.ts": "1a2f73d0263019fd36943f5d433f34e43d6481002f7b4f1d6ea9a09619486cdd",
+    "src/components/ees/editor-utils.ts": "13dfad2ebf6764b7fb7d997b610b3d1ec9ea75c51f9d774c0579c361e732acf3",
+    "benchmark/route-cache.ts": "0c98711f0e8f8cc535e28478a18eafec53414d0568f28809c2a6829ec2f25dfb",
+    "benchmark/picking.mjs": "bc0c8700479ff65a403ce6397ccc5390fb9aecd968c0440753b04255b158ae2b",
+    "package-lock.json": "7c1e6d9e7378545664229bc2cfba36dc7aef4ebc5920ad8f687a5ec0c061982c"
+  },
+  "container_limits": {
+    "cpu_max": "200000 100000\n",
+    "memory_max": "2147483648\n"
+  }
+}

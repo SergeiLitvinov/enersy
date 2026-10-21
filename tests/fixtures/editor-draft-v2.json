@@ -1,0 +1,18 @@
+{
+  "formatVersion": 2,
+  "components": [],
+  "graph": [
+    { "phase": "unprepared", "reason": "В очереди",
+      "intent": { "kind": "create-component", "typeId": "2", "equipmentModelId": null, "name": "Нагрузка", "x": 0, "y": 10, "rotation": 0, "params": { "p": "5", "__proto__": "паспорт" } } },
+    { "phase": "prepared", "reason": "Ответ потерян",
+      "intent": { "kind": "create-component", "typeId": "2", "equipmentModelId": null, "name": "Нагрузка 2", "x": 20, "y": 10, "rotation": 90, "params": { "p": "6" } } },
+    { "phase": "unprepared", "reason": "",
+      "intent": { "kind": "create-connection", "commandId": "11111111-1111-4111-8111-111111111111", "from": "10", "to": "11", "fromPort": "right", "toPort": "left" } },
+    { "phase": "prepared", "reason": "Сверить подтверждение",
+      "intent": { "kind": "create-connection", "commandId": "22222222-2222-4222-8222-222222222222", "from": "11", "to": "12", "fromPort": "right", "toPort": "left", "expectedTopologyRevision": "9007199254740994" } },
+    { "phase": "unprepared", "reason": "",
+      "intent": { "kind": "delete-connection", "id": "25" } },
+    { "phase": "prepared", "reason": "Сверить",
+      "intent": { "kind": "delete-connection", "id": "26", "expectedTopologyRevision": "0" } }
+  ]
+}

@@ -34,6 +34,7 @@ function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, l
     fixed = Dict{Int,Float64}()
     events = Dict{String,Any}[]
     total = 0
+    trials, damped, min_step = 0, 0, 1.0
     visited = Set{Tuple}()
     v, theta = initial_v, nothing
     for pass in 1:options.max_iterations
@@ -45,6 +46,9 @@ function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, l
         result = newton_raphson(Y, current, SolverOptions(options.tolerance, remaining);
                                initial_v=v, initial_theta=theta)
         total += result.iterations
+        trials += result.line_search_trials
+        damped += result.damped_steps
+        min_step = min(min_step, result.min_step_length)
         changed = false
         # Check already constrained sources before adding new constraints.
         # Only original PV sources can be released, never user-declared PQ.
@@ -83,7 +87,7 @@ function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, l
                                        detail="bus=$(setup.slack) q_pu=$(result.q[setup.slack]) bounds_pu=[$low,$high]"))
             end
             final = PowerFlowResult(result.v, result.theta, result.voltages, result.p, result.q,
-                                    total, result.max_mismatch)
+                                    total, result.max_mismatch, trials, damped, min_step)
             return final, current, fixed, events, pass
         end
         keep = findall(bus -> !haskey(fixed, bus), setup.pv)
@@ -91,7 +95,8 @@ function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, l
         current = PowerFlowSetup(setup.nbus, setup.slack, setup.slack_v, setup.slack_theta,
             setup.pv[keep], vcat(setup.pq, setup.pv[removed]), setup.pv_v[keep],
             setup.p_pv[keep], vcat(setup.p_pq, setup.p_pv[removed]),
-            vcat(setup.q_pq, [fixed[bus] for bus in setup.pv[removed]]))
+            vcat(setup.q_pq, [fixed[bus] for bus in setup.pv[removed]]);
+            voltage_demands=setup.voltage_demands)
         v, theta = result.v, result.theta
     end
     throw(solver_error("q_limit_active_set_budget", "Q-limit active-set pass budget exhausted"))

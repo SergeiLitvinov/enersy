@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,9 +15,26 @@ import (
 const draftFixture = `{"formatVersion":1,"components":[{"componentId":"7","base":{"id":"7","typeId":"2","type":"load","equipmentModelId":null,"revision":"9007199254740993","name":"Private load","x":0,"y":10,"rotation":90,"params":{"p":"10"}},"intents":[{"kind":"parameter","key":"p","value":"11"},{"kind":"pose","values":{"x":12}},{"kind":"delete"}],"reason":"Lost acknowledgement"}],"graph":[{"intent":{"kind":"create-connection","commandId":"10000000-0000-0000-0000-000000000001","from":"7","to":"8","fromPort":"top","toPort":"left","expectedTopologyRevision":"9007199254740994"},"reason":"Unconfirmed command"}]}`
 const emptyDraftFixture = `{"formatVersion":1,"components":[],"graph":[]}`
 
+// The TypeScript codec consumes this same fixture, including every intent kind,
+// historical BIGINT CAS and a parameter key that must not alter JS prototypes.
+func TestEditorDraftSharedWireFixture(t *testing.T) {
+	data, err := os.ReadFile("../tests/fixtures/editor-draft-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := decodeEditorDraft(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Components[0].Base.Revision != "9007199254740993" || payload.Components[0].Base.Params["__proto__"] != "паспорт" ||
+		string(payload.Graph[1].Intent.ExpectedTopologyRevision) != `"9007199254740994"` || string(payload.Graph[2].Intent.ExpectedTopologyRevision) != `"0"` {
+		t.Fatal("shared recovery fixture lost original values or CAS")
+	}
+}
+
 func TestEditorDraftPayload(t *testing.T) {
 	payload, err := decodeEditorDraft([]byte(draftFixture))
-	if err != nil || payload.Components[0].Base.Revision != "9007199254740993" || *payload.Graph[0].Intent.ExpectedTopologyRevision != "9007199254740994" {
+	if err != nil || payload.Components[0].Base.Revision != "9007199254740993" || string(payload.Graph[0].Intent.ExpectedTopologyRevision) != `"9007199254740994"` {
 		t.Fatal("valid draft/precise revisions rejected")
 	}
 	for _, invalid := range []string{
@@ -108,6 +126,7 @@ func TestEditorDraftsPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkEditorDraftPhaseMigration(t, ctx, database, accounts[2], scheme)
 	for _, invalid := range []string{`{}`, `{"formatVersion":"1"}`, `[]`} {
 		if _, err := database.ExecContext(ctx, `INSERT INTO project_editor_drafts(account_id,scheme_id,workspace_id,revision,payload)
  VALUES($1,$2,'00000000-0000-0000-0000-000000000001',1,$3::jsonb)`, accounts[2], scheme, invalid); err == nil {

@@ -23,19 +23,21 @@ type calculationConnection struct {
 }
 
 type calculationInput struct {
+	Provenance       []byte
 	Components       []calculationComponent
 	Connections      []calculationConnection
 	TopologyRevision int64
 	AuthorAccountID  int64
+	SchemeName       string
 }
 
 // Read a coherent input and release the database before contacting the worker.
 // This is an in-memory request snapshot, not a persisted Study/Run revision.
 func readCalculationInput(ctx context.Context, database *sql.DB, schemeID int) (calculationInput, error) {
-	return readCalculationInputScope(ctx, database, schemeID, 0, "")
+	return readCalculationInputScope(ctx, database, schemeID, 0, "", false)
 }
 
-func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID int, project int64, token string) (calculationInput, error) {
+func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID int, project int64, token string, captureProvenance bool) (calculationInput, error) {
 	input := calculationInput{Components: []calculationComponent{}, Connections: []calculationConnection{}}
 	tx, err := database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
@@ -50,12 +52,12 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 		if err != nil {
 			return input, sql.ErrNoRows
 		}
-		query = `SELECT cs.id,cs.topology_revision,a.id FROM circuit_schemes cs JOIN projects p ON p.id=cs.project_id
+		query = `SELECT cs.id,cs.topology_revision,a.id,cs.name FROM circuit_schemes cs JOIN projects p ON p.id=cs.project_id
  JOIN auth_sessions s ON s.token_hash=$3 JOIN auth_accounts a ON a.id=s.account_id
  LEFT JOIN project_members m ON m.project_id=p.id AND m.account_id=a.id
  WHERE cs.id=$1 AND p.id=$2 AND s.revoked_at IS NULL AND s.expires_at>statement_timestamp() AND a.disabled_at IS NULL
  AND (p.owner_account_id=a.id OR m.role IN ('admin','editor'))`
-		if err := tx.QueryRowContext(ctx, query, schemeID, project, hash).Scan(&id, &input.TopologyRevision, &input.AuthorAccountID); err != nil {
+		if err := tx.QueryRowContext(ctx, query, schemeID, project, hash).Scan(&id, &input.TopologyRevision, &input.AuthorAccountID, &input.SchemeName); err != nil {
 			return input, err
 		}
 	} else if err := tx.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
@@ -98,6 +100,12 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	}
 	if err := connections.Err(); err != nil {
 		return input, err
+	}
+	if project > 0 && captureProvenance {
+		input.Provenance, err = readCalculationProvenance(ctx, tx, project, schemeID, input.Components)
+		if err != nil {
+			return input, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return input, err

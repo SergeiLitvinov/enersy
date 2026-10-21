@@ -1,0 +1,1878 @@
+{
+  "schema_version": 1,
+  "image_id": "sha256:764c0568ea9dfa9376f07962241c3a0dace6d78ea9641d744238d47ddd500740",
+  "runner_sha256": "9dba8dcb9ac321eab9f4269a11194906adeb7a1069fcec122bd35ccc0a4663ac",
+  "records": [
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "radial",
+      "container_peak_bytes": "260583424",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 13666,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 1000,
+      "j_bytes": 207704,
+      "solver_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.066856312,
+        "allocated_bytes": 15579192
+      },
+      "accuracy": {
+        "max_mismatch_pu": 1.1821099654696354E-13,
+        "iterations": 4,
+        "balance_error_pu": 2.966544423356485E-14,
+        "max_voltage_error_pu": 2.0856017542239553E-13
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 11972,
+      "branches": 999,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001047928,
+            "allocated_bytes": 2625824
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001013842,
+            "allocated_bytes": 2625824
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001437382,
+            "allocated_bytes": 2625824
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000919098,
+            "allocated_bytes": 2625824
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001401342,
+            "allocated_bytes": 2625824
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.0568E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.2684E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.7794E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 1.6452E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.6241E-05,
+            "allocated_bytes": 32512
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000415665,
+            "allocated_bytes": 1069200
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000369946,
+            "allocated_bytes": 1069200
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000416436,
+            "allocated_bytes": 1069200
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000367522,
+            "allocated_bytes": 1069200
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000407439,
+            "allocated_bytes": 1069200
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005906361,
+            "allocated_bytes": 15454616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005751612,
+            "allocated_bytes": 15454616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005958513,
+            "allocated_bytes": 15454616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.006897098,
+            "allocated_bytes": 15454616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005817889,
+            "allocated_bytes": 15454616
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.1972E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 4.1009E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.8104E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 9.1867E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.2531E-05,
+            "allocated_bytes": 64640
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 7.0206E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.0828E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.5067E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.4095E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.0266E-05,
+            "allocated_bytes": 32256
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.066372003,
+        "allocated_bytes": 685336
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 2998,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 464179200,
+      "y_bytes": 80120
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "radial",
+      "container_peak_bytes": "314949632",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 136806,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 10000,
+      "j_bytes": 2079704,
+      "solver_first_call": {
+        "gc_seconds": 0.012081579,
+        "seconds": 0.213896324,
+        "allocated_bytes": 223255400
+      },
+      "accuracy": {
+        "max_mismatch_pu": 6.303707555943561E-13,
+        "iterations": 6,
+        "balance_error_pu": 4.973997400481225E-14,
+        "max_voltage_error_pu": 7.392964687389296E-12
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 119972,
+      "branches": 9999,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.014311643,
+            "allocated_bytes": 26108384
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.017810373,
+            "allocated_bytes": 26108384
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.015475154,
+            "allocated_bytes": 26108384
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.016527902,
+            "allocated_bytes": 26108384
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.016296384,
+            "allocated_bytes": 26108384
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.0016E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.4517E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.9367E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.4807E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.2894E-05,
+            "allocated_bytes": 320272
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003123364,
+            "allocated_bytes": 9545840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004144629,
+            "allocated_bytes": 9545840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003245581,
+            "allocated_bytes": 9545840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005053559,
+            "allocated_bytes": 9545840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003031125,
+            "allocated_bytes": 9545840
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.001715129,
+            "seconds": 0.161055416,
+            "allocated_bytes": 223118184
+          },
+          {
+            "gc_seconds": 0.001424336,
+            "seconds": 0.13654827,
+            "allocated_bytes": 223118184
+          },
+          {
+            "gc_seconds": 0.003601019,
+            "seconds": 0.163248129,
+            "allocated_bytes": 223118184
+          },
+          {
+            "gc_seconds": 0.001744165,
+            "seconds": 0.155466063,
+            "allocated_bytes": 223118184
+          },
+          {
+            "gc_seconds": 0.001756689,
+            "seconds": 0.169020247,
+            "allocated_bytes": 223118184
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000152064,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000152324,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000196701,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000161713,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000171061,
+            "allocated_bytes": 640240
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000296123,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000466774,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000299771,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000353424,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000256276,
+            "allocated_bytes": 320096
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.060489229,
+        "allocated_bytes": 5636920
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 29998,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 517984256,
+      "y_bytes": 800120
+    },
+    {
+      "status": "failed",
+      "family": "radial",
+      "buses": 100000,
+      "exit_code": 1,
+      "oom_killed": false
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "ring",
+      "container_peak_bytes": "258838528",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 13960,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 1000,
+      "j_bytes": 207832,
+      "solver_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.10477553,
+        "allocated_bytes": 11653072
+      },
+      "accuracy": {
+        "max_mismatch_pu": 1.0355631689619102E-14,
+        "iterations": 3,
+        "balance_error_pu": 3.333834811115521E-14,
+        "max_voltage_error_pu": 6.805364417284668E-13
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 11980,
+      "branches": 1000,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001598744,
+            "allocated_bytes": 2591480
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001557653,
+            "allocated_bytes": 2591480
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001497828,
+            "allocated_bytes": 2591480
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001429275,
+            "allocated_bytes": 2591480
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001488429,
+            "allocated_bytes": 2591480
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.7822E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.9647E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.5248E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.4887E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.6931E-05,
+            "allocated_bytes": 32512
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000496801,
+            "allocated_bytes": 1069648
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00069217,
+            "allocated_bytes": 1069648
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00047013,
+            "allocated_bytes": 1069648
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000352292,
+            "allocated_bytes": 1069648
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000534024,
+            "allocated_bytes": 1069648
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.006606192,
+            "allocated_bytes": 11528496
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004266444,
+            "allocated_bytes": 11528496
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004689774,
+            "allocated_bytes": 11528496
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.006175207,
+            "allocated_bytes": 11528496
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003902589,
+            "allocated_bytes": 11528496
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.1941E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.6019E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.4696E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.7582E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.9264E-05,
+            "allocated_bytes": 64640
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 9.5174E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000131885,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 7.2871E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.5256E-05,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.7841E-05,
+            "allocated_bytes": 32256
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.09996021,
+        "allocated_bytes": 719896
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 3000,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 461295616,
+      "y_bytes": 80168
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "ring",
+      "container_peak_bytes": "314068992",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 139972,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 10000,
+      "j_bytes": 2079832,
+      "solver_first_call": {
+        "gc_seconds": 0.001690662,
+        "seconds": 0.174067467,
+        "allocated_bytes": 111409424
+      },
+      "accuracy": {
+        "max_mismatch_pu": 1.2358651581089288E-14,
+        "iterations": 3,
+        "balance_error_pu": 2.1749264815485798E-13,
+        "max_voltage_error_pu": 7.012386346149253E-11
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 119980,
+      "branches": 10000,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.02737388,
+            "allocated_bytes": 25760840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.020471964,
+            "allocated_bytes": 25760840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.02045593,
+            "allocated_bytes": 25760840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.014194143,
+            "allocated_bytes": 25760840
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.014058611,
+            "allocated_bytes": 25760840
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 9.1637E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.8765E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.9547E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.1148E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.5296E-05,
+            "allocated_bytes": 320272
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004341324,
+            "allocated_bytes": 9546288
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.006471843,
+            "allocated_bytes": 9546288
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005633427,
+            "allocated_bytes": 9546288
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.007079729,
+            "allocated_bytes": 9546288
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004469913,
+            "allocated_bytes": 9546288
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.00069332,
+            "seconds": 0.061416464,
+            "allocated_bytes": 111272208
+          },
+          {
+            "gc_seconds": 0.00096215,
+            "seconds": 0.048189401,
+            "allocated_bytes": 111272208
+          },
+          {
+            "gc_seconds": 0.000645098,
+            "seconds": 0.055975905,
+            "allocated_bytes": 111272208
+          },
+          {
+            "gc_seconds": 0.000702428,
+            "seconds": 0.059826351,
+            "allocated_bytes": 111272208
+          },
+          {
+            "gc_seconds": 0.000672681,
+            "seconds": 0.067980267,
+            "allocated_bytes": 111272208
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00018135,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000158437,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000221177,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000157885,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000158887,
+            "allocated_bytes": 640240
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000411055,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000365276,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000323866,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000310119,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00031057,
+            "allocated_bytes": 320096
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.069202268,
+        "allocated_bytes": 6079224
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 30000,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 517783552,
+      "y_bytes": 800168
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "ring",
+      "container_peak_bytes": "836313088",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 1399816,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 100000,
+      "j_bytes": 20799832,
+      "solver_first_call": {
+        "gc_seconds": 0.177929143,
+        "seconds": 1.980968429,
+        "allocated_bytes": 1126528272
+      },
+      "accuracy": {
+        "max_mismatch_pu": 1.2783331103744912E-14,
+        "iterations": 3,
+        "balance_error_pu": 7.382991795772751E-13,
+        "max_voltage_error_pu": 6.032446432915774E-10
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 1199980,
+      "branches": 100000,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.002068793,
+            "seconds": 0.283355847,
+            "allocated_bytes": 257456856
+          },
+          {
+            "gc_seconds": 0.000809536,
+            "seconds": 0.195488139,
+            "allocated_bytes": 257456856
+          },
+          {
+            "gc_seconds": 0.000906633,
+            "seconds": 0.161564002,
+            "allocated_bytes": 257456856
+          },
+          {
+            "gc_seconds": 0.000692169,
+            "seconds": 0.164532085,
+            "allocated_bytes": 257456856
+          },
+          {
+            "gc_seconds": 0.000817111,
+            "seconds": 0.155861626,
+            "allocated_bytes": 257456856
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000921372,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001063788,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000602274,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000647913,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000520005,
+            "allocated_bytes": 3200272
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.00056915,
+            "seconds": 0.164849698,
+            "allocated_bytes": 99888112
+          },
+          {
+            "gc_seconds": 0.00051744,
+            "seconds": 0.110248244,
+            "allocated_bytes": 99888112
+          },
+          {
+            "gc_seconds": 0.001160464,
+            "seconds": 0.103301677,
+            "allocated_bytes": 99888112
+          },
+          {
+            "gc_seconds": 0.000494175,
+            "seconds": 0.137941167,
+            "allocated_bytes": 99888112
+          },
+          {
+            "gc_seconds": 0.000513704,
+            "seconds": 0.093350924,
+            "allocated_bytes": 99888112
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.004047868,
+            "seconds": 0.676871412,
+            "allocated_bytes": 1126397408
+          },
+          {
+            "gc_seconds": 0.082306598,
+            "seconds": 0.87927497,
+            "allocated_bytes": 1126397456
+          },
+          {
+            "gc_seconds": 0.005810881,
+            "seconds": 0.83391521,
+            "allocated_bytes": 1126397456
+          },
+          {
+            "gc_seconds": 0.002687599,
+            "seconds": 0.900993084,
+            "allocated_bytes": 1126397456
+          },
+          {
+            "gc_seconds": 0.002133165,
+            "seconds": 0.767795425,
+            "allocated_bytes": 1126397456
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.012386235,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001631295,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00165479,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001648027,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.0018409,
+            "allocated_bytes": 6400240
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002999711,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003082533,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003139642,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003228444,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003174641,
+            "allocated_bytes": 3200096
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.002523168,
+        "seconds": 0.105990643,
+        "allocated_bytes": 57336968
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 300000,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 1037934592,
+      "y_bytes": 8000168
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "mesh",
+      "container_peak_bytes": "264740864",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 90532,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 1000,
+      "j_bytes": 327640,
+      "solver_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.076472993,
+        "allocated_bytes": 16668640
+      },
+      "accuracy": {
+        "max_mismatch_pu": 3.5285142863106245E-14,
+        "iterations": 3,
+        "balance_error_pu": 2.7381528705148982E-14,
+        "max_voltage_error_pu": 7.075907095233772E-14
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 19468,
+      "branches": 1936,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004040675,
+            "allocated_bytes": 3844008
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003915983,
+            "allocated_bytes": 3844008
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003865476,
+            "allocated_bytes": 3844008
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003651793,
+            "allocated_bytes": 3844008
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003419864,
+            "allocated_bytes": 3844008
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.6269E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.7313E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.8866E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.8695E-05,
+            "allocated_bytes": 32512
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.7072E-05,
+            "allocated_bytes": 32512
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000484998,
+            "allocated_bytes": 1488976
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000472093,
+            "allocated_bytes": 1488976
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000471992,
+            "allocated_bytes": 1488976
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000719181,
+            "allocated_bytes": 1488976
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000658002,
+            "allocated_bytes": 1488976
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.016385013,
+            "allocated_bytes": 16544064
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.030660757,
+            "allocated_bytes": 16544064
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.018801904,
+            "allocated_bytes": 16544064
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.016521214,
+            "allocated_bytes": 16544064
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.017008213,
+            "allocated_bytes": 16544064
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 2.8916E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.2191E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 4.1921E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 4.6249E-05,
+            "allocated_bytes": 64640
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 4.2793E-05,
+            "allocated_bytes": 64640
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000218612,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000156031,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000172183,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000166572,
+            "allocated_bytes": 32256
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000181441,
+            "allocated_bytes": 32256
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.059471488,
+        "allocated_bytes": 1047688
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 4872,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 467378176,
+      "y_bytes": 125096
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "mesh",
+      "container_peak_bytes": "363270144",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 1599412,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 10000,
+      "j_bytes": 3334232,
+      "solver_first_call": {
+        "gc_seconds": 0.014186652,
+        "seconds": 0.393837472,
+        "allocated_bytes": 181453584
+      },
+      "accuracy": {
+        "max_mismatch_pu": 2.84449113568952E-14,
+        "iterations": 3,
+        "balance_error_pu": 1.5794115866633443E-12,
+        "max_voltage_error_pu": 1.2059996299309506E-13
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 198380,
+      "branches": 19800,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.053476503,
+            "allocated_bytes": 44718616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.052055734,
+            "allocated_bytes": 44718616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.059356772,
+            "allocated_bytes": 44718616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.055756292,
+            "allocated_bytes": 44718616
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.055431966,
+            "allocated_bytes": 44718616
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.4355E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 5.8003E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.5068E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 6.201E-05,
+            "allocated_bytes": 320272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 3.4065E-05,
+            "allocated_bytes": 320272
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.006528813,
+            "allocated_bytes": 13936560
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005030053,
+            "allocated_bytes": 13936560
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.004814335,
+            "allocated_bytes": 13936560
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005827696,
+            "allocated_bytes": 13936560
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005015585,
+            "allocated_bytes": 13936560
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.001332317,
+            "seconds": 0.175871463,
+            "allocated_bytes": 181316368
+          },
+          {
+            "gc_seconds": 0.001179531,
+            "seconds": 0.167284804,
+            "allocated_bytes": 181316368
+          },
+          {
+            "gc_seconds": 0.001343087,
+            "seconds": 0.172685531,
+            "allocated_bytes": 181316368
+          },
+          {
+            "gc_seconds": 0.001231223,
+            "seconds": 0.171270926,
+            "allocated_bytes": 181316368
+          },
+          {
+            "gc_seconds": 0.001110748,
+            "seconds": 0.166751464,
+            "allocated_bytes": 181316368
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000216538,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000208282,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000223773,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000196159,
+            "allocated_bytes": 640240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000312764,
+            "allocated_bytes": 640240
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002766278,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002387138,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003401693,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002763495,
+            "allocated_bytes": 320096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002132656,
+            "allocated_bytes": 320096
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.0,
+        "seconds": 0.089163202,
+        "allocated_bytes": 8964088
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 49600,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 567582720,
+      "y_bytes": 1270568
+    },
+    {
+      "mismatch_tolerance_pu": 1E-10,
+      "family": "mesh",
+      "container_peak_bytes": "1538744320",
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "bbc9c0ba671d520b8735b3bd4e1f83b108a81660b28876fcbfc8aeff290487a9",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/calculate.jl": "699ae13397878eda69034656b55940b42baca35e8f1f689b1622ab603f42fa65",
+        "src/island_calculation.jl": "b437add49690a73b664c6e916efdcb7813fb6cabb2f952039d6e5b67ccae6344",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "dfd5e1afa6d00cb89fe120b286c60772c9e5eabb8fcf579d354844e5e7373edb",
+        "benchmark/ac_stages.jl": "39562f063b9eaebd37dc2241dbe733fb3e400f6eb7a5a3497788c43de426d0e2",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f"
+      },
+      "base_mva": 100,
+      "lu_nnz": 25991607,
+      "julia_version": "1.10.12",
+      "status": "passed",
+      "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+      "buses": 100000,
+      "j_bytes": 33518808,
+      "solver_first_call": {
+        "gc_seconds": 0.314826803,
+        "seconds": 7.530825257,
+        "allocated_bytes": 2029408456
+      },
+      "accuracy": {
+        "max_mismatch_pu": 2.3298840612882843E-14,
+        "iterations": 3,
+        "balance_error_pu": 7.182708855303568E-12,
+        "max_voltage_error_pu": 1.9504456874695837E-12
+      },
+      "balance_absolute_tolerance_pu": 1E-07,
+      "blas_threads": 1,
+      "j_nnz": 1994916,
+      "branches": 199367,
+      "cpu_quota": "200000 100000",
+      "stages": {
+        "factorization": [
+          {
+            "gc_seconds": 0.001341634,
+            "seconds": 1.495630317,
+            "allocated_bytes": 513898384
+          },
+          {
+            "gc_seconds": 0.000565814,
+            "seconds": 1.265535783,
+            "allocated_bytes": 513898384
+          },
+          {
+            "gc_seconds": 0.001058507,
+            "seconds": 1.223012845,
+            "allocated_bytes": 513898384
+          },
+          {
+            "gc_seconds": 0.000385495,
+            "seconds": 0.999679604,
+            "allocated_bytes": 513898384
+          },
+          {
+            "gc_seconds": 0.000316472,
+            "seconds": 0.97374611,
+            "allocated_bytes": 513898384
+          }
+        ],
+        "mismatch": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000464238,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000468225,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000306081,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.000299639,
+            "allocated_bytes": 3200272
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.00029484,
+            "allocated_bytes": 3200272
+          }
+        ],
+        "jacobian": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.090357599,
+            "allocated_bytes": 144404528
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.110249618,
+            "allocated_bytes": 144404528
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.121244757,
+            "allocated_bytes": 144404528
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.118157237,
+            "allocated_bytes": 144404528
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.120416726,
+            "allocated_bytes": 144404528
+          }
+        ],
+        "full_newton": [
+          {
+            "gc_seconds": 0.010763861,
+            "seconds": 3.878142006,
+            "allocated_bytes": 2029271304
+          },
+          {
+            "gc_seconds": 0.002254861,
+            "seconds": 3.964931397,
+            "allocated_bytes": 2029271304
+          },
+          {
+            "gc_seconds": 0.002306502,
+            "seconds": 4.106178034,
+            "allocated_bytes": 2029271304
+          },
+          {
+            "gc_seconds": 0.00208756,
+            "seconds": 4.071456857,
+            "allocated_bytes": 2029271304
+          },
+          {
+            "gc_seconds": 0.0018552,
+            "seconds": 3.595468974,
+            "allocated_bytes": 2029271304
+          }
+        ],
+        "powers": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.005388389,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.003205106,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.002033711,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001726809,
+            "allocated_bytes": 6400240
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.001716759,
+            "allocated_bytes": 6400240
+          }
+        ],
+        "backsolve": [
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.034256308,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.036177314,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.031986214,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.035800416,
+            "allocated_bytes": 3200096
+          },
+          {
+            "gc_seconds": 0.0,
+            "seconds": 0.034986877,
+            "allocated_bytes": 3200096
+          }
+        ]
+      },
+      "memory_limit_bytes": "2147483648",
+      "stage_scope": "Independent warm probes at flat start; not an additive breakdown of full Newton",
+      "generation_first_call": {
+        "gc_seconds": 0.007897728,
+        "seconds": 0.556042212,
+        "allocated_bytes": 89296136
+      },
+      "voltage_tolerance_pu": 1E-08,
+      "julia_threads": 1,
+      "kernel": "Linux",
+      "balance_relative_tolerance": 1E-09,
+      "y_nnz": 498734,
+      "seed": "20261021",
+      "samples_per_stage": 5,
+      "schema_version": 1,
+      "base_kv": 110,
+      "process_max_rss_bytes": 1739218944,
+      "y_bytes": 12769784
+    }
+  ]
+}

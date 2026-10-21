@@ -49,6 +49,22 @@ test('numeric, mismatched or incomplete creation acknowledgements never become o
     await expect(createProjectComponent(scope, { typeId: '1', equipmentModelId: '12', x: 0, y: 0, rotation: 0, name: 'Шина', params: {} }, signal)).rejects.toThrow();
   }
 });
+
+test('creation confirms an exact project passport BIGINT and rejects substitutions or two sources', async () => {
+  const projectPassportVersionId = '9007199254740993';
+  const draft = { typeId: '1', equipmentModelId: null, projectPassportVersionId, x: 0, y: 0, rotation: 0, name: 'Источник', params: {} };
+  const ack = { success: true, id: '10', revision, equipmentModelId: null, projectPassportVersionId, params: { power_nom: '10.00' } };
+  const fetcher = vi.fn().mockResolvedValue(reply(ack)); vi.stubGlobal('fetch', fetcher);
+  expect((await createProjectComponent(scope, draft, signal)).projectPassportVersionId).toBe(projectPassportVersionId);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(draft);
+  for (const value of [null, undefined, 12, '9007199254740994']) {
+    fetcher.mockResolvedValue(reply({ ...ack, projectPassportVersionId: value }));
+    await expect(createProjectComponent(scope, draft, signal)).rejects.toThrow();
+  }
+  fetcher.mockClear();
+  await expect(createProjectComponent(scope, { ...draft, equipmentModelId: '1' }, signal)).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
 test('a repeated connection retains command, payload and original CAS; deleted replay stays explicit', async () => {
   const fetcher = vi.fn().mockImplementation(async () => reply({ success: true, id: '20', commandId: command, deleted: true, topologyRevision: revision }));
   vi.stubGlobal('fetch', fetcher);

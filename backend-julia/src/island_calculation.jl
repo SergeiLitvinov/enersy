@@ -20,7 +20,7 @@ function split_ac_islands(sys::AcSystem)
         id = sys.buses[m.from_bus].island
         id == sys.buses[m.to_bus].island || throw(internal_error("inconsistent_island", "Branch crosses compiled islands"))
         push!(branches[id], BranchModel(m.component_id, m.code, local_index[m.from_bus],
-            local_index[m.to_bus], m.ratio, m.y_series, m.y_from, m.y_to, m.owner))
+            local_index[m.to_bus], m.ratio, m.y_series, m.y_from, m.y_to, m.owner, m.phase_shift_rad))
     end
     for s in sys.shunts
         id = sys.buses[s.bus].island
@@ -50,6 +50,7 @@ function restore_bus_ids!(response, map, island)
         for key in ("internal_bus", "terminal_bus"); source[key] = map[source[key]]; end
     end
     for shunt in response["shunts"]; shunt["bus"] = map[shunt["bus"]]; end
+    for load in response["loads"]; load["bus"] = map[load["bus"]]; end
     for event in response["q_limit_events"]
         event["bus"] = map[event["bus"]]
         event["island_id"] = island
@@ -93,11 +94,13 @@ function calculate_islands(sys::AcSystem, base::BaseSystem, options::SolverOptio
             "equations"=>solver["equations"], "unknowns"=>solver["unknowns"],
             "iterations"=>response["iterations"], "max_mismatch_pu"=>response["max_mismatch_pu"],
             "q_limit_passes"=>solver["q_limit_passes"], "balance"=>response["balance"],
+            "line_search_trials"=>solver["line_search_trials"], "damped_steps"=>solver["damped_steps"],
+            "min_step_length"=>solver["min_step_length"],
             "computation_time_ms"=>response["computation_time_ms"]))
         push!(responses, response)
     end
     output = copy(first(responses))
-    for key in ("nodes", "branches", "sources", "shunts", "q_limit_events")
+    for key in ("nodes", "branches", "sources", "shunts", "loads", "q_limit_events")
         output[key] = vcat([r[key] for r in responses]...)
     end
     sort!(output["nodes"]; by=n -> n["node_id"])
@@ -113,9 +116,10 @@ function calculate_islands(sys::AcSystem, base::BaseSystem, options::SolverOptio
         "каждый питаемый остров имеет собственный опорный угол; углы разных островов не задают физического фазового отношения")
     output["island_results"] = summaries
     solver = copy(output["solver"])
-    for key in ("equations", "unknowns", "buses", "branches", "shunts", "q_limit_passes")
+    for key in ("equations", "unknowns", "buses", "branches", "shunts", "q_limit_passes", "line_search_trials", "damped_steps")
         solver[key] = sum(r["solver"][key] for r in responses)
     end
+    solver["min_step_length"] = minimum(r["solver"]["min_step_length"] for r in responses)
     for key in ("pv_buses", "pq_buses"); solver[key] = vcat([r["solver"][key] for r in responses]...); end
     solver["slack_buses"] = [r["solver"]["slack_bus"] for r in responses]
     solver["slack_components"] = [r["solver"]["slack_component"] for r in responses]

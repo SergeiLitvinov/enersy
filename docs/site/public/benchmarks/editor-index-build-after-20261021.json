@@ -1,0 +1,300 @@
+{
+  "schema_version": 2,
+  "node": "v20.20.2",
+  "platform": "linux",
+  "arch": "x64",
+  "dataset": "100-column grid, spacing 200/150, rotations 0/90/180/270; batch-move enough initial objects by 30/40 to compact all four indexes",
+  "scope": "Three fresh builds and forced compactions per scene in one process, not browser startup; first trial and smaller scenes warm the runtime. Routing outside timers. Explicit GC outside timers; retained heap snapshots, not exact phase peaks. Cgroup peak is cumulative for the whole profiling container. Excludes React/SVG/HTTP/adjacency.",
+  "cases": [
+    {
+      "trial": 0,
+      "components": 1000,
+      "connections": 999,
+      "changedComponents": 401,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 87.51281399999999,
+      "allIndexesCompactionUpdateMs": 58.25399700000003,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 5455296,
+        "afterBuildBeforeExplicitGc": 16349944,
+        "initialRetainedAfterGc": 11562248,
+        "initialRetainedDelta": 6106952,
+        "beforeCompactionAfterGc": 11978056,
+        "afterCompactionBeforeExplicitGc": 22690304,
+        "bothSnapshotsRetainedAfterGc": 16455128,
+        "afterOldSnapshotReleaseAfterGc": 12046816
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 46350336,
+        "afterCompaction": 53518336
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 1,
+      "components": 1000,
+      "connections": 999,
+      "changedComponents": 401,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 65.94656600000002,
+      "allIndexesCompactionUpdateMs": 24.448789999999974,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 12457824,
+        "afterBuildBeforeExplicitGc": 24909920,
+        "initialRetainedAfterGc": 18655208,
+        "initialRetainedDelta": 6197384,
+        "beforeCompactionAfterGc": 19064176,
+        "afterCompactionBeforeExplicitGc": 27656584,
+        "bothSnapshotsRetainedAfterGc": 16571392,
+        "afterOldSnapshotReleaseAfterGc": 11789008
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 61628416,
+        "afterCompaction": 61628416
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 2,
+      "components": 1000,
+      "connections": 999,
+      "changedComponents": 401,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 26.531791,
+      "allIndexesCompactionUpdateMs": 21.138391999999953,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 12523712,
+        "afterBuildBeforeExplicitGc": 22539144,
+        "initialRetainedAfterGc": 18650272,
+        "initialRetainedDelta": 6126560,
+        "beforeCompactionAfterGc": 19064008,
+        "afterCompactionBeforeExplicitGc": 27952944,
+        "bothSnapshotsRetainedAfterGc": 16638712,
+        "afterOldSnapshotReleaseAfterGc": 11843864
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 61628416,
+        "afterCompaction": 61628416
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 0,
+      "components": 10000,
+      "connections": 9999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 299.86803799999996,
+      "allIndexesCompactionUpdateMs": 221.14810599999987,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 22815840,
+        "afterBuildBeforeExplicitGc": 103419216,
+        "initialRetainedAfterGc": 88312264,
+        "initialRetainedDelta": 65496424,
+        "beforeCompactionAfterGc": 90596800,
+        "afterCompactionBeforeExplicitGc": 151649832,
+        "bothSnapshotsRetainedAfterGc": 125231104,
+        "afterOldSnapshotReleaseAfterGc": 81624248
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 140247040,
+        "afterCompaction": 186253312
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 1,
+      "components": 10000,
+      "connections": 9999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 336.69778299999984,
+      "allIndexesCompactionUpdateMs": 228.46522900000036,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 89597664,
+        "afterBuildBeforeExplicitGc": 171007432,
+        "initialRetainedAfterGc": 155128040,
+        "initialRetainedDelta": 65530376,
+        "beforeCompactionAfterGc": 157341352,
+        "afterCompactionBeforeExplicitGc": 218787576,
+        "bothSnapshotsRetainedAfterGc": 125107760,
+        "afterOldSnapshotReleaseAfterGc": 81696024
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 206049280,
+        "afterCompaction": 256069632
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 2,
+      "components": 10000,
+      "connections": 9999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 348.734637,
+      "allIndexesCompactionUpdateMs": 217.82050000000027,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 89669168,
+        "afterBuildBeforeExplicitGc": 170152824,
+        "initialRetainedAfterGc": 155141800,
+        "initialRetainedDelta": 65472632,
+        "beforeCompactionAfterGc": 157354784,
+        "afterCompactionBeforeExplicitGc": 216107192,
+        "bothSnapshotsRetainedAfterGc": 125061872,
+        "afterOldSnapshotReleaseAfterGc": 81641648
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 256069632,
+        "afterCompaction": 256847872
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 0,
+      "components": 20000,
+      "connections": 19999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 538.9714079999999,
+      "allIndexesCompactionUpdateMs": 340.55516700000044,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 100831320,
+        "afterBuildBeforeExplicitGc": 279960880,
+        "initialRetainedAfterGc": 231585840,
+        "initialRetainedDelta": 130754520,
+        "beforeCompactionAfterGc": 235240032,
+        "afterCompactionBeforeExplicitGc": 358104488,
+        "bothSnapshotsRetainedAfterGc": 241912104,
+        "afterOldSnapshotReleaseAfterGc": 158229688
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 323575808,
+        "afterCompaction": 402153472
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 1,
+      "components": 20000,
+      "connections": 19999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 586.5462559999996,
+      "allIndexesCompactionUpdateMs": 354.8601269999999,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 174282256,
+        "afterBuildBeforeExplicitGc": 338609240,
+        "initialRetainedAfterGc": 305194904,
+        "initialRetainedDelta": 130912648,
+        "beforeCompactionAfterGc": 308784144,
+        "afterCompactionBeforeExplicitGc": 430164376,
+        "bothSnapshotsRetainedAfterGc": 241845952,
+        "afterOldSnapshotReleaseAfterGc": 158183400
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 402153472,
+        "afterCompaction": 482816000
+      },
+      "exactOldAndNewPicking": true
+    },
+    {
+      "trial": 2,
+      "components": 20000,
+      "connections": 19999,
+      "changedComponents": 1025,
+      "oldSnapshotReleased": true,
+      "initialBuildMs": 608.8154770000001,
+      "allIndexesCompactionUpdateMs": 336.1247170000006,
+      "overlaySizesAfterCompaction": {
+        "bodies": 0,
+        "visuals": 0,
+        "ports": 0,
+        "segments": 0
+      },
+      "heapBytes": {
+        "beforeIndexes": 174239632,
+        "afterBuildBeforeExplicitGc": 339576560,
+        "initialRetainedAfterGc": 305219624,
+        "initialRetainedDelta": 130979992,
+        "beforeCompactionAfterGc": 308809024,
+        "afterCompactionBeforeExplicitGc": 430743456,
+        "bothSnapshotsRetainedAfterGc": 241937072,
+        "afterOldSnapshotReleaseAfterGc": 158285784
+      },
+      "cumulativeContainerMemoryPeakBytes": {
+        "afterInitialBuild": 482816000,
+        "afterCompaction": 484245504
+      },
+      "exactOldAndNewPicking": true
+    }
+  ],
+  "hardware": {
+    "cpu_model": "AMD Ryzen 7 7700 8-Core Processor"
+  },
+  "esbuild": "0.25.12",
+  "source_sha256": {
+    "src/domain/spatial-index.ts": "79da5ae03daba64b71e19fc6109a5ba6316505faaa50b71e60869917e7275a6d",
+    "src/domain/updatable-spatial-index.ts": "fdeadc38c4687f673b324d00e4b2e847be88e1c96e0fed66dff3567388c5e1c0",
+    "src/domain/diagram-routing.ts": "5f0b8f821e05d826b191236b7507b0ce36a2cf8b3332d2410e34a1207dd2ba7c",
+    "src/components/ees/editor-picking.ts": "0540849e2a2e3135c77620dd9447fb6a496bf8a50dcc619c9fe37b4aaee9a8fb",
+    "src/components/ees/editor-geometry.ts": "2ffb2dae2b040e6e3132cadc37138dbc832a14553df029659d14baadc3782903",
+    "src/components/ees/editor-route-cache.ts": "1a2f73d0263019fd36943f5d433f34e43d6481002f7b4f1d6ea9a09619486cdd",
+    "src/components/ees/editor-utils.ts": "13dfad2ebf6764b7fb7d997b610b3d1ec9ea75c51f9d774c0579c361e732acf3",
+    "benchmark/index-build.ts": "c5aa75046324f48d4239d3c0b910b7291fdbd666e454c6feba958a33012cf95c",
+    "benchmark/picking.mjs": "47b0f09501d83e8a1c9599d3d08a559316712827481ebb67c8f513f4820ad599",
+    "package-lock.json": "7c1e6d9e7378545664229bc2cfba36dc7aef4ebc5920ad8f687a5ec0c061982c"
+  },
+  "container_limits": {
+    "cpu_max": "200000 100000\n",
+    "memory_max": "2147483648\n"
+  }
+}

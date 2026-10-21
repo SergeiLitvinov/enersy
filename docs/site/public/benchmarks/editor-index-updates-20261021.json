@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "node": "v20.20.2",
+  "platform": "linux",
+  "arch": "x64",
+  "dataset": "100-column line grid at 200/150 spacing, rotations 0/90/180/270, one middle object with two incident wires moved diagonally",
+  "scope": "CPU picker snapshot/index update only, 5 warmup + 10 measured commits and 12 query triples per commit; full-build parity outside timing. Includes graph scans and current ID maps; excludes routing, adjacency, React, SVG, FPS, HTTP and rebase cost.",
+  "cases": [
+    {
+      "components": 1000,
+      "connections": 999,
+      "samples": 10,
+      "changedComponents": 1,
+      "changedWires": 2,
+      "indexUpdateMs": {
+        "p50": 1.2384849999999687,
+        "p95": 2.748634000000038,
+        "max": 2.748634000000038
+      },
+      "fullIndexBuildMs": {
+        "p50": 32.49850500000002,
+        "p95": 56.40503199999989,
+        "max": 56.40503199999989
+      },
+      "threeQueriesMs": {
+        "p50": 0.017303999999967346,
+        "p95": 0.0839930000000777,
+        "max": 0.10833900000000085
+      },
+      "overlayEntries": {
+        "bodies": 1,
+        "visuals": 1,
+        "ports": 2,
+        "segments": 8
+      },
+      "exactPickingAndVisibilityParity": true
+    },
+    {
+      "components": 10000,
+      "connections": 9999,
+      "samples": 10,
+      "changedComponents": 1,
+      "changedWires": 2,
+      "indexUpdateMs": {
+        "p50": 11.303623000000698,
+        "p95": 14.49389999999994,
+        "max": 14.49389999999994
+      },
+      "fullIndexBuildMs": {
+        "p50": 387.7662809999997,
+        "p95": 416.70624899999984,
+        "max": 416.70624899999984
+      },
+      "threeQueriesMs": {
+        "p50": 0.03088000000025204,
+        "p95": 0.1034709999998995,
+        "max": 0.12530199999991964
+      },
+      "overlayEntries": {
+        "bodies": 1,
+        "visuals": 1,
+        "ports": 2,
+        "segments": 8
+      },
+      "exactPickingAndVisibilityParity": true
+    },
+    {
+      "components": 20000,
+      "connections": 19999,
+      "samples": 10,
+      "changedComponents": 1,
+      "changedWires": 2,
+      "indexUpdateMs": {
+        "p50": 25.750130000000354,
+        "p95": 60.526066000002174,
+        "max": 60.526066000002174
+      },
+      "fullIndexBuildMs": {
+        "p50": 837.5290529999984,
+        "p95": 968.5947420000011,
+        "max": 968.5947420000011
+      },
+      "threeQueriesMs": {
+        "p50": 0.039907999998831656,
+        "p95": 0.15651200000138488,
+        "max": 0.39510299999892595
+      },
+      "overlayEntries": {
+        "bodies": 1,
+        "visuals": 1,
+        "ports": 2,
+        "segments": 8
+      },
+      "exactPickingAndVisibilityParity": true
+    }
+  ],
+  "hardware": {
+    "cpu_model": "AMD Ryzen 7 7700 8-Core Processor"
+  },
+  "esbuild": "0.25.12",
+  "source_sha256": {
+    "src/domain/spatial-index.ts": "2e696ccef5172fa2a48b8ece43897928d6e42232770bedb775047fb8f95c5204",
+    "src/domain/updatable-spatial-index.ts": "fdeadc38c4687f673b324d00e4b2e847be88e1c96e0fed66dff3567388c5e1c0",
+    "src/domain/diagram-routing.ts": "5f0b8f821e05d826b191236b7507b0ce36a2cf8b3332d2410e34a1207dd2ba7c",
+    "src/components/ees/editor-picking.ts": "7527333c1a564b65e37ad0f1fd97628aa21d05280d9f931c8755dadadf0870dc",
+    "src/components/ees/editor-geometry.ts": "2ffb2dae2b040e6e3132cadc37138dbc832a14553df029659d14baadc3782903",
+    "src/components/ees/editor-route-cache.ts": "1a2f73d0263019fd36943f5d433f34e43d6481002f7b4f1d6ea9a09619486cdd",
+    "src/components/ees/editor-utils.ts": "13dfad2ebf6764b7fb7d997b610b3d1ec9ea75c51f9d774c0579c361e732acf3",
+    "benchmark/index-updates.ts": "d52db957b4909d8922d7b07fd9a30e93985fa34c096b71eb0ea83e673c7d239c",
+    "benchmark/picking.mjs": "ec9a3105ab0c433d4cd4ac69a4496e82231d83b2764f1091819c3e74a8e71d32",
+    "package-lock.json": "7c1e6d9e7378545664229bc2cfba36dc7aef4ebc5920ad8f687a5ec0c061982c"
+  },
+  "container_limits": {
+    "cpu_max": "200000 100000\n",
+    "memory_max": "2147483648\n"
+  }
+}

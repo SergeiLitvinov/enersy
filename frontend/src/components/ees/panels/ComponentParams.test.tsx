@@ -12,6 +12,23 @@ const component: EditorComponent = { id: 1, type: 'busbar', typeId: 1, revision:
   params: { u: '110', i: '2000', enabled: 'true' },
   paramTemplate: ['u', 'i', 'enabled'].map(key => ({ key, name: key, type: key === 'enabled' ? 'boolean' : 'number', default: '', unit: '' })) };
 const input = (key: string) => container.querySelector<HTMLInputElement>(`#param-1-${key}`)!;
+test('inspector identifies the fixed project passport version without converting its ID', async () => {
+  await act(async () => root.render(<ComponentParams component={{ ...component, projectPassportVersionId: '9007199254740993' }} onSave={save} />));
+  expect(container.textContent).toContain('версия #9007199254740993');
+  expect(container.textContent).toContain('обновление паспорта её не меняет');
+});
+
+test('transformer shift field is explicit, saves through the existing queue and is not duplicated by templates', async () => {
+  const transformer = { ...component, type: 'transformer', params: {} };
+  await act(async () => root.render(<ComponentParams component={transformer} onSave={save} />));
+  expect(input('phase_shift_deg').value).toBe('');
+  expect(save).not.toHaveBeenCalled();
+  await type('phase_shift_deg', '30');
+  await act(async () => { input('phase_shift_deg').focus(); input('phase_shift_deg').blur(); });
+  expect(save).toHaveBeenCalledWith('phase_shift_deg', '30');
+  await act(async () => root.render(<ComponentParams component={{...transformer, params:{phase_shift_deg:'30'}, paramTemplate:[{key:'phase_shift_deg',name:'Shift',unit:'°',type:'number',default:''}]}} onSave={save} />));
+  expect(container.querySelectorAll('#param-1-phase_shift_deg')).toHaveLength(1);
+});
 async function render(params = component.params, resets?: Record<string, number>) {
   await act(async () => root.render(<ComponentParams component={{ ...component, params }} onSave={save} parameterResets={resets} />));
 }

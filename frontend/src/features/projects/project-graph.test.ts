@@ -22,3 +22,14 @@ test('unknown type names cannot inherit executable objects from symbol size maps
   expect(getCompSize('constructor')).toEqual({w:30,h:30});
   expect(getCompSize('__proto__')).toEqual({w:30,h:30});
 });
+
+test('project passport binding survives reload without BIGINT rounding', () => {
+  const bound = { ...component, projectPassportVersionId: '9007199254740993' };
+  const parsed = parseProjectGraph({ ...graph, components: [bound] }, graph.projectId, graph.id);
+  expect(parsed.components[0].projectPassportVersionId).toBe('9007199254740993');
+  for (const replacement of [{ projectPassportVersionId: 12 }, { projectPassportVersionId: '0' },
+    { projectPassportVersionId: '9223372036854775808' }, { equipmentModelId: '1' }]) {
+    expect(() => parseProjectGraph({ ...graph, components: [{ ...bound, ...replacement }] }, graph.projectId, graph.id)).toThrow();
+  }
+  expect(parseProjectGraph(graph, graph.projectId, graph.id).components[0].projectPassportVersionId).toBeNull();
+});

@@ -51,7 +51,7 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 	components := []map[string]interface{}{}
 	compRows, err := tx.QueryContext(r.Context(), `
 			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation, sc.custom_name,
-			       sc.equipment_model_id, ct.id, sc.revision, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
+			       sc.equipment_model_id, ct.id, sc.revision, sc.project_passport_version_id, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
 			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb)
 			FROM scheme_components sc
 			JOIN component_types ct ON sc.component_type_id = ct.id
@@ -69,10 +69,11 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 		var rotation int
 		var customName sql.NullString
 		var modelID sql.NullInt64
+		var passportID sql.NullInt64
 		var typeID int
 		var revision int64
 		var paramsJSON []byte
-		if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &paramsJSON); err != nil {
+		if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &passportID, &paramsJSON); err != nil {
 			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
@@ -93,6 +94,13 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 			"id": compID, "type": code, "x": x, "y": y, "rotation": rotation, "name": cname,
 			"params": params, "equipmentModelId": equipmentModelID, "typeId": typeID, "revision": strconv.FormatInt(revision, 10),
 		})
+		if project > 0 {
+			var value any
+			if passportID.Valid {
+				value = strconv.FormatInt(passportID.Int64, 10)
+			}
+			components[len(components)-1]["projectPassportVersionId"] = value
+		}
 	}
 	if err := compRows.Err(); err != nil {
 		sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)

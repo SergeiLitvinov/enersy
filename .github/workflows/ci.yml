@@ -55,8 +55,8 @@ jobs:
           toolchain: stable
       - run: cargo check --target wasm32-unknown-unknown
       - run: cargo test
-      - run: cargo test --manifest-path ../numerics/Cargo.toml --locked --offline
-      - run: cargo clippy --manifest-path ../numerics/Cargo.toml --locked --offline --all-targets -- -D warnings
+      - run: cargo test --manifest-path ../numerics/Cargo.toml --all-features --locked --offline
+      - run: cargo clippy --manifest-path ../numerics/Cargo.toml --all-features --locked --offline --all-targets -- -D warnings
 
   frontend:
     name: Frontend
@@ -74,6 +74,13 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Verify released geometry snapshots and profile index construction
+        run: node --expose-gc benchmark/picking.mjs /tmp/enersy-editor-index-build.json index-build.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enersy-editor-index-build
+          path: /tmp/enersy-editor-index-build.json
+          if-no-files-found: error
 
   docker:
     name: Docker Build
@@ -92,12 +99,25 @@ jobs:
       - name: Verify independent user sessions through real API
         shell: pwsh
         run: ./tests/integration/Test-AuthSessions.ps1
+      - name: Build private draft TypeScript client acceptance
+        run: docker compose -f tests/integration/revision-compose.yml --profile draft-client build editor-draft-client-check
+      - name: Verify private draft client through real API
+        shell: pwsh
+        run: ./tests/integration/Test-EditorDraftClient.ps1
       - name: Verify saved equipment through Go and Julia against independent reference
         shell: pwsh
         run: ./tests/integration/Test-GoJuliaReference.ps1
       - name: Verify private project calculation against independent reference
         shell: pwsh
         run: ./tests/integration/Test-GoJuliaReference.ps1 -ProjectMode
+      - name: Atomic ZIP load profile and physical reference
+        shell: pwsh
+        run: ./tests/integration/Test-ZipLoad.ps1
+      - name: Docker service DNS replacement through both proxies
+        shell: pwsh
+        run: ./tests/integration/Test-ProxyDns.ps1
+      - name: Verify exact calculation archives with PostgreSQL and Julia
+        run: docker compose -f tests/integration/revision-compose.yml --profile archive-check run --rm calculation-archive-check
       - name: Remove disposable command acceptance environment
         if: always()
         run: docker compose -f tests/integration/revision-compose.yml --profile commands down
@@ -112,6 +132,14 @@ jobs:
           version: '1.10'
       - uses: julia-actions/cache@v2
       - run: julia --project=backend-julia -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+
+  julia-native-ffi:
+    name: Julia and Rust native ABI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build julia-compute
+      - run: docker compose --profile numerics-ffi-check run --rm --build numerics-ffi-check
 
   documentation:
     name: Documentation and generated reference

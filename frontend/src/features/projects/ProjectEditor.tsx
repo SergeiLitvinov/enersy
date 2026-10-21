@@ -46,6 +46,7 @@ export function ProjectEditor({ project, graph, onClose, onUnavailable }: {
       <div className="project-editor-body" aria-busy={closing} onKeyDownCapture={event => { if (closing) { event.preventDefault(); event.stopPropagation(); } }}>
         <SchemeEditor key={context.generation} schemeId={Number(graph.id)} writeQueue={context.queue} transport={context.transport} manageSchemes={false} />
       </div> : <p role="status">Открываем редактор…</p>}
-    {source && <p className="project-editor-source">Последний расчёт: ревизия топологии {source.topologyRevision} · <span title={source.inputSha256}>SHA-256 {source.inputSha256.slice(0, 16)}…</span></p>}
+    <p className="projects-note">Успешный расчёт сохраняется в архив проекта. Архив доступен в навигаторе схем. После потери подтверждения проверьте архив перед повторным запуском.</p>
+    {source && <p className="project-editor-source">Последний расчёт{source.archiveId ? ` · архив №${source.archiveId}` : ''}: ревизия топологии {source.topologyRevision} · <span title={source.inputSha256}>SHA-256 {source.inputSha256.slice(0, 16)}…</span></p>}
   </section>;
 }

@@ -3,7 +3,11 @@ import { createProjectScheme, listProjectSchemes, readProjectScheme, SessionErro
 import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { SchemePreview } from './SchemePreview';
 import { ProjectEditor } from './ProjectEditor';
+import { ProjectArchives } from './ProjectArchives';
+import { ProjectCatalog } from '../catalog/ProjectCatalog';
 export function ProjectSchemes({ project, onBack, onUnavailable }: { project: Project; onBack: () => void; onUnavailable?: () => void }) {
+  const [archives, showArchives] = useState(false);
+  const [catalog, showCatalog] = useState(false);
   const [page, setPage] = useState<ProjectSchemePage>({ items: [], nextAfterId: '' });
   const [cursor, setCursor] = useState('');
   const [selected, select] = useState('');
@@ -49,8 +53,10 @@ export function ProjectSchemes({ project, onBack, onUnavailable }: { project: Pr
       if (error instanceof SessionError && (error.status === 401 || error.status === 404)) onUnavailable?.(); } }
     finally { if (!controller.signal.aborted) setSaving(false); }
   };
+  if (archives) return <ProjectArchives project={project} onBack={() => showArchives(false)} onUnavailable={onUnavailable} />;
+  if (catalog) return <ProjectCatalog project={project} onBack={() => showCatalog(false)} onUnavailable={onUnavailable} />;
   if (editing && graph && project.role !== 'viewer') return <ProjectEditor key={`${project.id}:${graph.id}`} project={project} graph={graph} onUnavailable={onUnavailable} onClose={() => { setEditing(false); refresh(value => value + 1); }} />;
-  return <div className="project-schemes"><div className="projects-session"><button className="tool-btn" onClick={onBack}>Все проекты</button><h2>{project.name}</h2><button className="tool-btn" disabled={busy || saving} onClick={() => refresh(value => value+1)}>Обновить схемы</button></div>
+  return <div className="project-schemes"><div className="projects-session"><button className="tool-btn" onClick={onBack}>Все проекты</button><h2>{project.name}</h2><button className="tool-btn" onClick={() => showArchives(true)}>Архив расчётов</button><button className="tool-btn" onClick={() => showCatalog(true)}>Паспорта проекта</button><button className="tool-btn" disabled={busy || saving} onClick={() => refresh(value => value+1)}>Обновить схемы</button></div>
     {error && <p role="alert" className="projects-error">{error}</p>}
     {project.role !== 'viewer' && <form className="project-create" onSubmit={event => void create(event)}><label htmlFor="private-scheme-name">Новая схема</label><input id="private-scheme-name" required maxLength={200} value={name} onChange={event => setName(event.target.value)} />
       <label htmlFor="private-scheme-description">Описание</label><textarea id="private-scheme-description" maxLength={4000} value={description} onChange={event => setDescription(event.target.value)} />

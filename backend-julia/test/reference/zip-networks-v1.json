@@ -1,0 +1,6926 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "networks": "Project-owned physical input schemes; no external network cases or expected values copied",
+    "solver": "pandapower 3.5.3 balanced Newton-Raphson with voltage-dependent loads",
+    "python": "3.12.10",
+    "generator_sha256": "b83ee1517b68341f78e294f1a23efb2e1cb24f499782590043c0a870ffc83035",
+    "input_sha256": "28bcdd4625be8efb83f27c3ef0d4213fdeedccc923fc342db9a3fb875ddc4fe8",
+    "requirements_sha256": "030989b22a72d1c926b2f4075c8c1ebcabe6a10b7da0f702e22e8e3f50c6ff88",
+    "pandapower_build_bus_sha256": "40c0ef8479c004216b8180cddf392feb2cfcd170c8c131c0b8003b46b2eb389b",
+    "packages": {
+      "pandapower": "3.5.3",
+      "numpy": "2.3.5",
+      "scipy": "1.16.3",
+      "pandas": "2.3.3"
+    },
+    "options": {
+      "algorithm": "nr",
+      "calculate_voltage_angles": true,
+      "init": "flat",
+      "max_iteration": 50,
+      "tolerance_mva": 1e-09,
+      "voltage_depend_loads": true,
+      "enforce_q_lims": true,
+      "numba": false,
+      "lightsim2grid": false,
+      "distributed_slack": false,
+      "trafo_model": "pi",
+      "run_control": false
+    },
+    "line_thermal_rating_ka": 1.0,
+    "load_aggregation": "Exact per-bus sum of Z/I/P power polynomial coefficients before pandapower conversion; individual powers reconstructed from external voltages and original profiles, checked against native aggregate results",
+    "thermal_rating_scope": "Required line metadata only; no thermal limits enforced or validated"
+  },
+  "cases": [
+    {
+      "name": "enersy-zip-9-v1",
+      "scheme": {
+        "components": [
+          {
+            "id": 100,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 10.0,
+            "y": -20.0,
+            "rotation": 0
+          },
+          {
+            "id": 1000,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.0,
+            "y": -200.0,
+            "rotation": 0
+          },
+          {
+            "id": 117,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 11.700000000000001,
+            "y": -23.400000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 1001,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.10000000000001,
+            "y": -200.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 134,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 13.4,
+            "y": -26.8,
+            "rotation": 0
+          },
+          {
+            "id": 1002,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.2,
+            "y": -200.4,
+            "rotation": 0
+          },
+          {
+            "id": 151,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 15.100000000000001,
+            "y": -30.200000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 1003,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.30000000000001,
+            "y": -200.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 168,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 16.8,
+            "y": -33.6,
+            "rotation": 0
+          },
+          {
+            "id": 1004,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 100.4,
+            "y": -200.8,
+            "rotation": 0
+          },
+          {
+            "id": 185,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 18.5,
+            "y": -37.0,
+            "rotation": 0
+          },
+          {
+            "id": 1005,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 100.5,
+            "y": -201.0,
+            "rotation": 0
+          },
+          {
+            "id": 202,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 20.200000000000003,
+            "y": -40.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1006,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.60000000000001,
+            "y": -201.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 219,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 21.900000000000002,
+            "y": -43.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1007,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.7,
+            "y": -201.4,
+            "rotation": 0
+          },
+          {
+            "id": 236,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 23.6,
+            "y": -47.2,
+            "rotation": 0
+          },
+          {
+            "id": 1008,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.80000000000001,
+            "y": -201.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 4000,
+            "type": "capacitor",
+            "params": {
+              "voltage_nom": "110",
+              "q_nom": "2"
+            },
+            "x": 400.0,
+            "y": -800.0,
+            "rotation": 0
+          },
+          {
+            "id": 3000,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.0,
+            "y": -600.0,
+            "rotation": 0
+          },
+          {
+            "id": 3001,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.1,
+            "y": -600.2,
+            "rotation": 0
+          },
+          {
+            "id": 3002,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.2,
+            "y": -600.4,
+            "rotation": 0
+          },
+          {
+            "id": 3003,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.3,
+            "y": -600.6,
+            "rotation": 0
+          },
+          {
+            "id": 3004,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.40000000000003,
+            "y": -600.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3005,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.5,
+            "y": -601.0,
+            "rotation": 0
+          },
+          {
+            "id": 3006,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.6,
+            "y": -601.2,
+            "rotation": 0
+          },
+          {
+            "id": 3007,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.7,
+            "y": -601.4,
+            "rotation": 0
+          },
+          {
+            "id": 3008,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.8,
+            "y": -601.6,
+            "rotation": 0
+          },
+          {
+            "id": 3009,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.90000000000003,
+            "y": -601.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3010,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.0,
+            "y": -602.0,
+            "rotation": 0
+          },
+          {
+            "id": 2000,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "113.3",
+              "p": "17.333333333333332",
+              "r": "0.3",
+              "x": "2.0",
+              "is_slack": "true"
+            },
+            "x": 200.0,
+            "y": -400.0,
+            "rotation": 0
+          },
+          {
+            "id": 2001,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "112.2",
+              "p": "17.333333333333332",
+              "r": "0.4",
+              "x": "3.0",
+              "is_slack": "false"
+            },
+            "x": 200.10000000000002,
+            "y": -400.20000000000005,
+            "rotation": 0
+          },
+          {
+            "id": 2002,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "111.1",
+              "p": "17.333333333333332",
+              "r": "0.5",
+              "x": "4.0",
+              "is_slack": "false"
+            },
+            "x": 200.20000000000002,
+            "y": -400.40000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 6001,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "1.2",
+              "q": "0.35",
+              "voltage_nom": "107.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.3",
+              "zip_p_i": "0.2",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.7",
+              "zip_q_p": "0.2"
+            }
+          },
+          {
+            "id": 6002,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "0.8",
+              "q": "-0.15",
+              "voltage_nom": "112.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.5",
+              "zip_p_p": "0.4",
+              "zip_q_z": "0.6",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.3"
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": 100,
+            "to": 1000,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 117,
+            "to": 1001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 1002,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 151,
+            "to": 1003,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 168,
+            "to": 1004,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 185,
+            "to": 1005,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 202,
+            "to": 1006,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 219,
+            "to": 1007,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 236,
+            "to": 1008,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 4000,
+            "fromPort": "left",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 3000,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3000,
+            "to": 117,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 117,
+            "to": 3001,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3001,
+            "to": 134,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 134,
+            "to": 3002,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3002,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3003,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3003,
+            "to": 168,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 168,
+            "to": 3004,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3004,
+            "to": 185,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 185,
+            "to": 3005,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3005,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3006,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3006,
+            "to": 219,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 219,
+            "to": 3007,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3007,
+            "to": 236,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 236,
+            "to": 3008,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3008,
+            "to": 100,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 3009,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3009,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3010,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3010,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 2000,
+            "to": 100,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2001,
+            "to": 151,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2002,
+            "to": 202,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 6001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 6002,
+            "fromPort": "right",
+            "toPort": "top"
+          }
+        ],
+        "base": {
+          "s_base_mva": 100,
+          "v_base_kv": 110
+        },
+        "solverOptions": {
+          "tolerance": 1e-10,
+          "max_iterations": 50
+        }
+      },
+      "expected": {
+        "nodes": [
+          {
+            "component_id": 100,
+            "internal": false,
+            "v_pu": 1.025726041866817,
+            "theta_rad": -0.002718069833139285,
+            "p_pu": -0.06265983384581279,
+            "q_pu": -0.01793987660792264
+          },
+          {
+            "component_id": 117,
+            "internal": false,
+            "v_pu": 1.0232756533228533,
+            "theta_rad": -0.007454504493304807,
+            "p_pu": -0.05116378266614267,
+            "q_pu": -0.017395686106488506
+          },
+          {
+            "component_id": 134,
+            "internal": false,
+            "v_pu": 1.0223767084117623,
+            "theta_rad": -0.008986684374547695,
+            "p_pu": -0.06,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 151,
+            "internal": false,
+            "v_pu": 1.020147828516894,
+            "theta_rad": -0.0022593498856456696,
+            "p_pu": -0.07099292668724305,
+            "q_pu": -0.021384203812918442
+          },
+          {
+            "component_id": 168,
+            "internal": false,
+            "v_pu": 1.0168979435805094,
+            "theta_rad": -0.00623716021690648,
+            "p_pu": -0.08108375271313062,
+            "q_pu": -0.015306304538178545
+          },
+          {
+            "component_id": 185,
+            "internal": false,
+            "v_pu": 1.0133530016525194,
+            "theta_rad": -0.005043262416026881,
+            "p_pu": -0.04091370979727155,
+            "q_pu": -0.017227304142603154
+          },
+          {
+            "component_id": 202,
+            "internal": false,
+            "v_pu": 1.0120700182339155,
+            "theta_rad": -0.0009146520369569361,
+            "p_pu": -0.05121428609039991,
+            "q_pu": -0.019461428714351966
+          },
+          {
+            "component_id": 219,
+            "internal": false,
+            "v_pu": 1.013607324412556,
+            "theta_rad": -0.007972991191819889,
+            "p_pu": -0.06081643946475337,
+            "q_pu": -0.02128575381266368
+          },
+          {
+            "component_id": 236,
+            "internal": false,
+            "v_pu": 1.0171095655688696,
+            "theta_rad": -0.009115741878987895,
+            "p_pu": -0.07,
+            "q_pu": -0.015
+          },
+          {
+            "component_id": 2000,
+            "internal": true,
+            "v_pu": 1.03,
+            "theta_rad": 0.0,
+            "p_pu": 0.20901600677140764,
+            "q_pu": 0.23521541035693608
+          },
+          {
+            "component_id": 2001,
+            "internal": true,
+            "v_pu": 1.02,
+            "theta_rad": 0.0019622628463749495,
+            "p_pu": 0.1733333333333333,
+            "q_pu": -0.028818792104721068
+          },
+          {
+            "component_id": 2002,
+            "internal": true,
+            "v_pu": 1.0099999999999996,
+            "theta_rad": 0.005032061718002283,
+            "p_pu": 0.1733333333333333,
+            "q_pu": -0.08436415910720825
+          }
+        ],
+        "loads": [
+          {
+            "component_id": 1000,
+            "p_mw": 4.208455651855069,
+            "q_mvar": 1.578170869445651,
+            "voltage_kv": 112.82986460534987
+          },
+          {
+            "component_id": 6001,
+            "p_mw": 1.2533740176378334,
+            "q_mvar": 0.3672665859699014,
+            "voltage_kv": 112.82986460534987
+          },
+          {
+            "component_id": 6002,
+            "p_mw": 0.804153715088377,
+            "q_mvar": -0.15144979462328842,
+            "voltage_kv": 112.82986460534987
+          },
+          {
+            "component_id": 1001,
+            "p_mw": 5.116378266614267,
+            "q_mvar": 1.7395686106488506,
+            "voltage_kv": 112.56032186551387
+          },
+          {
+            "component_id": 1002,
+            "p_mw": 6.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 112.46143792529385
+          },
+          {
+            "component_id": 1003,
+            "p_mw": 7.0992926687243045,
+            "q_mvar": 2.1384203812918443,
+            "voltage_kv": 112.21626113685832
+          },
+          {
+            "component_id": 1004,
+            "p_mw": 8.10837527131306,
+            "q_mvar": 1.5306304538178548,
+            "voltage_kv": 111.85877379385605
+          },
+          {
+            "component_id": 1005,
+            "p_mw": 4.091370979727155,
+            "q_mvar": 1.7227304142603155,
+            "voltage_kv": 111.46883018177714
+          },
+          {
+            "component_id": 1006,
+            "p_mw": 5.121428609039991,
+            "q_mvar": 1.9461428714351965,
+            "voltage_kv": 111.3277020057307
+          },
+          {
+            "component_id": 1007,
+            "p_mw": 6.081643946475337,
+            "q_mvar": 2.128575381266368,
+            "voltage_kv": 111.49680568538116
+          },
+          {
+            "component_id": 1008,
+            "p_mw": 7.0,
+            "q_mvar": 1.5,
+            "voltage_kv": 111.88205221257564
+          }
+        ],
+        "branches": [
+          {
+            "component_id": 3000,
+            "p_from_mw": 7.9267305790389955,
+            "q_from_mvar": 2.568613001879003,
+            "p_to_mw": -7.894773342617066,
+            "q_to_mvar": -2.65190281046163,
+            "i_from_ka": 0.042637475756338326,
+            "i_to_ka": 0.04271778219296452
+          },
+          {
+            "component_id": 3001,
+            "p_from_mw": 2.778395061448618,
+            "q_from_mvar": 0.9123341948649876,
+            "p_to_mw": -2.7017197854427324,
+            "q_to_mvar": -1.2869304055470223,
+            "i_from_ka": 0.01499973709058407,
+            "i_to_ka": 0.015363146314410034
+          },
+          {
+            "component_id": 3002,
+            "p_from_mw": -3.298280214557317,
+            "q_from_mvar": 1.4774386733527227,
+            "p_to_mw": 3.352206048954893,
+            "q_to_mvar": -1.7039965224649585,
+            "i_from_ka": 0.018553758197586864,
+            "i_to_ka": 0.019347370257588575
+          },
+          {
+            "component_id": 3003,
+            "p_from_mw": 7.5949767553362095,
+            "q_from_mvar": 4.97026450502841,
+            "p_to_mw": -7.540799265227278,
+            "q_to_mvar": -5.175022938364241,
+            "i_from_ka": 0.046699631400851344,
+            "i_to_ka": 0.047205005718061396
+          },
+          {
+            "component_id": 3004,
+            "p_from_mw": -0.567576029358831,
+            "q_from_mvar": 3.6443924779378785,
+            "p_to_mw": 0.607385634617417,
+            "q_to_mvar": -3.817693248586991,
+            "i_from_ka": 0.019036998041152695,
+            "i_to_ka": 0.020022347087100656
+          },
+          {
+            "component_id": 3005,
+            "p_from_mw": -4.698756649349265,
+            "q_from_mvar": 2.0949628256606045,
+            "p_to_mw": 4.801643937316032,
+            "q_to_mvar": -2.5687793559871364,
+            "i_from_ka": 0.026646476616672306,
+            "i_to_ka": 0.028241046489351163
+          },
+          {
+            "component_id": 3006,
+            "p_from_mw": 7.088344981380959,
+            "q_from_mvar": -2.312624770367681,
+            "p_to_mw": -7.058181341880957,
+            "q_to_mvar": 2.24188024168851,
+            "i_from_ka": 0.03866746200657255,
+            "i_to_ka": 0.03834787595869553
+          },
+          {
+            "component_id": 3007,
+            "p_from_mw": 0.976537361504942,
+            "q_from_mvar": -4.370455634820532,
+            "p_to_mw": -0.9001368788888958,
+            "q_to_mvar": 4.011749553140687,
+            "i_from_ka": 0.023189049612715437,
+            "i_to_ka": 0.021216736535529038
+          },
+          {
+            "component_id": 3008,
+            "p_from_mw": -6.09986312111121,
+            "q_from_mvar": -5.511749553140335,
+            "p_to_mw": 6.1673670929599576,
+            "q_to_mvar": 5.344305973300592,
+            "i_from_ka": 0.04242411829852032,
+            "i_to_ka": 0.041758604303524294
+          },
+          {
+            "component_id": 3009,
+            "p_from_mw": 0.5183798958748215,
+            "q_from_mvar": 13.660369647164814,
+            "p_to_mw": -0.4587627795653426,
+            "q_to_mvar": -13.83884214752949,
+            "i_from_ka": 0.06995040456014566,
+            "i_to_ka": 0.07123965964929296
+          },
+          {
+            "component_id": 3010,
+            "p_from_mw": -0.26418963367685544,
+            "q_from_mvar": 5.478697600647867,
+            "p_to_mw": 0.30686225514315374,
+            "q_to_mvar": -5.621582898919841,
+            "i_from_ka": 0.02822053559322098,
+            "i_to_ka": 0.02919717378239725
+          },
+          {
+            "component_id": 2000,
+            "p_from_mw": 20.901600677140763,
+            "q_from_mvar": 23.52154103569361,
+            "p_to_mw": -20.8784609648687,
+            "q_to_mvar": -23.36727628721318,
+            "i_from_ka": 0.1603458493800351,
+            "i_to_ka": 0.16034584938003513
+          },
+          {
+            "component_id": 2001,
+            "p_from_mw": 17.33333333333346,
+            "q_from_mvar": -2.8818791852000385,
+            "p_to_mw": -17.323523067349225,
+            "q_to_mvar": 2.9554561800818244,
+            "i_from_ka": 0.09041693233864828,
+            "i_to_ka": 0.09041693233864828
+          },
+          {
+            "component_id": 2002,
+            "p_from_mw": 17.33333333333328,
+            "q_from_mvar": -8.436415969409712,
+            "p_to_mw": -17.318279811645915,
+            "q_to_mvar": 8.556844142908616,
+            "i_from_ka": 0.10017824676499751,
+            "i_to_ka": 0.10017824676499751
+          }
+        ],
+        "shunts": [
+          {
+            "component_id": 4000,
+            "p_mw": 0.0,
+            "q_mvar": -2.090508267805739
+          }
+        ]
+      },
+      "constant_pq_voltage_difference_pu": 6.538746328188516e-05,
+      "reference_balance_residual_mw_mvar": [
+        1.5548812637433684e-07,
+        8.34563880225403e-08
+      ],
+      "q_clamped_components": []
+    },
+    {
+      "name": "enersy-zip-14-v1",
+      "scheme": {
+        "components": [
+          {
+            "id": 100,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 10.0,
+            "y": -20.0,
+            "rotation": 0
+          },
+          {
+            "id": 1000,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.0,
+            "y": -200.0,
+            "rotation": 0
+          },
+          {
+            "id": 117,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 11.700000000000001,
+            "y": -23.400000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 1001,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.10000000000001,
+            "y": -200.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 134,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 13.4,
+            "y": -26.8,
+            "rotation": 0
+          },
+          {
+            "id": 1002,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.2,
+            "y": -200.4,
+            "rotation": 0
+          },
+          {
+            "id": 151,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 15.100000000000001,
+            "y": -30.200000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 1003,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.30000000000001,
+            "y": -200.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 168,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 16.8,
+            "y": -33.6,
+            "rotation": 0
+          },
+          {
+            "id": 1004,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 100.4,
+            "y": -200.8,
+            "rotation": 0
+          },
+          {
+            "id": 185,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 18.5,
+            "y": -37.0,
+            "rotation": 0
+          },
+          {
+            "id": 1005,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 100.5,
+            "y": -201.0,
+            "rotation": 0
+          },
+          {
+            "id": 202,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 20.200000000000003,
+            "y": -40.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1006,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.60000000000001,
+            "y": -201.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 219,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 21.900000000000002,
+            "y": -43.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1007,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.7,
+            "y": -201.4,
+            "rotation": 0
+          },
+          {
+            "id": 236,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 23.6,
+            "y": -47.2,
+            "rotation": 0
+          },
+          {
+            "id": 1008,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.80000000000001,
+            "y": -201.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 253,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 25.3,
+            "y": -50.6,
+            "rotation": 0
+          },
+          {
+            "id": 1009,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.9,
+            "y": -201.8,
+            "rotation": 0
+          },
+          {
+            "id": 270,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 27.0,
+            "y": -54.0,
+            "rotation": 0
+          },
+          {
+            "id": 1010,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 101.0,
+            "y": -202.0,
+            "rotation": 0
+          },
+          {
+            "id": 287,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 28.700000000000003,
+            "y": -57.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1011,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 101.10000000000001,
+            "y": -202.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 304,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 30.400000000000002,
+            "y": -60.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1012,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.2,
+            "y": -202.4,
+            "rotation": 0
+          },
+          {
+            "id": 321,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 32.1,
+            "y": -64.2,
+            "rotation": 0
+          },
+          {
+            "id": 1013,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.30000000000001,
+            "y": -202.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 4000,
+            "type": "capacitor",
+            "params": {
+              "voltage_nom": "110",
+              "q_nom": "2"
+            },
+            "x": 400.0,
+            "y": -800.0,
+            "rotation": 0
+          },
+          {
+            "id": 3000,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.0,
+            "y": -600.0,
+            "rotation": 0
+          },
+          {
+            "id": 3001,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.1,
+            "y": -600.2,
+            "rotation": 0
+          },
+          {
+            "id": 3002,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.2,
+            "y": -600.4,
+            "rotation": 0
+          },
+          {
+            "id": 3003,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.3,
+            "y": -600.6,
+            "rotation": 0
+          },
+          {
+            "id": 3004,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.40000000000003,
+            "y": -600.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3005,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.5,
+            "y": -601.0,
+            "rotation": 0
+          },
+          {
+            "id": 3006,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.6,
+            "y": -601.2,
+            "rotation": 0
+          },
+          {
+            "id": 3007,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.7,
+            "y": -601.4,
+            "rotation": 0
+          },
+          {
+            "id": 3008,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.8,
+            "y": -601.6,
+            "rotation": 0
+          },
+          {
+            "id": 3009,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.90000000000003,
+            "y": -601.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3010,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.0,
+            "y": -602.0,
+            "rotation": 0
+          },
+          {
+            "id": 3011,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.1,
+            "y": -602.2,
+            "rotation": 0
+          },
+          {
+            "id": 3012,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.2,
+            "y": -602.4,
+            "rotation": 0
+          },
+          {
+            "id": 3013,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.3,
+            "y": -602.6,
+            "rotation": 0
+          },
+          {
+            "id": 3014,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.40000000000003,
+            "y": -602.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3015,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.5,
+            "y": -603.0,
+            "rotation": 0
+          },
+          {
+            "id": 3016,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.6,
+            "y": -603.2,
+            "rotation": 0
+          },
+          {
+            "id": 3017,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.7,
+            "y": -603.4,
+            "rotation": 0
+          },
+          {
+            "id": 2000,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "113.3",
+              "p": "27.333333333333332",
+              "r": "0.3",
+              "x": "2.0",
+              "is_slack": "true"
+            },
+            "x": 200.0,
+            "y": -400.0,
+            "rotation": 0
+          },
+          {
+            "id": 2001,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "112.2",
+              "p": "27.333333333333332",
+              "r": "0.4",
+              "x": "3.0",
+              "is_slack": "false"
+            },
+            "x": 200.10000000000002,
+            "y": -400.20000000000005,
+            "rotation": 0
+          },
+          {
+            "id": 2002,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "111.1",
+              "p": "27.333333333333332",
+              "r": "0.5",
+              "x": "4.0",
+              "is_slack": "false"
+            },
+            "x": 200.20000000000002,
+            "y": -400.40000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 6001,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "1.2",
+              "q": "0.35",
+              "voltage_nom": "107.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.3",
+              "zip_p_i": "0.2",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.7",
+              "zip_q_p": "0.2"
+            }
+          },
+          {
+            "id": 6002,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "0.8",
+              "q": "-0.15",
+              "voltage_nom": "112.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.5",
+              "zip_p_p": "0.4",
+              "zip_q_z": "0.6",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.3"
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": 100,
+            "to": 1000,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 117,
+            "to": 1001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 1002,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 151,
+            "to": 1003,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 168,
+            "to": 1004,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 185,
+            "to": 1005,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 202,
+            "to": 1006,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 219,
+            "to": 1007,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 236,
+            "to": 1008,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 253,
+            "to": 1009,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 270,
+            "to": 1010,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 287,
+            "to": 1011,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 304,
+            "to": 1012,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 321,
+            "to": 1013,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 4000,
+            "fromPort": "left",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 3000,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3000,
+            "to": 117,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 117,
+            "to": 3001,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3001,
+            "to": 134,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 134,
+            "to": 3002,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3002,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3003,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3003,
+            "to": 168,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 168,
+            "to": 3004,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3004,
+            "to": 185,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 185,
+            "to": 3005,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3005,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3006,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3006,
+            "to": 219,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 219,
+            "to": 3007,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3007,
+            "to": 236,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 236,
+            "to": 3008,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3008,
+            "to": 253,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 253,
+            "to": 3009,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3009,
+            "to": 270,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 270,
+            "to": 3010,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3010,
+            "to": 287,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 287,
+            "to": 3011,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3011,
+            "to": 304,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 304,
+            "to": 3012,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3012,
+            "to": 321,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 321,
+            "to": 3013,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3013,
+            "to": 100,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 3014,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3014,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3015,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3015,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3016,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3016,
+            "to": 253,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 253,
+            "to": 3017,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3017,
+            "to": 304,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 2000,
+            "to": 100,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2001,
+            "to": 168,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2002,
+            "to": 253,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 6001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 6002,
+            "fromPort": "right",
+            "toPort": "top"
+          }
+        ],
+        "base": {
+          "s_base_mva": 100,
+          "v_base_kv": 110
+        },
+        "solverOptions": {
+          "tolerance": 1e-10,
+          "max_iterations": 50
+        }
+      },
+      "expected": {
+        "nodes": [
+          {
+            "component_id": 100,
+            "internal": false,
+            "v_pu": 1.0261466359042148,
+            "theta_rad": -0.004532316860322759,
+            "p_pu": -0.06270099356653584,
+            "q_pu": -0.017953389087018316
+          },
+          {
+            "component_id": 117,
+            "internal": false,
+            "v_pu": 1.0229017580786042,
+            "theta_rad": -0.010365740053383627,
+            "p_pu": -0.051145087903930214,
+            "q_pu": -0.017389329887336272
+          },
+          {
+            "component_id": 134,
+            "internal": false,
+            "v_pu": 1.021277223818079,
+            "theta_rad": -0.012940295503120083,
+            "p_pu": -0.06,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 151,
+            "internal": false,
+            "v_pu": 1.0167512971767854,
+            "theta_rad": -0.009545301013119874,
+            "p_pu": -0.07082474204506195,
+            "q_pu": -0.021318956606680928
+          },
+          {
+            "component_id": 168,
+            "internal": false,
+            "v_pu": 1.0179032558197745,
+            "theta_rad": -0.003150520895678653,
+            "p_pu": -0.08114837258501716,
+            "q_pu": -0.015324662554023054
+          },
+          {
+            "component_id": 185,
+            "internal": false,
+            "v_pu": 1.0141984722273947,
+            "theta_rad": -0.01004930939204288,
+            "p_pu": -0.04097194720309779,
+            "q_pu": -0.017241716742108816
+          },
+          {
+            "component_id": 202,
+            "internal": false,
+            "v_pu": 1.0128970317506114,
+            "theta_rad": -0.012682640579229467,
+            "p_pu": -0.05129801984645996,
+            "q_pu": -0.019493247541654782
+          },
+          {
+            "component_id": 219,
+            "internal": false,
+            "v_pu": 1.0093808839770275,
+            "theta_rad": -0.018643654397363065,
+            "p_pu": -0.06056285303862165,
+            "q_pu": -0.021196998563517578
+          },
+          {
+            "component_id": 236,
+            "internal": false,
+            "v_pu": 1.0084552646163025,
+            "theta_rad": -0.018837172257764545,
+            "p_pu": -0.07,
+            "q_pu": -0.015
+          },
+          {
+            "component_id": 253,
+            "internal": false,
+            "v_pu": 1.0104548980085861,
+            "theta_rad": -0.010142339815752353,
+            "p_pu": -0.08058722316675875,
+            "q_pu": -0.017160703212799486
+          },
+          {
+            "component_id": 270,
+            "internal": false,
+            "v_pu": 1.009724817836802,
+            "theta_rad": -0.012740007553751933,
+            "p_pu": -0.040311572459105494,
+            "q_pu": -0.01922262428145769
+          },
+          {
+            "component_id": 287,
+            "internal": false,
+            "v_pu": 1.0103620903106507,
+            "theta_rad": -0.01644651795707099,
+            "p_pu": -0.05088507259302955,
+            "q_pu": -0.021217829379646443
+          },
+          {
+            "component_id": 304,
+            "internal": false,
+            "v_pu": 1.013589246349037,
+            "theta_rad": -0.013720738476609935,
+            "p_pu": -0.06164178961886453,
+            "q_pu": -0.015410447404716133
+          },
+          {
+            "component_id": 321,
+            "internal": false,
+            "v_pu": 1.0192931745083875,
+            "theta_rad": -0.011121748182892379,
+            "p_pu": -0.07135052221558713,
+            "q_pu": -0.017327983966642587
+          },
+          {
+            "component_id": 2000,
+            "internal": true,
+            "v_pu": 1.03,
+            "theta_rad": 0.0,
+            "p_pu": 0.31875974049520434,
+            "q_pu": 0.19296519029805828
+          },
+          {
+            "component_id": 2001,
+            "internal": true,
+            "v_pu": 1.0199999999999996,
+            "theta_rad": 0.003215332614477771,
+            "p_pu": 0.2733333333333333,
+            "q_pu": 0.05066411256790161
+          },
+          {
+            "component_id": 2002,
+            "internal": true,
+            "v_pu": 1.01,
+            "theta_rad": -0.0010989299101998788,
+            "p_pu": 0.2733333333333333,
+            "q_pu": -0.04680254340171814
+          }
+        ],
+        "loads": [
+          {
+            "component_id": 1000,
+            "p_mw": 4.211907673510149,
+            "q_mvar": 1.579465377566306,
+            "voltage_kv": 112.87612994946363
+          },
+          {
+            "component_id": 6001,
+            "p_mw": 1.2538061379644319,
+            "q_mvar": 0.36740444331889915,
+            "voltage_kv": 112.87612994946363
+          },
+          {
+            "component_id": 6002,
+            "p_mw": 0.8043855451790041,
+            "q_mvar": -0.1515309121833735,
+            "voltage_kv": 112.87612994946363
+          },
+          {
+            "component_id": 1001,
+            "p_mw": 5.114508790393021,
+            "q_mvar": 1.7389329887336271,
+            "voltage_kv": 112.51919338864646
+          },
+          {
+            "component_id": 1002,
+            "p_mw": 6.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 112.34049461998869
+          },
+          {
+            "component_id": 1003,
+            "p_mw": 7.082474204506196,
+            "q_mvar": 2.1318956606680928,
+            "voltage_kv": 111.8426426894464
+          },
+          {
+            "component_id": 1004,
+            "p_mw": 8.114837258501716,
+            "q_mvar": 1.5324662554023054,
+            "voltage_kv": 111.96935814017519
+          },
+          {
+            "component_id": 1005,
+            "p_mw": 4.097194720309779,
+            "q_mvar": 1.724171674210882,
+            "voltage_kv": 111.56183194501341
+          },
+          {
+            "component_id": 1006,
+            "p_mw": 5.1298019846459955,
+            "q_mvar": 1.9493247541654781,
+            "voltage_kv": 111.41867349256725
+          },
+          {
+            "component_id": 1007,
+            "p_mw": 6.056285303862165,
+            "q_mvar": 2.1196998563517577,
+            "voltage_kv": 111.03189723747303
+          },
+          {
+            "component_id": 1008,
+            "p_mw": 7.0,
+            "q_mvar": 1.5,
+            "voltage_kv": 110.93007910779328
+          },
+          {
+            "component_id": 1009,
+            "p_mw": 8.058722316675874,
+            "q_mvar": 1.7160703212799486,
+            "voltage_kv": 111.15003878094447
+          },
+          {
+            "component_id": 1010,
+            "p_mw": 4.031157245910549,
+            "q_mvar": 1.922262428145769,
+            "voltage_kv": 111.06972996204821
+          },
+          {
+            "component_id": 1011,
+            "p_mw": 5.088507259302956,
+            "q_mvar": 2.1217829379646442,
+            "voltage_kv": 111.13982993417157
+          },
+          {
+            "component_id": 1012,
+            "p_mw": 6.164178961886453,
+            "q_mvar": 1.5410447404716132,
+            "voltage_kv": 111.49481709839407
+          },
+          {
+            "component_id": 1013,
+            "p_mw": 7.135052221558713,
+            "q_mvar": 1.7327983966642588,
+            "voltage_kv": 112.12224919592262
+          }
+        ],
+        "branches": [
+          {
+            "component_id": 3000,
+            "p_from_mw": 9.812762539017173,
+            "q_from_mvar": 3.529505730557302,
+            "p_to_mw": -9.777099455782237,
+            "q_to_mvar": -3.5881037209116373,
+            "i_from_ka": 0.05333930352839015,
+            "i_to_ka": 0.053439193996397655
+          },
+          {
+            "component_id": 3001,
+            "p_from_mw": 4.662590665750851,
+            "q_from_mvar": 1.8491707323015905,
+            "p_to_mw": -4.584629245226361,
+            "q_to_mvar": -2.2132525401464322,
+            "i_from_ka": 0.02573718469171627,
+            "i_to_ka": 0.02616363130312239
+          },
+          {
+            "component_id": 3002,
+            "p_from_mw": -1.4153707547736771,
+            "q_from_mvar": 2.3992668759254756,
+            "p_to_mw": 1.467772499753341,
+            "q_to_mvar": -2.634482874958543,
+            "i_from_ka": 0.014316177398016921,
+            "i_to_ka": 0.015567894113110528
+          },
+          {
+            "component_id": 3003,
+            "p_from_mw": -11.500841370855921,
+            "q_from_mvar": -1.1251769943749883,
+            "p_to_mw": 11.557353279761276,
+            "q_to_mvar": 0.949618802067663,
+            "i_from_ka": 0.059652701764902,
+            "i_to_ka": 0.05979428176881434
+          },
+          {
+            "component_id": 3004,
+            "p_from_mw": 7.6365883603360425,
+            "q_from_mvar": 2.40016794205987,
+            "p_to_mw": -7.5883512919660125,
+            "q_to_mvar": -2.5260429363443397,
+            "i_from_ka": 0.04127581277085523,
+            "i_to_ka": 0.04138961960423572
+          },
+          {
+            "component_id": 3005,
+            "p_from_mw": 3.491156572473723,
+            "q_from_mvar": 0.8018712623361174,
+            "p_to_mw": -3.390051492553859,
+            "q_to_mvar": -1.288671854576598,
+            "i_from_ka": 0.018537744594545977,
+            "i_to_ka": 0.018792988617003535
+          },
+          {
+            "component_id": 3006,
+            "p_from_mw": 6.454230414288641,
+            "q_from_mvar": 2.9032386597869535,
+            "p_to_mw": -6.4246269675105205,
+            "q_to_mvar": -2.978337237110799,
+            "i_from_ka": 0.036672377356927376,
+            "i_to_ka": 0.03682232141982919
+          },
+          {
+            "component_id": 3007,
+            "p_from_mw": 0.36834166470591384,
+            "q_from_mvar": 0.8586373811290962,
+            "p_to_mw": -0.29433886621927985,
+            "q_to_mvar": -1.2271198057387658,
+            "i_from_ka": 0.004858276746871607,
+            "i_to_ka": 0.006567863163678699
+          },
+          {
+            "component_id": 3008,
+            "p_from_mw": -6.705661133780802,
+            "q_from_mvar": -0.27288019426191046,
+            "p_to_mw": 6.766765819584614,
+            "q_to_mvar": 0.0852073518434076,
+            "i_from_ka": 0.034929386006859936,
+            "i_to_ka": 0.03515161872554533
+          },
+          {
+            "component_id": 3009,
+            "p_from_mw": 6.55968133380183,
+            "q_from_mvar": 0.8858561586138958,
+            "p_to_mw": -6.508176166851308,
+            "q_to_mvar": -1.1150681949558143,
+            "i_from_ka": 0.03438246429547795,
+            "i_to_ka": 0.03432302660587984
+          },
+          {
+            "component_id": 3010,
+            "p_from_mw": 2.477018921419067,
+            "q_from_mvar": -0.8071942328474968,
+            "p_to_mw": -2.4388702570156866,
+            "q_to_mvar": 0.6315945125325624,
+            "i_from_ka": 0.013542177712318424,
+            "i_to_ka": 0.013087415349771873
+          },
+          {
+            "component_id": 3011,
+            "p_from_mw": -2.6496370003105065,
+            "q_from_mvar": -2.753377450012338,
+            "p_to_mw": 2.7505269429313532,
+            "q_to_mvar": 2.2730908658766933,
+            "i_from_ka": 0.019850470929151137,
+            "i_to_ka": 0.01847731302382876
+          },
+          {
+            "component_id": 3012,
+            "p_from_mw": -5.241487133707473,
+            "q_from_mvar": -8.013218517424146,
+            "p_to_mw": 5.275256970138986,
+            "q_to_mvar": 7.9466550085808345,
+            "i_from_ka": 0.0495830801951597,
+            "i_to_ka": 0.049115091468741795
+          },
+          {
+            "component_id": 3013,
+            "p_from_mw": -12.410309190826515,
+            "q_from_mvar": -9.679453405034542,
+            "p_to_mw": 12.506712082956303,
+            "q_to_mvar": 9.445950210722426,
+            "i_from_ka": 0.08104332123915199,
+            "i_to_ka": 0.08016599461960257
+          },
+          {
+            "component_id": 3014,
+            "p_from_mw": 3.2539521800859323,
+            "q_from_mvar": 4.309404905078527,
+            "p_to_mw": -3.1958906547327275,
+            "q_to_mvar": -4.505188400832599,
+            "i_from_ka": 0.02762007675446179,
+            "i_to_ka": 0.02851387129054262
+          },
+          {
+            "component_id": 3015,
+            "p_from_mw": 6.146485321818572,
+            "q_from_mvar": 6.132952609687174,
+            "p_to_mw": -6.09296360679215,
+            "q_to_mvar": -6.3392958519325955,
+            "i_from_ka": 0.044822461872615814,
+            "i_to_ka": 0.0455618856893199
+          },
+          {
+            "component_id": 3016,
+            "p_from_mw": -2.101017298186163,
+            "q_from_mvar": 2.775404293090614,
+            "p_to_mw": 2.140321925317511,
+            "q_to_mvar": -2.948870829687905,
+            "i_from_ka": 0.01803771413478666,
+            "i_to_ka": 0.01892678028467889
+          },
+          {
+            "component_id": 3017,
+            "p_from_mw": 3.7766905649553326,
+            "q_from_mvar": -4.667728327709695,
+            "p_to_mw": -3.673218768931589,
+            "q_to_mvar": 4.199082911621608,
+            "i_from_ka": 0.03118809799004688,
+            "i_to_ka": 0.028889379311484116
+          },
+          {
+            "component_id": 2000,
+            "p_from_mw": 31.875974049520433,
+            "q_from_mvar": 19.29651902980583,
+            "p_to_mw": -31.843526158288054,
+            "q_to_mvar": -19.080199754923306,
+            "i_from_ka": 0.18987683502844832,
+            "i_to_ka": 0.18987683502844832
+          },
+          {
+            "component_id": 2001,
+            "p_from_mw": 27.333333333333265,
+            "q_from_mvar": 5.066411262052585,
+            "p_to_mw": -27.3087788983198,
+            "q_to_mvar": -4.882252999451577,
+            "i_from_ka": 0.1430455493117135,
+            "i_to_ka": 0.14304554931171357
+          },
+          {
+            "component_id": 2002,
+            "p_from_mw": 27.333333333333265,
+            "q_from_mvar": -4.680254337180734,
+            "p_to_mw": -27.3021819597533,
+            "q_to_mvar": 4.929465325820416,
+            "i_from_ka": 0.14410961934111227,
+            "i_to_ka": 0.14410961934111224
+          }
+        ],
+        "shunts": [
+          {
+            "component_id": 4000,
+            "p_mw": 0.0,
+            "q_mvar": -2.086014335779125
+          }
+        ]
+      },
+      "constant_pq_voltage_difference_pu": 0.00011682859405071078,
+      "reference_balance_residual_mw_mvar": [
+        -1.091939716424406e-08,
+        -1.163078300336906e-08
+      ],
+      "q_clamped_components": []
+    },
+    {
+      "name": "enersy-zip-30-v1",
+      "scheme": {
+        "components": [
+          {
+            "id": 100,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 10.0,
+            "y": -20.0,
+            "rotation": 0
+          },
+          {
+            "id": 1000,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.0,
+            "y": -200.0,
+            "rotation": 0
+          },
+          {
+            "id": 117,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 11.700000000000001,
+            "y": -23.400000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 1001,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.10000000000001,
+            "y": -200.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 134,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 13.4,
+            "y": -26.8,
+            "rotation": 0
+          },
+          {
+            "id": 1002,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.2,
+            "y": -200.4,
+            "rotation": 0
+          },
+          {
+            "id": 151,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 15.100000000000001,
+            "y": -30.200000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 1003,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.30000000000001,
+            "y": -200.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 168,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 16.8,
+            "y": -33.6,
+            "rotation": 0
+          },
+          {
+            "id": 1004,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 100.4,
+            "y": -200.8,
+            "rotation": 0
+          },
+          {
+            "id": 185,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 18.5,
+            "y": -37.0,
+            "rotation": 0
+          },
+          {
+            "id": 1005,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 100.5,
+            "y": -201.0,
+            "rotation": 0
+          },
+          {
+            "id": 202,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 20.200000000000003,
+            "y": -40.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1006,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.60000000000001,
+            "y": -201.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 219,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 21.900000000000002,
+            "y": -43.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1007,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.7,
+            "y": -201.4,
+            "rotation": 0
+          },
+          {
+            "id": 236,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 23.6,
+            "y": -47.2,
+            "rotation": 0
+          },
+          {
+            "id": 1008,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.80000000000001,
+            "y": -201.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 253,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 25.3,
+            "y": -50.6,
+            "rotation": 0
+          },
+          {
+            "id": 1009,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.9,
+            "y": -201.8,
+            "rotation": 0
+          },
+          {
+            "id": 270,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 27.0,
+            "y": -54.0,
+            "rotation": 0
+          },
+          {
+            "id": 1010,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 101.0,
+            "y": -202.0,
+            "rotation": 0
+          },
+          {
+            "id": 287,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 28.700000000000003,
+            "y": -57.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1011,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 101.10000000000001,
+            "y": -202.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 304,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 30.400000000000002,
+            "y": -60.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1012,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.2,
+            "y": -202.4,
+            "rotation": 0
+          },
+          {
+            "id": 321,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 32.1,
+            "y": -64.2,
+            "rotation": 0
+          },
+          {
+            "id": 1013,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.30000000000001,
+            "y": -202.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 338,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 33.800000000000004,
+            "y": -67.60000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1014,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 101.4,
+            "y": -202.8,
+            "rotation": 0
+          },
+          {
+            "id": 355,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 35.5,
+            "y": -71.0,
+            "rotation": 0
+          },
+          {
+            "id": 1015,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 101.5,
+            "y": -203.0,
+            "rotation": 0
+          },
+          {
+            "id": 372,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 37.2,
+            "y": -74.4,
+            "rotation": 0
+          },
+          {
+            "id": 1016,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 101.60000000000001,
+            "y": -203.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 389,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 38.900000000000006,
+            "y": -77.80000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1017,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 101.7,
+            "y": -203.4,
+            "rotation": 0
+          },
+          {
+            "id": 406,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 40.6,
+            "y": -81.2,
+            "rotation": 0
+          },
+          {
+            "id": 1018,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.80000000000001,
+            "y": -203.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 423,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 42.300000000000004,
+            "y": -84.60000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1019,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 101.9,
+            "y": -203.8,
+            "rotation": 0
+          },
+          {
+            "id": 440,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 44.0,
+            "y": -88.0,
+            "rotation": 0
+          },
+          {
+            "id": 1020,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 102.0,
+            "y": -204.0,
+            "rotation": 0
+          },
+          {
+            "id": 457,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 45.7,
+            "y": -91.4,
+            "rotation": 0
+          },
+          {
+            "id": 1021,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 102.10000000000001,
+            "y": -204.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 474,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 47.400000000000006,
+            "y": -94.80000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1022,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 102.2,
+            "y": -204.4,
+            "rotation": 0
+          },
+          {
+            "id": 491,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 49.1,
+            "y": -98.2,
+            "rotation": 0
+          },
+          {
+            "id": 1023,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 102.30000000000001,
+            "y": -204.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 508,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 50.800000000000004,
+            "y": -101.60000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1024,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 102.4,
+            "y": -204.8,
+            "rotation": 0
+          },
+          {
+            "id": 525,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 52.5,
+            "y": -105.0,
+            "rotation": 0
+          },
+          {
+            "id": 1025,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 102.5,
+            "y": -205.0,
+            "rotation": 0
+          },
+          {
+            "id": 542,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 54.2,
+            "y": -108.4,
+            "rotation": 0
+          },
+          {
+            "id": 1026,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 102.60000000000001,
+            "y": -205.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 559,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 55.900000000000006,
+            "y": -111.80000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1027,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 102.7,
+            "y": -205.4,
+            "rotation": 0
+          },
+          {
+            "id": 576,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 57.6,
+            "y": -115.2,
+            "rotation": 0
+          },
+          {
+            "id": 1028,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 102.80000000000001,
+            "y": -205.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 593,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 59.300000000000004,
+            "y": -118.60000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 1029,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 102.9,
+            "y": -205.8,
+            "rotation": 0
+          },
+          {
+            "id": 4000,
+            "type": "capacitor",
+            "params": {
+              "voltage_nom": "110",
+              "q_nom": "2"
+            },
+            "x": 400.0,
+            "y": -800.0,
+            "rotation": 0
+          },
+          {
+            "id": 3000,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.0,
+            "y": -600.0,
+            "rotation": 0
+          },
+          {
+            "id": 3001,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.1,
+            "y": -600.2,
+            "rotation": 0
+          },
+          {
+            "id": 3002,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.2,
+            "y": -600.4,
+            "rotation": 0
+          },
+          {
+            "id": 3003,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.3,
+            "y": -600.6,
+            "rotation": 0
+          },
+          {
+            "id": 3004,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.40000000000003,
+            "y": -600.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3005,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.5,
+            "y": -601.0,
+            "rotation": 0
+          },
+          {
+            "id": 3006,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.6,
+            "y": -601.2,
+            "rotation": 0
+          },
+          {
+            "id": 3007,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.7,
+            "y": -601.4,
+            "rotation": 0
+          },
+          {
+            "id": 3008,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.8,
+            "y": -601.6,
+            "rotation": 0
+          },
+          {
+            "id": 3009,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.90000000000003,
+            "y": -601.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3010,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.0,
+            "y": -602.0,
+            "rotation": 0
+          },
+          {
+            "id": 3011,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.1,
+            "y": -602.2,
+            "rotation": 0
+          },
+          {
+            "id": 3012,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.2,
+            "y": -602.4,
+            "rotation": 0
+          },
+          {
+            "id": 3013,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.3,
+            "y": -602.6,
+            "rotation": 0
+          },
+          {
+            "id": 3014,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.40000000000003,
+            "y": -602.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3015,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.5,
+            "y": -603.0,
+            "rotation": 0
+          },
+          {
+            "id": 3016,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.6,
+            "y": -603.2,
+            "rotation": 0
+          },
+          {
+            "id": 3017,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.7,
+            "y": -603.4,
+            "rotation": 0
+          },
+          {
+            "id": 3018,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.8,
+            "y": -603.6,
+            "rotation": 0
+          },
+          {
+            "id": 3019,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.90000000000003,
+            "y": -603.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3020,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.0,
+            "y": -604.0,
+            "rotation": 0
+          },
+          {
+            "id": 3021,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.1,
+            "y": -604.2,
+            "rotation": 0
+          },
+          {
+            "id": 3022,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.2,
+            "y": -604.4,
+            "rotation": 0
+          },
+          {
+            "id": 3023,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.3,
+            "y": -604.6,
+            "rotation": 0
+          },
+          {
+            "id": 3024,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.40000000000003,
+            "y": -604.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3025,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.5,
+            "y": -605.0,
+            "rotation": 0
+          },
+          {
+            "id": 3026,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.6,
+            "y": -605.2,
+            "rotation": 0
+          },
+          {
+            "id": 3027,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.7,
+            "y": -605.4,
+            "rotation": 0
+          },
+          {
+            "id": 3028,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.8,
+            "y": -605.6,
+            "rotation": 0
+          },
+          {
+            "id": 3029,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 302.90000000000003,
+            "y": -605.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3030,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.0,
+            "y": -606.0,
+            "rotation": 0
+          },
+          {
+            "id": 3031,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.1,
+            "y": -606.2,
+            "rotation": 0
+          },
+          {
+            "id": 3032,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.2,
+            "y": -606.4,
+            "rotation": 0
+          },
+          {
+            "id": 3033,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.3,
+            "y": -606.6,
+            "rotation": 0
+          },
+          {
+            "id": 3034,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.40000000000003,
+            "y": -606.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3035,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.5,
+            "y": -607.0,
+            "rotation": 0
+          },
+          {
+            "id": 3036,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.6,
+            "y": -607.2,
+            "rotation": 0
+          },
+          {
+            "id": 3037,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.7,
+            "y": -607.4,
+            "rotation": 0
+          },
+          {
+            "id": 3038,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 303.8,
+            "y": -607.6,
+            "rotation": 0
+          },
+          {
+            "id": 2000,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "113.3",
+              "p": "60.0",
+              "r": "0.3",
+              "x": "2.0",
+              "is_slack": "true"
+            },
+            "x": 200.0,
+            "y": -400.0,
+            "rotation": 0
+          },
+          {
+            "id": 2001,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "112.2",
+              "p": "60.0",
+              "r": "0.4",
+              "x": "3.0",
+              "is_slack": "false"
+            },
+            "x": 200.10000000000002,
+            "y": -400.20000000000005,
+            "rotation": 0
+          },
+          {
+            "id": 2002,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "111.1",
+              "p": "60.0",
+              "r": "0.5",
+              "x": "4.0",
+              "is_slack": "false"
+            },
+            "x": 200.20000000000002,
+            "y": -400.40000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 6001,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "1.2",
+              "q": "0.35",
+              "voltage_nom": "107.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.3",
+              "zip_p_i": "0.2",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.7",
+              "zip_q_p": "0.2"
+            }
+          },
+          {
+            "id": 6002,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "0.8",
+              "q": "-0.15",
+              "voltage_nom": "112.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.5",
+              "zip_p_p": "0.4",
+              "zip_q_z": "0.6",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.3"
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": 100,
+            "to": 1000,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 117,
+            "to": 1001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 1002,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 151,
+            "to": 1003,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 168,
+            "to": 1004,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 185,
+            "to": 1005,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 202,
+            "to": 1006,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 219,
+            "to": 1007,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 236,
+            "to": 1008,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 253,
+            "to": 1009,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 270,
+            "to": 1010,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 287,
+            "to": 1011,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 304,
+            "to": 1012,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 321,
+            "to": 1013,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 338,
+            "to": 1014,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 355,
+            "to": 1015,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 372,
+            "to": 1016,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 389,
+            "to": 1017,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 406,
+            "to": 1018,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 423,
+            "to": 1019,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 440,
+            "to": 1020,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 457,
+            "to": 1021,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 474,
+            "to": 1022,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 491,
+            "to": 1023,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 508,
+            "to": 1024,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 525,
+            "to": 1025,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 542,
+            "to": 1026,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 559,
+            "to": 1027,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 576,
+            "to": 1028,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 593,
+            "to": 1029,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 4000,
+            "fromPort": "left",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 3000,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3000,
+            "to": 117,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 117,
+            "to": 3001,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3001,
+            "to": 134,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 134,
+            "to": 3002,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3002,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3003,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3003,
+            "to": 168,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 168,
+            "to": 3004,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3004,
+            "to": 185,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 185,
+            "to": 3005,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3005,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3006,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3006,
+            "to": 219,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 219,
+            "to": 3007,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3007,
+            "to": 236,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 236,
+            "to": 3008,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3008,
+            "to": 253,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 253,
+            "to": 3009,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3009,
+            "to": 270,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 270,
+            "to": 3010,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3010,
+            "to": 287,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 287,
+            "to": 3011,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3011,
+            "to": 304,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 304,
+            "to": 3012,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3012,
+            "to": 321,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 321,
+            "to": 3013,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3013,
+            "to": 338,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 338,
+            "to": 3014,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3014,
+            "to": 355,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 355,
+            "to": 3015,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3015,
+            "to": 372,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 372,
+            "to": 3016,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3016,
+            "to": 389,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 389,
+            "to": 3017,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3017,
+            "to": 406,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 406,
+            "to": 3018,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3018,
+            "to": 423,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 423,
+            "to": 3019,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3019,
+            "to": 440,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 440,
+            "to": 3020,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3020,
+            "to": 457,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 457,
+            "to": 3021,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3021,
+            "to": 474,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 474,
+            "to": 3022,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3022,
+            "to": 491,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 491,
+            "to": 3023,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3023,
+            "to": 508,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 508,
+            "to": 3024,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3024,
+            "to": 525,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 525,
+            "to": 3025,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3025,
+            "to": 542,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 542,
+            "to": 3026,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3026,
+            "to": 559,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 559,
+            "to": 3027,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3027,
+            "to": 576,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 576,
+            "to": 3028,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3028,
+            "to": 593,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 593,
+            "to": 3029,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3029,
+            "to": 100,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 3030,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3030,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3031,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3031,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3032,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3032,
+            "to": 253,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 253,
+            "to": 3033,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3033,
+            "to": 304,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 304,
+            "to": 3034,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3034,
+            "to": 355,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 355,
+            "to": 3035,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3035,
+            "to": 406,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 406,
+            "to": 3036,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3036,
+            "to": 457,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 457,
+            "to": 3037,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3037,
+            "to": 508,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 508,
+            "to": 3038,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3038,
+            "to": 559,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 2000,
+            "to": 100,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2001,
+            "to": 270,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2002,
+            "to": 440,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 6001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 6002,
+            "fromPort": "right",
+            "toPort": "top"
+          }
+        ],
+        "base": {
+          "s_base_mva": 100,
+          "v_base_kv": 110
+        },
+        "solverOptions": {
+          "tolerance": 1e-10,
+          "max_iterations": 50
+        }
+      },
+      "expected": {
+        "nodes": [
+          {
+            "component_id": 100,
+            "internal": false,
+            "v_pu": 1.0244978319133067,
+            "theta_rad": -0.009744881599654934,
+            "p_pu": -0.06253973035670925,
+            "q_pu": -0.017900447114906123
+          },
+          {
+            "component_id": 117,
+            "internal": false,
+            "v_pu": 1.0210367529644646,
+            "theta_rad": -0.018292697044487185,
+            "p_pu": -0.05105183764822323,
+            "q_pu": -0.017357624800395897
+          },
+          {
+            "component_id": 134,
+            "internal": false,
+            "v_pu": 1.0192642101663416,
+            "theta_rad": -0.023419371835726413,
+            "p_pu": -0.06,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 151,
+            "internal": false,
+            "v_pu": 1.0143768036206493,
+            "theta_rad": -0.02819669761635555,
+            "p_pu": -0.07070735707216468,
+            "q_pu": -0.021273457805281986
+          },
+          {
+            "component_id": 168,
+            "internal": false,
+            "v_pu": 1.0119558821362813,
+            "theta_rad": -0.033563507342646674,
+            "p_pu": -0.08076632000166326,
+            "q_pu": -0.015216277951835491
+          },
+          {
+            "component_id": 185,
+            "internal": false,
+            "v_pu": 1.00964441635724,
+            "theta_rad": -0.03485482175046799,
+            "p_pu": -0.040658796784832224,
+            "q_pu": -0.017164113203176762
+          },
+          {
+            "component_id": 202,
+            "internal": false,
+            "v_pu": 1.0094105186800915,
+            "theta_rad": -0.032785215402518844,
+            "p_pu": -0.05094547976110056,
+            "q_pu": -0.019359282309218212
+          },
+          {
+            "component_id": 219,
+            "internal": false,
+            "v_pu": 1.0063376252092286,
+            "theta_rad": -0.03689446518286295,
+            "p_pu": -0.06038025751255372,
+            "q_pu": -0.021133090129393805
+          },
+          {
+            "component_id": 236,
+            "internal": false,
+            "v_pu": 1.0057932287347915,
+            "theta_rad": -0.03544450493004122,
+            "p_pu": -0.07,
+            "q_pu": -0.015
+          },
+          {
+            "component_id": 253,
+            "internal": false,
+            "v_pu": 1.0086668936984644,
+            "theta_rad": -0.024244482182448093,
+            "p_pu": -0.08048654788785609,
+            "q_pu": -0.017133114255901895
+          },
+          {
+            "component_id": 270,
+            "internal": false,
+            "v_pu": 1.0143878149101877,
+            "theta_rad": -0.00709650742751215,
+            "p_pu": -0.04046123811399756,
+            "q_pu": -0.019330008767522232
+          },
+          {
+            "component_id": 287,
+            "internal": false,
+            "v_pu": 1.0070478559934986,
+            "theta_rad": -0.024280077016830916,
+            "p_pu": -0.05060105465041158,
+            "q_pu": -0.021148109287639095
+          },
+          {
+            "component_id": 304,
+            "internal": false,
+            "v_pu": 1.004235327410719,
+            "theta_rad": -0.03215499276887513,
+            "p_pu": -0.06050931556918284,
+            "q_pu": -0.01512732889229571
+          },
+          {
+            "component_id": 321,
+            "internal": false,
+            "v_pu": 1.00010289339333,
+            "theta_rad": -0.040911713580745426,
+            "p_pu": -0.0700072025375331,
+            "q_pu": -0.01700174918768661
+          },
+          {
+            "component_id": 338,
+            "internal": false,
+            "v_pu": 0.9978745580516395,
+            "theta_rad": -0.0449475068299286,
+            "p_pu": -0.08,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 355,
+            "internal": false,
+            "v_pu": 0.9961784908735123,
+            "theta_rad": -0.0422902197990273,
+            "p_pu": -0.03989311457591437,
+            "q_pu": -0.020927896150538215
+          },
+          {
+            "component_id": 372,
+            "internal": false,
+            "v_pu": 0.9945701010844902,
+            "theta_rad": -0.044885610446133914,
+            "p_pu": -0.04978295146239077,
+            "q_pu": -0.014902482948037567
+          },
+          {
+            "component_id": 389,
+            "internal": false,
+            "v_pu": 0.9935581886344523,
+            "theta_rad": -0.04432162757812848,
+            "p_pu": -0.059344927093530266,
+            "q_pu": -0.01689055975157293
+          },
+          {
+            "component_id": 406,
+            "internal": false,
+            "v_pu": 0.9946546266191787,
+            "theta_rad": -0.03902943589084551,
+            "p_pu": -0.06925364783784564,
+            "q_pu": -0.018797418698843816
+          },
+          {
+            "component_id": 423,
+            "internal": false,
+            "v_pu": 0.9984441213390678,
+            "theta_rad": -0.02191329019347421,
+            "p_pu": -0.07987552970712543,
+            "q_pu": -0.020967326548120425
+          },
+          {
+            "component_id": 440,
+            "internal": false,
+            "v_pu": 1.0044332978323964,
+            "theta_rad": -0.00028880141302003336,
+            "p_pu": -0.04,
+            "q_pu": -0.015
+          },
+          {
+            "component_id": 457,
+            "internal": false,
+            "v_pu": 0.9932441465421364,
+            "theta_rad": -0.03970461008919337,
+            "p_pu": -0.04976400154453422,
+            "q_pu": -0.01689694580467511
+          },
+          {
+            "component_id": 474,
+            "internal": false,
+            "v_pu": 0.991758715863371,
+            "theta_rad": -0.044181449321823156,
+            "p_pu": -0.05960482587402713,
+            "q_pu": -0.018812743949944956
+          },
+          {
+            "component_id": 491,
+            "internal": false,
+            "v_pu": 0.9900884601244342,
+            "theta_rad": -0.051563281928942585,
+            "p_pu": -0.06882602811767916,
+            "q_pu": -0.0207920639637208
+          },
+          {
+            "component_id": 508,
+            "internal": false,
+            "v_pu": 0.9918030432398909,
+            "theta_rad": -0.049355508547858834,
+            "p_pu": -0.0786938621263927,
+            "q_pu": -0.014755099148698634
+          },
+          {
+            "component_id": 525,
+            "internal": false,
+            "v_pu": 0.9908469893772677,
+            "theta_rad": -0.053280606140400755,
+            "p_pu": -0.03963387957509071,
+            "q_pu": -0.01684439881941355
+          },
+          {
+            "component_id": 542,
+            "internal": false,
+            "v_pu": 0.9912520240438332,
+            "theta_rad": -0.054562416768203593,
+            "p_pu": -0.05,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 559,
+            "internal": false,
+            "v_pu": 0.9971490452110252,
+            "theta_rad": -0.04890207192684978,
+            "p_pu": -0.05988035743418156,
+            "q_pu": -0.020946185229211333
+          },
+          {
+            "component_id": 576,
+            "internal": false,
+            "v_pu": 1.0016511586490695,
+            "theta_rad": -0.04357085782169583,
+            "p_pu": -0.0700924839686221,
+            "q_pu": -0.015029741303119883
+          },
+          {
+            "component_id": 593,
+            "internal": false,
+            "v_pu": 1.012874380278858,
+            "theta_rad": -0.02850972478867362,
+            "p_pu": -0.08176152369664884,
+            "q_pu": -0.017219146239175448
+          },
+          {
+            "component_id": 2000,
+            "internal": true,
+            "v_pu": 1.03,
+            "theta_rad": 0.0,
+            "p_pu": 0.6591722688837804,
+            "q_pu": 0.24702302507497037
+          },
+          {
+            "component_id": 2001,
+            "internal": true,
+            "v_pu": 1.0199999999999998,
+            "theta_rad": 0.0067864970535327605,
+            "p_pu": 0.6,
+            "q_pu": 0.15490688920021056
+          },
+          {
+            "component_id": 2002,
+            "internal": true,
+            "v_pu": 1.0099999999999998,
+            "theta_rad": 0.018853842993591156,
+            "p_pu": 0.6,
+            "q_pu": 0.10069915533065796
+          }
+        ],
+        "loads": [
+          {
+            "component_id": 1000,
+            "p_mw": 4.198383230380264,
+            "q_mvar": 1.574393711392599,
+            "voltage_kv": 112.69476151046374
+          },
+          {
+            "component_id": 6001,
+            "p_mw": 1.252112919335559,
+            "q_mvar": 0.3668640927166842,
+            "voltage_kv": 112.69476151046374
+          },
+          {
+            "component_id": 6002,
+            "p_mw": 0.803476885955102,
+            "q_mvar": -0.15121309261867075,
+            "voltage_kv": 112.69476151046374
+          },
+          {
+            "component_id": 1001,
+            "p_mw": 5.105183764822323,
+            "q_mvar": 1.7357624800395899,
+            "voltage_kv": 112.31404282609111
+          },
+          {
+            "component_id": 1002,
+            "p_mw": 6.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 112.11906311829757
+          },
+          {
+            "component_id": 1003,
+            "p_mw": 7.070735707216468,
+            "q_mvar": 2.1273457805281986,
+            "voltage_kv": 111.58144839827142
+          },
+          {
+            "component_id": 1004,
+            "p_mw": 8.076632000166326,
+            "q_mvar": 1.5216277951835488,
+            "voltage_kv": 111.31514703499094
+          },
+          {
+            "component_id": 1005,
+            "p_mw": 4.065879678483222,
+            "q_mvar": 1.7164113203176763,
+            "voltage_kv": 111.0608857992964
+          },
+          {
+            "component_id": 1006,
+            "p_mw": 5.094547976110056,
+            "q_mvar": 1.9359282309218213,
+            "voltage_kv": 111.03515705481006
+          },
+          {
+            "component_id": 1007,
+            "p_mw": 6.038025751255372,
+            "q_mvar": 2.1133090129393803,
+            "voltage_kv": 110.69713877301515
+          },
+          {
+            "component_id": 1008,
+            "p_mw": 7.0,
+            "q_mvar": 1.5,
+            "voltage_kv": 110.63725516082707
+          },
+          {
+            "component_id": 1009,
+            "p_mw": 8.048654788785608,
+            "q_mvar": 1.7133114255901891,
+            "voltage_kv": 110.95335830683109
+          },
+          {
+            "component_id": 1010,
+            "p_mw": 4.046123811399756,
+            "q_mvar": 1.9330008767522233,
+            "voltage_kv": 111.58265964012065
+          },
+          {
+            "component_id": 1011,
+            "p_mw": 5.060105465041158,
+            "q_mvar": 2.1148109287639096,
+            "voltage_kv": 110.77526415928484
+          },
+          {
+            "component_id": 1012,
+            "p_mw": 6.050931556918284,
+            "q_mvar": 1.512732889229571,
+            "voltage_kv": 110.46588601517908
+          },
+          {
+            "component_id": 1013,
+            "p_mw": 7.00072025375331,
+            "q_mvar": 1.700174918768661,
+            "voltage_kv": 110.0113182732663
+          },
+          {
+            "component_id": 1014,
+            "p_mw": 8.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 109.76620138568035
+          },
+          {
+            "component_id": 1015,
+            "p_mw": 3.9893114575914375,
+            "q_mvar": 2.0927896150538214,
+            "voltage_kv": 109.57963399608636
+          },
+          {
+            "component_id": 1016,
+            "p_mw": 4.978295146239077,
+            "q_mvar": 1.4902482948037572,
+            "voltage_kv": 109.40271111929393
+          },
+          {
+            "component_id": 1017,
+            "p_mw": 5.934492709353027,
+            "q_mvar": 1.6890559751572929,
+            "voltage_kv": 109.29140074978976
+          },
+          {
+            "component_id": 1018,
+            "p_mw": 6.925364783784564,
+            "q_mvar": 1.8797418698843817,
+            "voltage_kv": 109.41200892810966
+          },
+          {
+            "component_id": 1019,
+            "p_mw": 7.987552970712542,
+            "q_mvar": 2.0967326548120426,
+            "voltage_kv": 109.82885334729745
+          },
+          {
+            "component_id": 1020,
+            "p_mw": 4.0,
+            "q_mvar": 1.5,
+            "voltage_kv": 110.48766276156361
+          },
+          {
+            "component_id": 1021,
+            "p_mw": 4.9764001544534215,
+            "q_mvar": 1.6896945804675108,
+            "voltage_kv": 109.256856119635
+          },
+          {
+            "component_id": 1022,
+            "p_mw": 5.960482587402713,
+            "q_mvar": 1.8812743949944954,
+            "voltage_kv": 109.09345874497082
+          },
+          {
+            "component_id": 1023,
+            "p_mw": 6.882602811767915,
+            "q_mvar": 2.0792063963720797,
+            "voltage_kv": 108.90973061368776
+          },
+          {
+            "component_id": 1024,
+            "p_mw": 7.869386212639271,
+            "q_mvar": 1.4755099148698634,
+            "voltage_kv": 109.098334756388
+          },
+          {
+            "component_id": 1025,
+            "p_mw": 3.9633879575090707,
+            "q_mvar": 1.684439881941355,
+            "voltage_kv": 108.99316883149945
+          },
+          {
+            "component_id": 1026,
+            "p_mw": 5.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 109.03772264482164
+          },
+          {
+            "component_id": 1027,
+            "p_mw": 5.988035743418156,
+            "q_mvar": 2.094618522921133,
+            "voltage_kv": 109.68639497321277
+          },
+          {
+            "component_id": 1028,
+            "p_mw": 7.009248396862209,
+            "q_mvar": 1.5029741303119883,
+            "voltage_kv": 110.18162745139765
+          },
+          {
+            "component_id": 1029,
+            "p_mw": 8.176152369664884,
+            "q_mvar": 1.721914623917545,
+            "voltage_kv": 111.41618183067438
+          }
+        ],
+        "branches": [
+          {
+            "component_id": 3000,
+            "p_from_mw": 14.034122905122889,
+            "q_from_mvar": 3.254210881728109,
+            "p_to_mw": -13.989192063123312,
+            "q_to_mvar": -3.2500083924224645,
+            "i_from_ka": 0.0738062847984728,
+            "i_to_ka": 0.0738266004846408
+          },
+          {
+            "component_id": 3001,
+            "p_from_mw": 8.884008297430979,
+            "q_from_mvar": 1.5142459120868907,
+            "p_to_mw": -8.801697620933533,
+            "q_to_mvar": -1.8437707621434922,
+            "i_from_ka": 0.04632686506100304,
+            "i_to_ka": 0.046307565197904875
+          },
+          {
+            "component_id": 3002,
+            "p_from_mw": 2.8016976209335955,
+            "q_from_mvar": 2.0215698223962058,
+            "p_to_mw": -2.7485192116754438,
+            "q_to_mvar": -2.2482593514896063,
+            "i_from_ka": 0.017790737035536495,
+            "i_to_ka": 0.01837334297723803
+          },
+          {
+            "component_id": 3003,
+            "p_from_mw": 9.841566054371988,
+            "q_from_mvar": 3.304519640910344,
+            "p_to_mw": -9.786672417648344,
+            "q_to_mvar": -3.492143265337556,
+            "i_from_ka": 0.053716654608015446,
+            "i_to_ka": 0.053894537213167976
+          },
+          {
+            "component_id": 3004,
+            "p_from_mw": 1.7100404159832285,
+            "q_from_mvar": 1.970515469729204,
+            "p_to_mw": -1.6717455636365595,
+            "q_to_mvar": -2.1490631720795186,
+            "i_from_ka": 0.013532199407571811,
+            "i_to_ka": 0.014154067634322753
+          },
+          {
+            "component_id": 3005,
+            "p_from_mw": -2.394134116614757,
+            "q_from_mvar": 0.43265185132341266,
+            "p_to_mw": 2.493621771841693,
+            "q_to_mvar": -0.9207036967067397,
+            "i_from_ka": 0.012647503938505472,
+            "i_to_ka": 0.013821682408222956
+          },
+          {
+            "component_id": 3006,
+            "p_from_mw": 4.490162336196028,
+            "q_from_mvar": 2.62687992325804,
+            "p_to_mw": -4.462924510949738,
+            "q_to_mvar": -2.7232416103159482,
+            "i_from_ka": 0.027049500834124423,
+            "i_to_ka": 0.027267951129828688
+          },
+          {
+            "component_id": 3007,
+            "p_from_mw": -1.5751012418743728,
+            "q_from_mvar": 0.6099325968277667,
+            "p_to_mw": 1.6488612275600334,
+            "q_to_mvar": -0.9745833842633391,
+            "i_from_ka": 0.008809493659152092,
+            "i_to_ka": 0.00999506363741926
+          },
+          {
+            "component_id": 3008,
+            "p_from_mw": -8.648861227560051,
+            "q_from_mvar": -0.5254166157368177,
+            "p_to_mw": 8.71767237513888,
+            "q_to_mvar": 0.3784473546491804,
+            "i_from_ka": 0.045216487645471655,
+            "i_to_ka": 0.045405483645522264
+          },
+          {
+            "component_id": 3009,
+            "p_from_mw": -43.439484104411044,
+            "q_from_mvar": -8.507990507315847,
+            "p_to_mw": 43.584506291180666,
+            "q_to_mvar": 9.056206393011019,
+            "i_from_ka": 0.2303337969188778,
+            "i_to_ka": 0.23033147958857556
+          },
+          {
+            "component_id": 3010,
+            "p_from_mw": 12.247358291712306,
+            "q_from_mvar": 3.5863945899758116,
+            "p_to_mw": -12.182769334321573,
+            "q_to_mvar": -3.5360411686516073,
+            "i_from_ka": 0.06603130706279527,
+            "i_to_ka": 0.06611595166401643
+          },
+          {
+            "component_id": 3011,
+            "p_from_mw": 7.122663866489589,
+            "q_from_mvar": 1.4212302392023348,
+            "p_to_mw": -7.017882218289966,
+            "q_to_mvar": -1.850453729203119,
+            "i_from_ka": 0.0378544564405543,
+            "i_to_ka": 0.037932620444295344
+          },
+          {
+            "component_id": 3012,
+            "p_from_mw": 13.950673725551303,
+            "q_from_mvar": 4.183234927971003,
+            "p_to_mw": -13.905491726217264,
+            "q_to_mvar": -4.165582290493082,
+            "i_from_ka": 0.07612069963380466,
+            "i_to_ka": 0.07618149640883523
+          },
+          {
+            "component_id": 3013,
+            "p_from_mw": 6.904771468858787,
+            "q_from_mvar": 2.465407370848504,
+            "p_to_mw": -6.827617355223832,
+            "q_to_mvar": -2.7940969626406753,
+            "i_from_ka": 0.038477585462734755,
+            "i_to_ka": 0.03880282271537689
+          },
+          {
+            "component_id": 3014,
+            "p_from_mw": -1.172382644776128,
+            "q_from_mvar": 0.8940969626409646,
+            "p_to_mw": 1.2211488784448754,
+            "q_to_mvar": -1.1297580889592322,
+            "i_from_ka": 0.007755138606833798,
+            "i_to_ka": 0.008765120412323886
+          },
+          {
+            "component_id": 3015,
+            "p_from_mw": 4.6726516206796935,
+            "q_from_mvar": 2.25682864742086,
+            "p_to_mw": -4.623336220535008,
+            "q_to_mvar": -2.480703958631964,
+            "i_from_ka": 0.027340288856898345,
+            "i_to_ka": 0.02768901656110014
+          },
+          {
+            "component_id": 3016,
+            "p_from_mw": -0.3549589286837035,
+            "q_from_mvar": 0.9904556624912855,
+            "p_to_mw": 0.39105840708806916,
+            "q_to_mvar": -1.1684980560788716,
+            "i_from_ka": 0.005552451291519678,
+            "i_to_ka": 0.006509299191181141
+          },
+          {
+            "component_id": 3017,
+            "p_from_mw": -6.325551124615893,
+            "q_from_mvar": -0.5205579204469412,
+            "p_to_mw": 6.426665169021605,
+            "q_to_mvar": 0.07631878908351143,
+            "i_from_ka": 0.0335287526593274,
+            "i_to_ka": 0.033914910455591175
+          },
+          {
+            "component_id": 3018,
+            "p_from_mw": -17.31909492362435,
+            "q_from_mvar": -1.9807169055567886,
+            "p_to_mw": 17.373607533404183,
+            "q_to_mvar": 2.165342532476193,
+            "i_from_ka": 0.09198592032177921,
+            "i_to_ka": 0.09203649827965955
+          },
+          {
+            "component_id": 3019,
+            "p_from_mw": -25.361160508242985,
+            "q_from_mvar": -4.262075188371106,
+            "p_to_mw": 25.49156789709705,
+            "q_to_mvar": 4.474003547657629,
+            "i_from_ka": 0.13518852589964417,
+            "i_to_ka": 0.13524152795252908
+          },
+          {
+            "component_id": 3020,
+            "p_from_mw": 30.35849528751437,
+            "q_from_mvar": 2.89641742762203,
+            "p_to_mw": -30.066613986665796,
+            "q_to_mvar": -1.9199026080125376,
+            "i_from_ka": 0.15935785455020618,
+            "i_to_ka": 0.15920576990413332
+          },
+          {
+            "component_id": 3021,
+            "p_from_mw": 10.969617093070003,
+            "q_from_mvar": 2.1614854722116674,
+            "p_to_mw": -10.915656669856991,
+            "q_to_mvar": -2.347507101439156,
+            "i_from_ka": 0.05908177428881958,
+            "i_to_ka": 0.05908922808280355
+          },
+          {
+            "component_id": 3022,
+            "p_from_mw": 4.955174078038275,
+            "q_from_mvar": 0.4662327043568437,
+            "p_to_mw": -4.915174212194479,
+            "q_to_mvar": -0.607117637591174,
+            "i_from_ka": 0.026339862905051564,
+            "i_to_ka": 0.02625424846222282
+          },
+          {
+            "component_id": 3023,
+            "p_from_mw": -1.9674286121729039,
+            "q_from_mvar": -1.47208876102086,
+            "p_to_mw": 2.0632370352500233,
+            "q_to_mvar": 1.0034047791525398,
+            "i_from_ka": 0.0130260515798219,
+            "i_to_ka": 0.01214142410768076
+          },
+          {
+            "component_id": 3024,
+            "p_from_mw": 5.929734275484591,
+            "q_from_mvar": 0.4984411990551629,
+            "p_to_mw": -5.902390155015365,
+            "q_to_mvar": -0.5936032334103306,
+            "i_from_ka": 0.03149092321677607,
+            "i_to_ka": 0.03142340702368706
+          },
+          {
+            "component_id": 3025,
+            "p_from_mw": 1.939002193306744,
+            "q_from_mvar": -1.0908366503165463,
+            "p_to_mw": -1.8673021567032295,
+            "q_to_mvar": 0.7371186786366182,
+            "i_from_ka": 0.011784943871437893,
+            "i_to_ka": 0.010629768688122241
+          },
+          {
+            "component_id": 3026,
+            "p_from_mw": -3.132697843296739,
+            "q_from_mvar": -2.6371186786360514,
+            "p_to_mw": 3.1849269631985226,
+            "q_to_mvar": 2.4308288228546773,
+            "i_from_ka": 0.02168231764975045,
+            "i_to_ka": 0.021089219122897736
+          },
+          {
+            "component_id": 3027,
+            "p_from_mw": -9.771256113038634,
+            "q_from_mvar": -7.016215278162847,
+            "p_to_mw": 9.826754842900684,
+            "q_to_mvar": 6.857997250884243,
+            "i_from_ka": 0.06331811286237872,
+            "i_to_ka": 0.06279184320297106
+          },
+          {
+            "component_id": 3028,
+            "p_from_mw": -16.836003244869495,
+            "q_from_mvar": -8.36097138283906,
+            "p_to_mw": 16.93380214372132,
+            "q_to_mvar": 8.525211502324272,
+            "i_from_ka": 0.098500162218599,
+            "i_to_ka": 0.0982426359242743
+          },
+          {
+            "component_id": 3029,
+            "p_from_mw": -25.109954520874815,
+            "q_from_mvar": -10.247126127169023,
+            "p_to_mw": 25.30488431782944,
+            "q_to_mvar": 10.335321990082216,
+            "i_from_ka": 0.14053561511615964,
+            "i_to_ka": 0.14003651777551074
+          },
+          {
+            "component_id": 3030,
+            "p_from_mw": 20.208440902497614,
+            "q_from_mvar": 8.550686750985644,
+            "p_to_mw": -20.13774063930999,
+            "q_to_mvar": -8.220942052588116,
+            "i_from_ka": 0.11241692001800555,
+            "i_to_ka": 0.11254587529223692
+          },
+          {
+            "component_id": 3031,
+            "p_from_mw": 5.973958088263407,
+            "q_from_mvar": 5.037335982200878,
+            "p_to_mw": -5.894346599850586,
+            "q_to_mvar": -5.356286255870322,
+            "i_from_ka": 0.04043302127902297,
+            "i_to_ka": 0.04141302100317313
+          },
+          {
+            "component_id": 3032,
+            "p_from_mw": -6.1839854867910375,
+            "q_from_mvar": 1.7141817974484683,
+            "p_to_mw": 6.2441458489440045,
+            "q_to_mvar": -1.906169063118798,
+            "i_from_ka": 0.03336741304762445,
+            "i_to_ka": 0.033971920716470386
+          },
+          {
+            "component_id": 3033,
+            "p_from_mw": 20.429011089887396,
+            "q_from_mvar": 8.32240078974206,
+            "p_to_mw": -20.356216374195586,
+            "q_to_mvar": -8.369467750782428,
+            "i_from_ka": 0.11478576406870725,
+            "i_to_ka": 0.11503336122589612
+          },
+          {
+            "component_id": 3034,
+            "p_from_mw": 7.372493304896789,
+            "q_from_mvar": 4.523953661503866,
+            "p_to_mw": -7.323204177467443,
+            "q_to_mvar": -4.594330163934652,
+            "i_from_ka": 0.045208438343398924,
+            "i_to_ka": 0.04554890143462958
+          },
+          {
+            "component_id": 3035,
+            "p_from_mw": -2.559907781180958,
+            "q_from_mvar": 1.3744699891169287,
+            "p_to_mw": 2.657076159888389,
+            "q_to_mvar": -1.8430742890695029,
+            "i_from_ka": 0.015308752591361949,
+            "i_to_ka": 0.01706386661045475
+          },
+          {
+            "component_id": 3036,
+            "p_from_mw": 1.3099888002697717,
+            "q_from_mvar": 1.867730532764654,
+            "p_to_mw": -1.2855393995404867,
+            "q_to_mvar": -1.9836617581495537,
+            "i_from_ka": 0.012038250776520194,
+            "i_to_ka": 0.012491092744952949
+          },
+          {
+            "component_id": 3037,
+            "p_from_mw": 15.406136135761797,
+            "q_from_mvar": 0.05238431220968846,
+            "p_to_mw": -15.313832306406812,
+            "q_to_mvar": -0.2615104382770514,
+            "i_from_ka": 0.08141171711563815,
+            "i_to_ka": 0.08105288023399466
+          },
+          {
+            "component_id": 3038,
+            "p_from_mw": -0.5485252330585982,
+            "q_from_mvar": -2.7158454578175824,
+            "p_to_mw": 0.5982934023887894,
+            "q_to_mvar": 2.4907679305731496,
+            "i_from_ka": 0.014662513869765994,
+            "i_to_ka": 0.013483441267263125
+          },
+          {
+            "component_id": 2000,
+            "p_from_mw": 65.91722688837804,
+            "q_from_mvar": 24.702302507497038,
+            "p_to_mw": -65.80142116246252,
+            "q_to_mvar": -23.93026433472687,
+            "i_from_ka": 0.35871022956563087,
+            "i_to_ka": 0.35871022956563087
+          },
+          {
+            "component_id": 2001,
+            "p_from_mw": 59.99999999999983,
+            "q_from_mvar": 15.490688899656648,
+            "p_to_mw": -59.87798839471814,
+            "q_to_mvar": -14.57560186004396,
+            "i_from_ka": 0.31886727291263844,
+            "i_to_ka": 0.3188672729126384
+          },
+          {
+            "component_id": 2002,
+            "p_from_mw": 59.99999999999992,
+            "q_from_mvar": 10.069915498389504,
+            "p_to_mw": -59.85006318461136,
+            "q_to_mvar": -8.870420975280945,
+            "i_from_ka": 0.31616115657321536,
+            "i_to_ka": 0.31616115657321536
+          }
+        ],
+        "shunts": [
+          {
+            "component_id": 4000,
+            "p_mw": 0.0,
+            "q_mvar": -2.0777990602520324
+          }
+        ]
+      },
+      "constant_pq_voltage_difference_pu": 0.000152707796740148,
+      "reference_balance_residual_mw_mvar": [
+        1.089995698144719e-07,
+        8.494829950578264e-08
+      ],
+      "q_clamped_components": []
+    },
+    {
+      "name": "enersy-zip-9-v1-q-clamp",
+      "scheme": {
+        "components": [
+          {
+            "id": 100,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 10.0,
+            "y": -20.0,
+            "rotation": 0
+          },
+          {
+            "id": 1000,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.0,
+            "y": -200.0,
+            "rotation": 0
+          },
+          {
+            "id": 117,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 11.700000000000001,
+            "y": -23.400000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 1001,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.10000000000001,
+            "y": -200.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 134,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 13.4,
+            "y": -26.8,
+            "rotation": 0
+          },
+          {
+            "id": 1002,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.2,
+            "y": -200.4,
+            "rotation": 0
+          },
+          {
+            "id": 151,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 15.100000000000001,
+            "y": -30.200000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 1003,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.2",
+              "zip_p_i": "0.3",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.4",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.5"
+            },
+            "x": 100.30000000000001,
+            "y": -200.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 168,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 16.8,
+            "y": -33.6,
+            "rotation": 0
+          },
+          {
+            "id": 1004,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "8.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.6",
+              "zip_p_p": "0.3",
+              "zip_q_z": "0.5",
+              "zip_q_i": "0.2",
+              "zip_q_p": "0.3"
+            },
+            "x": 100.4,
+            "y": -200.8,
+            "rotation": 0
+          },
+          {
+            "id": 185,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 18.5,
+            "y": -37.0,
+            "rotation": 0
+          },
+          {
+            "id": 1005,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "4.0",
+              "q": "1.7",
+              "zip_enabled": "true",
+              "zip_p_z": "0.8",
+              "zip_p_i": "0.1",
+              "zip_p_p": "0.1",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.8",
+              "zip_q_p": "0.1"
+            },
+            "x": 100.5,
+            "y": -201.0,
+            "rotation": 0
+          },
+          {
+            "id": 202,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 20.200000000000003,
+            "y": -40.400000000000006,
+            "rotation": 0
+          },
+          {
+            "id": 1006,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "5.0",
+              "q": "1.9",
+              "zip_enabled": "true",
+              "zip_p_z": "1.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "1.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.60000000000001,
+            "y": -201.20000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 219,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 21.900000000000002,
+            "y": -43.800000000000004,
+            "rotation": 0
+          },
+          {
+            "id": 1007,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "6.0",
+              "q": "2.1",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "1.0",
+              "zip_p_p": "0.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "1.0",
+              "zip_q_p": "0.0"
+            },
+            "x": 100.7,
+            "y": -201.4,
+            "rotation": 0
+          },
+          {
+            "id": 236,
+            "type": "busbar",
+            "params": {
+              "voltage_nom": "110"
+            },
+            "x": 23.6,
+            "y": -47.2,
+            "rotation": 0
+          },
+          {
+            "id": 1008,
+            "type": "load",
+            "params": {
+              "voltage_nom": "110",
+              "p": "7.0",
+              "q": "1.5",
+              "zip_enabled": "true",
+              "zip_p_z": "0.0",
+              "zip_p_i": "0.0",
+              "zip_p_p": "1.0",
+              "zip_q_z": "0.0",
+              "zip_q_i": "0.0",
+              "zip_q_p": "1.0"
+            },
+            "x": 100.80000000000001,
+            "y": -201.60000000000002,
+            "rotation": 0
+          },
+          {
+            "id": 4000,
+            "type": "capacitor",
+            "params": {
+              "voltage_nom": "110",
+              "q_nom": "2"
+            },
+            "x": 400.0,
+            "y": -800.0,
+            "rotation": 0
+          },
+          {
+            "id": 3000,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.0,
+            "y": -600.0,
+            "rotation": 0
+          },
+          {
+            "id": 3001,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.1,
+            "y": -600.2,
+            "rotation": 0
+          },
+          {
+            "id": 3002,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.2,
+            "y": -600.4,
+            "rotation": 0
+          },
+          {
+            "id": 3003,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.3,
+            "y": -600.6,
+            "rotation": 0
+          },
+          {
+            "id": 3004,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.40000000000003,
+            "y": -600.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3005,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "2",
+              "r0": "0.8",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.5,
+            "y": -601.0,
+            "rotation": 0
+          },
+          {
+            "id": 3006,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "1",
+              "r0": "0.6",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.6,
+            "y": -601.2,
+            "rotation": 0
+          },
+          {
+            "id": 3007,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "2",
+              "r0": "0.7",
+              "x0": "7",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.7,
+            "y": -601.4,
+            "rotation": 0
+          },
+          {
+            "id": 3008,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "4.0",
+              "circuits": "1",
+              "r0": "0.8",
+              "x0": "4",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.8,
+            "y": -601.6,
+            "rotation": 0
+          },
+          {
+            "id": 3009,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "2.0",
+              "circuits": "2",
+              "r0": "0.6",
+              "x0": "5",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 300.90000000000003,
+            "y": -601.8000000000001,
+            "rotation": 0
+          },
+          {
+            "id": 3010,
+            "type": "transmission_line",
+            "params": {
+              "voltage_nom": "110",
+              "length": "3.0",
+              "circuits": "1",
+              "r0": "0.7",
+              "x0": "6",
+              "g0": "1e-06",
+              "b0": "5e-06"
+            },
+            "x": 301.0,
+            "y": -602.0,
+            "rotation": 0
+          },
+          {
+            "id": 2000,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "113.3",
+              "p": "17.333333333333332",
+              "r": "0.3",
+              "x": "2.0",
+              "is_slack": "true"
+            },
+            "x": 200.0,
+            "y": -400.0,
+            "rotation": 0
+          },
+          {
+            "id": 2001,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "112.2",
+              "p": "17.333333333333332",
+              "r": "0.4",
+              "x": "3.0",
+              "is_slack": "false",
+              "q_min_emf_mvar": "-5",
+              "q_max_emf_mvar": "-5"
+            },
+            "x": 200.10000000000002,
+            "y": -400.20000000000005,
+            "rotation": 0
+          },
+          {
+            "id": 2002,
+            "type": "generator",
+            "params": {
+              "voltage_nom": "110",
+              "e": "111.1",
+              "p": "17.333333333333332",
+              "r": "0.5",
+              "x": "4.0",
+              "is_slack": "false"
+            },
+            "x": 200.20000000000002,
+            "y": -400.40000000000003,
+            "rotation": 0
+          },
+          {
+            "id": 6001,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "1.2",
+              "q": "0.35",
+              "voltage_nom": "107.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.3",
+              "zip_p_i": "0.2",
+              "zip_p_p": "0.5",
+              "zip_q_z": "0.1",
+              "zip_q_i": "0.7",
+              "zip_q_p": "0.2"
+            }
+          },
+          {
+            "id": 6002,
+            "type": "load",
+            "x": 11.0,
+            "y": -19.0,
+            "rotation": 90,
+            "params": {
+              "p": "0.8",
+              "q": "-0.15",
+              "voltage_nom": "112.0",
+              "zip_enabled": "true",
+              "zip_p_z": "0.1",
+              "zip_p_i": "0.5",
+              "zip_p_p": "0.4",
+              "zip_q_z": "0.6",
+              "zip_q_i": "0.1",
+              "zip_q_p": "0.3"
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": 100,
+            "to": 1000,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 117,
+            "to": 1001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 1002,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 151,
+            "to": 1003,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 168,
+            "to": 1004,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 185,
+            "to": 1005,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 202,
+            "to": 1006,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 219,
+            "to": 1007,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 236,
+            "to": 1008,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 134,
+            "to": 4000,
+            "fromPort": "left",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 3000,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3000,
+            "to": 117,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 117,
+            "to": 3001,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3001,
+            "to": 134,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 134,
+            "to": 3002,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3002,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3003,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3003,
+            "to": 168,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 168,
+            "to": 3004,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3004,
+            "to": 185,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 185,
+            "to": 3005,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3005,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 202,
+            "to": 3006,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3006,
+            "to": 219,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 219,
+            "to": 3007,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3007,
+            "to": 236,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 236,
+            "to": 3008,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3008,
+            "to": 100,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 3009,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3009,
+            "to": 151,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 151,
+            "to": 3010,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 3010,
+            "to": 202,
+            "fromPort": "right",
+            "toPort": "left"
+          },
+          {
+            "from": 2000,
+            "to": 100,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2001,
+            "to": 151,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 2002,
+            "to": 202,
+            "fromPort": "bottom",
+            "toPort": "left"
+          },
+          {
+            "from": 100,
+            "to": 6001,
+            "fromPort": "right",
+            "toPort": "top"
+          },
+          {
+            "from": 100,
+            "to": 6002,
+            "fromPort": "right",
+            "toPort": "top"
+          }
+        ],
+        "base": {
+          "s_base_mva": 100,
+          "v_base_kv": 110
+        },
+        "solverOptions": {
+          "tolerance": 1e-10,
+          "max_iterations": 50
+        }
+      },
+      "expected": {
+        "nodes": [
+          {
+            "component_id": 100,
+            "internal": false,
+            "v_pu": 1.0254856204586893,
+            "theta_rad": -0.0026809795705399803,
+            "p_pu": -0.06263631306907555,
+            "q_pu": -0.017932154862867367
+          },
+          {
+            "component_id": 117,
+            "internal": false,
+            "v_pu": 1.0229255060091653,
+            "theta_rad": -0.0074047654789066095,
+            "p_pu": -0.05114627530045826,
+            "q_pu": -0.01738973360215581
+          },
+          {
+            "component_id": 134,
+            "internal": false,
+            "v_pu": 1.021923687617533,
+            "theta_rad": -0.008925702003998889,
+            "p_pu": -0.06,
+            "q_pu": -0.019
+          },
+          {
+            "component_id": 151,
+            "internal": false,
+            "v_pu": 1.0193702824655728,
+            "theta_rad": -0.002153068832647637,
+            "p_pu": -0.07095439675061221,
+            "q_pu": -0.021369250084478812
+          },
+          {
+            "component_id": 168,
+            "internal": false,
+            "v_pu": 1.0162575889689411,
+            "theta_rad": -0.006141505044409258,
+            "p_pu": -0.0810426001676049,
+            "q_pu": -0.015294618920434065
+          },
+          {
+            "component_id": 185,
+            "internal": false,
+            "v_pu": 1.0129485674575764,
+            "theta_rad": -0.004979972305403008,
+            "p_pu": -0.04088586787988971,
+            "q_pu": -0.017220410677957446
+          },
+          {
+            "component_id": 202,
+            "internal": false,
+            "v_pu": 1.011861909516807,
+            "theta_rad": -0.0008763003879583211,
+            "p_pu": -0.05119322619654996,
+            "q_pu": -0.019453425954688984
+          },
+          {
+            "component_id": 219,
+            "internal": false,
+            "v_pu": 1.0133889001865852,
+            "theta_rad": -0.007937402428273992,
+            "p_pu": -0.060803334011195115,
+            "q_pu": -0.021281166903918288
+          },
+          {
+            "component_id": 236,
+            "internal": false,
+            "v_pu": 1.0168821744398904,
+            "theta_rad": -0.009081563795515427,
+            "p_pu": -0.07,
+            "q_pu": -0.015
+          },
+          {
+            "component_id": 2000,
+            "internal": true,
+            "v_pu": 1.03,
+            "theta_rad": 0.0,
+            "p_pu": 0.2088550422576132,
+            "q_pu": 0.2502149613764768
+          },
+          {
+            "component_id": 2001,
+            "internal": true,
+            "v_pu": 1.0187064440936708,
+            "theta_rad": 0.002144558018732472,
+            "p_pu": 0.1733333333333333,
+            "q_pu": -0.05
+          },
+          {
+            "component_id": 2002,
+            "internal": true,
+            "v_pu": 1.01,
+            "theta_rad": 0.005045945952660356,
+            "p_pu": 0.1733333333333333,
+            "q_pu": -0.0780105197429657
+          }
+        ],
+        "loads": [
+          {
+            "component_id": 1000,
+            "p_mw": 4.206483031070172,
+            "q_mvar": 1.5774311366513145,
+            "voltage_kv": 112.80341825045582
+          },
+          {
+            "component_id": 6001,
+            "p_mw": 1.253127067997827,
+            "q_mvar": 0.36718778935717117,
+            "voltage_kv": 112.80341825045582
+          },
+          {
+            "component_id": 6002,
+            "p_mw": 0.804021207839557,
+            "q_mvar": -0.151403439721749,
+            "voltage_kv": 112.80341825045582
+          },
+          {
+            "component_id": 1001,
+            "p_mw": 5.114627530045826,
+            "q_mvar": 1.738973360215581,
+            "voltage_kv": 112.52180566100819
+          },
+          {
+            "component_id": 1002,
+            "p_mw": 6.0,
+            "q_mvar": 1.9,
+            "voltage_kv": 112.41160563792863
+          },
+          {
+            "component_id": 1003,
+            "p_mw": 7.095439675061221,
+            "q_mvar": 2.1369250084478817,
+            "voltage_kv": 112.130731071213
+          },
+          {
+            "component_id": 1004,
+            "p_mw": 8.10426001676049,
+            "q_mvar": 1.5294618920434064,
+            "voltage_kv": 111.78833478658352
+          },
+          {
+            "component_id": 1005,
+            "p_mw": 4.088586787988971,
+            "q_mvar": 1.7220410677957447,
+            "voltage_kv": 111.4243424203334
+          },
+          {
+            "component_id": 1006,
+            "p_mw": 5.119322619654996,
+            "q_mvar": 1.9453425954688983,
+            "voltage_kv": 111.30481004684879
+          },
+          {
+            "component_id": 1007,
+            "p_mw": 6.080333401119511,
+            "q_mvar": 2.128116690391829,
+            "voltage_kv": 111.47277902052437
+          },
+          {
+            "component_id": 1008,
+            "p_mw": 7.0,
+            "q_mvar": 1.5,
+            "voltage_kv": 111.85703918838794
+          }
+        ],
+        "branches": [
+          {
+            "component_id": 3000,
+            "p_from_mw": 7.92767909867408,
+            "q_from_mvar": 2.7376934567293936,
+            "p_to_mw": -7.895645374809081,
+            "q_to_mvar": -2.820302590008556,
+            "i_from_ka": 0.04292672389367945,
+            "i_to_ka": 0.04301955305078508
+          },
+          {
+            "component_id": 3001,
+            "p_from_mw": 2.7810178398185568,
+            "q_from_mvar": 1.0813292281099969,
+            "p_to_mw": -2.704367249381663,
+            "q_to_mvar": -1.455377737415795,
+            "i_from_ka": 0.01531013398670907,
+            "i_to_ka": 0.01577334573278291
+          },
+          {
+            "component_id": 3002,
+            "p_from_mw": -3.295632750618274,
+            "q_from_mvar": 1.6440337840444523,
+            "p_to_mw": 3.3496386195930214,
+            "q_to_mvar": -1.8692315150506127,
+            "i_from_ka": 0.01891571619599959,
+            "i_to_ka": 0.01975066166133572
+          },
+          {
+            "component_id": 3003,
+            "p_from_mw": 7.5830383822460155,
+            "q_from_mvar": 4.725425678170668,
+            "p_to_mw": -7.529049624621758,
+            "q_to_mvar": -4.9312212607189,
+            "i_from_ka": 0.04600484240458012,
+            "i_to_ka": 0.04648307625485207
+          },
+          {
+            "component_id": 3004,
+            "p_from_mw": -0.5752104023423693,
+            "q_from_mvar": 3.401759365778926,
+            "p_to_mw": 0.6146909556638801,
+            "q_to_mvar": -3.5765278876980964,
+            "i_from_ka": 0.01781837399947342,
+            "i_to_ka": 0.01880365320731341
+          },
+          {
+            "component_id": 3005,
+            "p_from_mw": -4.703277755262153,
+            "q_from_mvar": 1.854486817027267,
+            "p_to_mw": 4.805975457836964,
+            "q_to_mvar": -2.328812692986352,
+            "i_from_ka": 0.026196256452409604,
+            "i_to_ka": 0.027701676470193736
+          },
+          {
+            "component_id": 3006,
+            "p_from_mw": 7.089199322534913,
+            "q_from_mvar": -2.3018284683832553,
+            "p_to_mw": -7.059047447426617,
+            "q_to_mvar": 2.231123101434206,
+            "i_from_ka": 0.03866229643702975,
+            "i_to_ka": 0.03834358927384235
+          },
+          {
+            "component_id": 3007,
+            "p_from_mw": 0.9787140374247865,
+            "q_from_mvar": -4.359239794935384,
+            "p_to_mw": -0.9023532608470164,
+            "q_to_mvar": 4.000629565178393,
+            "i_from_ka": 0.0231398260517606,
+            "i_to_ka": 0.021167995365675776
+          },
+          {
+            "component_id": 3008,
+            "p_from_mw": -6.097646739152993,
+            "q_from_mvar": -5.500629565178486,
+            "p_to_mw": 6.165097760287992,
+            "q_to_mvar": 5.333152503153753,
+            "i_from_ka": 0.04238665128200913,
+            "i_to_ka": 0.041722247644343916
+          },
+          {
+            "component_id": 3009,
+            "p_from_mw": 0.5042704257067195,
+            "q_from_mvar": 14.99193049739613,
+            "p_to_mw": -0.4428851747197049,
+            "q_to_mvar": -15.154997726358838,
+            "i_from_ka": 0.07677506834640306,
+            "i_to_ka": 0.07806492818402609
+          },
+          {
+            "component_id": 3010,
+            "p_from_mw": -0.26226518103401764,
+            "q_from_mvar": 5.08412600288147,
+            "p_to_mw": 0.3042003127418996,
+            "q_to_mvar": -5.232838270613014,
+            "i_from_ka": 0.02621247871055578,
+            "i_to_ka": 0.027189132489742626
+          },
+          {
+            "component_id": 2000,
+            "p_from_mw": 20.88550422576132,
+            "q_from_mvar": 25.02149613764768,
+            "p_to_mw": -20.86067859691203,
+            "q_to_mvar": -24.85599194531907,
+            "i_from_ka": 0.16608441243767733,
+            "i_to_ka": 0.1660844124376773
+          },
+          {
+            "component_id": 2001,
+            "p_from_mw": 17.333333333333318,
+            "q_from_mvar": -5.000000000000016,
+            "p_to_mw": -17.32296632669964,
+            "q_to_mvar": 5.077752549752577,
+            "i_from_ka": 0.09294714731894221,
+            "i_to_ka": 0.09294714731894221
+          },
+          {
+            "component_id": 2002,
+            "p_from_mw": 17.333333333333325,
+            "q_from_mvar": -7.801051940029298,
+            "p_to_mw": -17.31869772169683,
+            "q_to_mvar": 7.918136833121284,
+            "i_from_ka": 0.09877790453503282,
+            "i_to_ka": 0.09877790453503282
+          }
+        ],
+        "shunts": [
+          {
+            "component_id": 4000,
+            "p_mw": 0.0,
+            "q_mvar": -2.0886560466276345
+          }
+        ]
+      },
+      "constant_pq_voltage_difference_pu": 8.909164906767408e-05,
+      "reference_balance_residual_mw_mvar": [
+        5.545676595719584e-08,
+        -1.640185454121479e-08
+      ],
+      "q_clamped_components": [
+        2001
+      ]
+    }
+  ]
+}

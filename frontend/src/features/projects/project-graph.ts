@@ -1,5 +1,6 @@
 import type { EditorComponent, EditorConnection } from '../../components/ees/editor-utils';
 import { parseComponentRevision } from '../../api/component-revision';
+import { archiveId } from '../../api/calculation-archives-api';
 export interface ProjectGraph { id: string; projectId: string; name: string; description: string; topologyRevision: string; components: EditorComponent[]; connections: EditorConnection[] }
 const row = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Некорректный снимок схемы');
@@ -26,8 +27,10 @@ export function parseProjectGraph(value: unknown, projectId: string, schemeId: s
     if (!Object.values(params).every(value => typeof value === 'string')) throw new Error('Некорректные параметры оборудования');
     const rotation = finite(item.rotation);
     if (!Number.isInteger(rotation)) throw new Error('Некорректный поворот оборудования');
+    const projectPassportVersionId = item.projectPassportVersionId == null ? null : archiveId(item.projectPassportVersionId);
+    if (projectPassportVersionId !== null && item.equipmentModelId !== null) throw new Error('Оборудование содержит две привязки паспорта');
     return { id: rendererId(item.id), typeId: rendererId(item.typeId), type: text(item.type), name: text(item.name), x: finite(item.x), y: finite(item.y), rotation,
-      revision: revision(item.revision), equipmentModelId: item.equipmentModelId === null ? null : rendererId(item.equipmentModelId), params: params as Record<string, string> };
+      revision: revision(item.revision), equipmentModelId: item.equipmentModelId === null ? null : rendererId(item.equipmentModelId), projectPassportVersionId, params: params as Record<string, string> };
   });
   const connections = graph.connections.map(value => {
     const item = row(value);

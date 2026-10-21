@@ -9,16 +9,25 @@ import type { ComponentDraft } from '../component-drafts';
 import type { GraphReview, GraphSnapshot } from '../graph-writes';
 import type { SchemeTransport } from '../scheme-transport';
 
+/** Share template reads only within this graph read, never across editor scopes
+ * or reloads. Instance parameters and passport bindings remain independent.
+ */
+async function readTemplates(components: readonly api.SchemeComponent[], transport: SchemeTransport) {
+  const byType = new Map<string, api.ComponentParam[]>();
+  await Promise.all([...new Set(components.map(component => component.type))].map(async type => {
+    const template = await transport.getComponentParams(type).catch(() => []);
+    byType.set(type, template);
+  }));
+  return new Map(components.map(component => [component.id, byType.get(component.type)!]));
+}
+
 async function readGraphServer(schemeId: number, transport: SchemeTransport) {
   const server = await transport.getScheme(schemeId);
   if (server.id !== schemeId || !Array.isArray(server.components) || !Array.isArray(server.connections)) {
     throw new Error('Сервер не подтвердил полный состав исходной схемы');
   }
   const snapshot: GraphSnapshot = { id: server.id, components: server.components, connections: server.connections };
-  const templates = new Map<number, api.ComponentParam[]>();
-  await Promise.all(snapshot.components.map(async component => {
-    templates.set(component.id, await transport.getComponentParams(component.type).catch(() => []));
-  }));
+  const templates = await readTemplates(snapshot.components, transport);
   return { snapshot, templates };
 }
 
@@ -82,12 +91,8 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
       }).then(async s => {
         if (!s || !active) return;
         const comps = s.components || [];
-        const withParams = await Promise.all(comps.map(async (c: api.SchemeComponent) => {
-          try {
-            const params = await dataAPI.getComponentParams(c.type);
-            return { ...c, paramTemplate: params };
-          } catch { return { ...c, paramTemplate: [] }; }
-        }));
+        const templates = await readTemplates(comps, dataAPI);
+        const withParams = comps.map(c => ({ ...c, paramTemplate: templates.get(c.id)! }));
         if (!active) return;
         for (const component of withParams) writes.current.seed(currentSchemeId, component);
         setComponents(withParams);
@@ -126,24 +131,27 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     } catch (e) { console.error(e); notify('Не удалось удалить', 'error'); }
   }, [schemes, currentSchemeId, captureView, setCurrentSchemeId, notify, dataAPI]);
 
-  const addComponent = useCallback(async (item: ComponentLibraryItem, wx: number, wy: number, equipmentModelId: number | null = null) => {
+  const addComponent = useCallback(async (item: ComponentLibraryItem, wx: number, wy: number, equipmentModelId: number | null = null, projectPassportVersionId: string | null = null) => {
     if (!currentSchemeId) return;
     const isCurrent = captureView();
     try {
+      if (projectPassportVersionId !== null && !dataAPI.projectPassports) throw new Error('Проектный паспорт недоступен в этом редакторе');
       const params = await dataAPI.getComponentParams(item.code);
       // No write was dispatched yet; a selection change cancels this intent.
       if (!isCurrent()) return;
       const r = await writes.current.graph.run(currentSchemeId,
-        { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, equipmentModelId },
-        () => dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId));
+        { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, rotation: 0, equipmentModelId, params: {}, ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) },
+        capture => projectPassportVersionId === null
+          ? dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId, {}, capture)
+          : dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId, {}, capture, projectPassportVersionId));
       if (!isCurrent()) return;
       writes.current.seed(currentSchemeId, {
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
-        x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId,
+        x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, projectPassportVersionId: r.projectPassportVersionId,
       });
       setComponents(prev => [...prev, {
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
-        x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, paramTemplate: params,
+        x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, projectPassportVersionId: r.projectPassportVersionId, paramTemplate: params,
       }]);
     } catch (e) { if (isCurrent()) { refreshRecovery(version => version + 1); notify('Не удалось подтвердить сохранение оборудования. Проверьте схему после повторной загрузки.', 'error'); } throw e; }
   }, [currentSchemeId, notify, captureView, dataAPI]);
@@ -166,7 +174,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     if (!currentSchemeId) return;
     const isCurrent = captureView();
     try {
-      await writes.current.graph.run(currentSchemeId, { kind: 'delete-connection', id }, () => dataAPI.deleteConnection(id));
+      await writes.current.graph.run(currentSchemeId, { kind: 'delete-connection', id }, capture => dataAPI.deleteConnection(id, capture));
       if (!isCurrent()) return;
       setConnections(prev => prev.filter(c => c.id !== id));
     } catch { if (isCurrent()) { refreshRecovery(version => version + 1); notify('Удаление соединения не подтверждено. Требуется сверка топологии; расчёт заблокирован.', 'error'); } }
@@ -219,13 +227,31 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     } catch (error) { if (isCurrent()) { refreshRecovery(version => version + 1); notify(writeErrorMessage(error, 'Не удалось подтвердить сохранение параметра. Повторно загрузите исходную схему.'), 'error'); } }
   }, [components, currentSchemeId, captureView, notify, dataAPI]);
 
+  const saveComponentParams = useCallback(async (id: number, values: Readonly<Record<string, string>>) => {
+    const component = components.find(c => c.id === id);
+    if (!component || !currentSchemeId) throw new Error('Выберите оборудование исходной схемы');
+    const params = { ...values };
+    if (!Object.keys(params).length) return;
+    const isCurrent = captureView();
+    try {
+      const result = await writes.current.run(component, isCurrent,
+        revision => dataAPI.patchComponent(id, { params }, revision),
+        { schemeId: currentSchemeId, intent: Object.entries(params).map(([key, value]) => ({ kind: 'parameter', key, value })) });
+      if (!result || !isCurrent()) throw new Error('Рабочий контекст изменился. Проверьте сохранение в исходной схеме.');
+      setComponents(prev => prev.map(c => c.id === id ? { ...c, revision: result.revision, params: { ...c.params, ...params } } : c));
+    } catch (error) {
+      if (isCurrent()) refreshRecovery(version => version + 1);
+      throw error;
+    }
+  }, [components, currentSchemeId, captureView, dataAPI]);
+
   const addConnection = useCallback(async (schemeId: number, from: number, to: number, fromPort: string, toPort: string) => {
     if (schemeId !== activeView.current.schemeId) return;
     const isCurrent = captureView();
     try {
       const commandId = dataAPI.newConnectionCommandId();
       const r = await writes.current.graph.run(schemeId,
-        { kind: 'create-connection', commandId, from, to, fromPort, toPort }, () => dataAPI.addConnection(schemeId, from, to, fromPort, toPort, commandId));
+        { kind: 'create-connection', commandId, from, to, fromPort, toPort }, capture => dataAPI.addConnection(schemeId, from, to, fromPort, toPort, commandId, capture));
       if (!isCurrent()) return;
       setConnections(prev => [...prev, {
         id: r.id, from, to, fromPort, toPort,
@@ -356,7 +382,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     library, schemes, currentSchemeId, setCurrentSchemeId,
     handleCreateScheme, handleDeleteScheme,
     addComponent, deleteSelectedComponent, deleteConnection,
-    handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
+    handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, saveComponentParams, addConnection,
     isCalculating, calculationError, loadedSchemeId, captureView, resolveComponentDraft, resolveComponentDeletion,
     failedDrafts: currentSchemeId ? writes.current.drafts.failed(currentSchemeId) : [],
     failedGraph: currentSchemeId ? writes.current.graph.failed(currentSchemeId) : [], reviewGraph, acceptGraphServer, retryGraphConnection,

@@ -1,3 +1,11 @@
+import { readEquipmentModels, readEquipmentModelParams, readParameterTemplate } from './catalog-api';
+import { parseCalculationTopology, type CalculationTopology } from './calculation-topology';
+export type { CalculationTopology, CalculationTerminal, CalculationInternalNode } from './calculation-topology';
+import { parseCalculationFlows, type CalculationBranch, type CalculationShunt } from './calculation-flows';
+import { parseCalculationLoads, type CalculationLoad } from './calculation-loads';
+import { validateSourceTerminalPowers } from './calculation-source-power';
+export type { CalculationLoad } from './calculation-loads';
+export type { CalculationBranch, CalculationShunt } from './calculation-flows';
 // frontend/src/api/ees-api.ts
 import { componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite, type ComponentWriteResult, type CreatedComponent } from './component-revision';
 export type { ComponentWriteResult, CreatedComponent } from './component-revision';
@@ -68,6 +76,7 @@ export interface ComponentParam {
 export interface SchemeComponent {
   revision: string;
   equipmentModelId?: number | null;
+  projectPassportVersionId?: string | null;
   id: number;
   type: string;
   typeId: number;
@@ -105,6 +114,10 @@ export interface CalculationSource {
   terminal_bus: number;
   p_mw: number;
   q_mvar: number;
+  terminal_p_mw?: number;
+  terminal_q_mvar?: number;
+  losses_p_mw?: number;
+  losses_q_mvar?: number;
   q_limits_applied: boolean;
   q_limit_status?: 'clamped' | 'within_bounds' | 'not_declared';
   q_min_emf_mvar?: number;
@@ -123,6 +136,10 @@ export interface CalculationIsland {
 }
 
 export interface CalculationResult {
+  loads?: CalculationLoad[];
+  branches?: CalculationBranch[];
+  shunts?: CalculationShunt[];
+  topology?: CalculationTopology;
   success: boolean;
   error?: string;
   nodes: Array<{
@@ -229,6 +246,19 @@ export function parseCalculationResult(data: unknown): CalculationResult {
     if (!c || typeof c !== 'object' || !('status' in c) || !['unsupported', 'experimental', 'validated', 'deprecated'].includes(String(c.status)) ||
         !('reasons' in c) || !Array.isArray(c.reasons) || !c.reasons.every(reason => typeof reason === 'string')) return fail();
   }
+  if (result.topology !== undefined) {
+    if (!Array.isArray(result.sources)) return fail();
+    parseCalculationTopology(result.topology, nodeIds, result.sources as CalculationSource[]);
+  }
+  parseCalculationFlows(result.branches, result.shunts, {
+    nodes: result.nodes as CalculationResult['nodes'], sources: result.sources as CalculationSource[] | undefined,
+    topology: result.topology as CalculationTopology | undefined,
+  });
+  parseCalculationLoads(result.loads, {
+    nodes: result.nodes as CalculationResult['nodes'], topology: result.topology as CalculationTopology | undefined,
+    otherIds: [...(result.sources as CalculationSource[] ?? []), ...(result.branches as CalculationBranch[] ?? []), ...(result.shunts as CalculationShunt[] ?? [])].map(row => row.component_id),
+  });
+  validateSourceTerminalPowers(result.sources as CalculationSource[] | undefined, result.branches as CalculationBranch[] | undefined);
   return data as CalculationResult;
 }
 
@@ -239,22 +269,16 @@ export async function getComponentTypes(): Promise<ComponentType[]> {
   return response.json();
 }
 
-export async function getComponentParams(code: string): Promise<ComponentParam[]> {
-  const response = await fetch(`${API_BASE}/component-params/${code}`);
-  if (!response.ok) throw new Error('Failed to fetch component params');
-  return response.json();
+export async function getComponentParams(code: string, signal?: AbortSignal): Promise<ComponentParam[]> {
+  return readParameterTemplate(code, signal);
 }
 
-export async function getEquipmentModels(code: string): Promise<EquipmentModel[]> {
-  const response = await fetch(`${API_BASE}/equipment-models/${code}`);
-  if (!response.ok) throw new Error('Failed to fetch equipment models');
-  return response.json();
+export async function getEquipmentModels(code: string, signal?: AbortSignal): Promise<EquipmentModel[]> {
+  return readEquipmentModels(code, signal);
 }
 
-export async function getEquipmentModelParams(id: number): Promise<Record<string, string>> {
-  const response = await fetch(`${API_BASE}/equipment-model/${id}`);
-  if (!response.ok) throw new Error('Failed to fetch equipment model params');
-  return response.json();
+export async function getEquipmentModelParams(id: number, signal?: AbortSignal): Promise<Record<string, string>> {
+  return readEquipmentModelParams(id, signal);
 }
 
 // Schemes

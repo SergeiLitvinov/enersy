@@ -2,6 +2,9 @@ using Test, LinearAlgebra, JSON3, HTTP, EnersyCompute
 # Import the executable entrypoint too; it must parse without starting a listener.
 include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
+include("base_scaling.jl")
+include("own_base_scaling.jl")
+include("model_definitions.jl")
 include("ac_reference.jl")
 withenv("S_BASE_MVA" => "50") do
     @test EC.default_s_base_mva() == 50.0
@@ -10,8 +13,10 @@ end
 component(id, code; params...) = RawComponent(id, code,
     Dict(string(k) => string(v) for (k, v) in params), 0.0, 0.0, 0)
 connection(a, b, ap, bp) = RawConnection(a, b, ap, bp)
+include("topology_nominal.jl")
 include("compiled_reference.jl")
 include("compiled_network_reference.jl")
+include("zip_reference.jl")
 include("q_limits.jl")
 include("q_release.jl")
 include("sparse_solver.jl")
@@ -33,6 +38,14 @@ function fixture(; switch_status=true, emf=true, shunt=nothing)
     end
     return cs, es
 end
+
+include("model_parameters.jl")
+include("line_phase_inputs.jl")
+include("transformer_parameters.jl")
+include("transformer_phase.jl")
+include("terminal_provenance.jl")
+include("zip_loads.jl")
+include("shunt_ratings.jl")
 
 @testset "Passive equipment rejects artificial energy generation" begin
     for (id, key, value) in [(1,"r","-0.1"), (4,"r0","-0.1"),
@@ -200,6 +213,11 @@ end
     @test f.losses_q_mvar ≈ f.q_from_mvar + f.q_to_mvar
 end
 
+include("source_terminal_power.jl")
+include("network_families.jl")
+include("newton_globalization.jl")
+include("http_acceptance.jl")
+
 @testset "HTTP contract and real socket" begin
     response(method,path,body="") = handle_request(HTTP.Request(method,path,[],body))
     @test response("GET","/health?check=1").status == 200
@@ -230,6 +248,7 @@ end
                        "connections"=>[Dict("from"=>e.from,"to"=>e.to,"fromPort"=>e.from_port,"toPort"=>e.to_port) for e in es])
         r = HTTP.post(url*"/calculate",[],JSON3.write(payload);proxy=HTTP.ProxyConfig())
         @test JSON3.read(r.body).success
+        @test length(JSON3.read(r.body).topology.terminals) == 7
     finally
         HTTP.forceclose(server)
     end

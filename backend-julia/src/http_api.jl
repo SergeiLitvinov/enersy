@@ -219,6 +219,7 @@ GET_ROUTES["/ready"] =
 GET_ROUTES["/version"] =
     () -> Dict{String,Any}("service" => "enersy-julia", "version" => VERSION)
 GET_ROUTES["/capabilities"] = capabilities_json
+GET_ROUTES["/model-definitions"] = model_definitions_json
 
 POST_ROUTES["/calculate"] = handle_calculate
 POST_ROUTES["/solve"] = handle_solve

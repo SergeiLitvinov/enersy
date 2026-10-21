@@ -113,6 +113,7 @@ func main() {
 	mux.HandleFunc("/api/ees/connections/", enableCORS(handleConnectionByID))
 	mux.HandleFunc("/api/ees/calculate/", enableCORS(handleCalculate))
 	mux.HandleFunc("/api/ees/capabilities", enableCORS(handleCapabilities))
+	mux.HandleFunc("/api/ees/model-definitions", enableCORS(handleModelDefinitions))
 
 	// Julia compute route
 	mux.HandleFunc("/julia/solve", enableCORS(handleJuliaSolve))
@@ -738,6 +739,14 @@ func proxyJulia(w http.ResponseWriter, r *http.Request, path string, body []byte
 
 // Commit only a complete valid response, optionally after a fresh authorization check.
 func proxyCompute(w http.ResponseWriter, r *http.Request, workerURL, path string, body []byte, beforeCommit func() bool) {
+	proxyComputeResult(w, r, workerURL, path, body, func(_ int, _ []byte) bool {
+		return beforeCommit == nil || beforeCommit()
+	})
+}
+
+// The callback receives the complete bounded response before it is exposed.
+// Persistence failures must never be reported as successfully archived results.
+func proxyComputeResult(w http.ResponseWriter, r *http.Request, workerURL, path string, body []byte, beforeCommit func(int, []byte) bool) {
 	req, err := http.NewRequestWithContext(r.Context(), r.Method, workerURL+path, bytes.NewReader(body))
 	if err != nil {
 		sendError(w, "Failed to create request: "+err.Error(), http.StatusInternalServerError)
@@ -768,7 +777,7 @@ func proxyCompute(w http.ResponseWriter, r *http.Request, workerURL, path string
 		sendError(w, "Invalid Julia JSON response", http.StatusBadGateway)
 		return
 	}
-	if beforeCommit != nil && !beforeCommit() {
+	if beforeCommit != nil && !beforeCommit(resp.StatusCode, respBody) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

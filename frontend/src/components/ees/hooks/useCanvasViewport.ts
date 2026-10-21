@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { EditorComponent, getCompSize, ViewBox } from '../editor-utils';
-import { screenToViewBox, viewportTransform } from '../editor-viewport';
+import { screenToViewBox, viewportTransform, zoomViewBox } from '../editor-viewport';
 
 const DEFAULT_VIEWBOX: ViewBox = { x: -500, y: -300, w: 1600, h: 1000 };
 
@@ -21,23 +21,21 @@ export function useCanvasViewport(containerRef: React.RefObject<HTMLDivElement |
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const vb = viewRef.current;
-    const { x: wx, y: wy } = screenToWorld(e.clientX, e.clientY);
+    if (!Number.isFinite(e.deltaY) || e.deltaY === 0) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const { clientX, clientY } = e;
     const factor = e.deltaY > 0 ? 1.1 : 0.9;
-    setViewBox({
-      x: wx - (wx - vb.x) * factor,
-      y: wy - (wy - vb.y) * factor,
-      w: vb.w * factor,
-      h: vb.h * factor,
-    });
-  }, [screenToWorld]);
+    // Resolve each queued event against its predecessor, including React batches.
+    setViewBox(vb => zoomViewBox(vb, factor, screenToViewBox(vb, rect, clientX, clientY)));
+  }, [containerRef]);
 
   const zoomIn = useCallback(() => {
-    setViewBox(v => { const f = 0.9; const cx = v.x + v.w / 2, cy = v.y + v.h / 2; return { x: cx - v.w * f / 2, y: cy - v.h * f / 2, w: v.w * f, h: v.h * f }; });
+    setViewBox(v => zoomViewBox(v, 0.9));
   }, []);
 
   const zoomOut = useCallback(() => {
-    setViewBox(v => { const f = 1.1; const cx = v.x + v.w / 2, cy = v.y + v.h / 2; return { x: cx - v.w * f / 2, y: cy - v.h * f / 2, w: v.w * f, h: v.h * f }; });
+    setViewBox(v => zoomViewBox(v, 1.1));
   }, []);
 
   const resetView = useCallback(() => setViewBox(DEFAULT_VIEWBOX), []);

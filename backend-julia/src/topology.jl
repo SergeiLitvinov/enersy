@@ -85,6 +85,18 @@ struct Injection
     is_slack::Bool
 end
 
+"""Binding of a physical terminal to its snapshot-local compiled bus.
+Unused switch terminals have bus=nothing and an explicit omission reason.
+Internal source EMF nodes are not physical terminals and do not appear here.
+"""
+struct TerminalBusBinding
+    component_id::Int
+    component_type::String
+    terminal::Int
+    bus::Union{Nothing,Int}
+    omitted_reason::Union{Nothing,Symbol}
+end
+
 """Результат компиляции топологии."""
 struct CompiledNetwork
     buses::Vector{Bus}
@@ -94,6 +106,7 @@ struct CompiledNetwork
     warnings::Vector{String}
     assumptions::Vector{String}
     origin::Vector{String}   # происхождение узла: component ids, через которые он собран
+    terminal_buses::Vector{TerminalBusBinding}
 end
 
 """
@@ -232,7 +245,7 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
         dsu_union!(dsu, term_offset[a.id] + ta - 1, term_offset[b.id] + tb - 1)
     end
 
-    # Узлы: корни DSU, индексация детерминирована по минимальному component id.
+    # Canonical bus order uses physical terminal keys, never incidental DSU roots.
     # Wiring remains connected to both sides of an open switch; only its
     # internal contact opens. This preserves terminal identity.
     for c in components
@@ -241,11 +254,16 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
         end
     end
     root_members = Dict{Int,Vector{Int}}()
+    root_terminal_key = Dict{Int,Tuple{Int,Int}}()
     for c in components
         n = term_count[c.id]
         for t in 1:n
             r = dsu_find(dsu, term_offset[c.id] + t - 1)
             push!(get!(root_members, r, Int[]), c.id)
+            key = (c.id, t)
+            if !haskey(root_terminal_key, r) || isless(key, root_terminal_key[r])
+                root_terminal_key[r] = key
+            end
         end
     end
     for v in values(root_members)
@@ -255,7 +273,7 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
     used = Set(vcat([c.from for c in connections], [c.to for c in connections]))
     root_order = sort([r for r in keys(root_members)
         if !all(cid -> is_switch(by_id[cid].code) && !(cid in used), root_members[r])];
-        by=r -> (minimum(root_members[r]), r))
+        by=r -> root_terminal_key[r])
     bus_of_root = Dict(r => bi for (bi, r) in enumerate(root_order))
     bus_of_component = Dict{Tuple{Int,Int},Int}()
     for c in components, t in 1:term_count[c.id]
@@ -263,6 +281,13 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
         if haskey(bus_of_root, r)
             bus_of_component[(c.id, t)] = bus_of_root[r]
         end
+    end
+
+    terminal_buses = TerminalBusBinding[]
+    for cid in sort(collect(keys(term_count))), terminal in 1:term_count[cid]
+        bus = get(bus_of_component, (cid, terminal), nothing)
+        push!(terminal_buses, TerminalBusBinding(cid, by_id[cid].code, terminal, bus,
+            bus === nothing ? :unused_switch : nothing))
     end
 
     # Ветви.
@@ -294,6 +319,7 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
             push!(injections, Injection(cid, c.code, bus, :source, p, 0.0, c.params,
                                         v_spec, e !== nothing, is_slack_requested(c)))
         elseif c.code in LOAD_CODES
+            load_profile(c.params, "load#$(cid)")
             p = param_number(c.params, "p"; unit="MW", owner="load#$(cid)")
             q = param_number(c.params, "q"; required=false, default=0.0, unit="Mvar", owner="load#$(cid)")
             # Знак: p > 0 означает потребление, инъекция в сеть отрицательна.
@@ -303,8 +329,8 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
             # не создаёт; несимметричный учёт земли — задача PHY-01.
             push!(injections, Injection(cid, c.code, bus, :reference, 0.0, 0.0, c.params, 0.0, false, false))
         else
-            # Шунты (capacitor/reactor): q_nom > 0 означает выдачу реактивной
-            # мощности в сеть (ёмкостный знак), q_nom < 0 — потребление.
+            # q_nom — неотрицательный номинальный модуль мощности шунта.
+            # Знак проводимости задаёт тип: capacitor выдаёт, reactor потребляет.
             q = param_number(c.params, "q_nom"; unit="Mvar", owner="$(c.code)#$(cid)")
             q >= 0 || throw(contract_error("invalid_parameter", "q_nom must be a nonnegative rated magnitude", detail="component=$(cid)"))
             push!(injections, Injection(cid, c.code, bus, :shunt, 0.0, q, c.params, 0.0, false, false))
@@ -326,7 +352,8 @@ function compile_network(components::Vector{RawComponent}, connections::Vector{R
     return CompiledNetwork(buses, branches, injections,
                            isempty(buses) ? 0 : length(unique(b.island for b in buses)),
                            warnings, assumptions,
-                           [string("bus", b.index, " ← ", join(b.members, ",")) for b in buses])
+                           [string("bus", b.index, " ← ", join(b.members, ",")) for b in buses],
+                           terminal_buses)
 end
 
 function _check_port_known(c::RawComponent, port::AbstractString, terminal::Int)
@@ -358,14 +385,14 @@ end
 
 function bus_nominal(by_id::Dict{Int,RawComponent}, members::Vector{Int})
     vnom = 0.0
+    vmin = Inf
     complete = true
     for m in members
         c = by_id[m]
-        if haskey(c.params, "voltage_nom")
+        if haskey(c.params, "voltage_nom") && !isempty(strip(c.params["voltage_nom"]))
             v = param_number(c.params, "voltage_nom"; unit="kV", owner="component#$(m)")
             if v > 0
-                vnom > 0 && abs(vnom-v)/max(vnom,v) > VOLTAGE_LEVEL_TOLERANCE &&
-                    throw(network_error("voltage_level_mismatch", "Один узел содержит разные уровни напряжения", detail="members=$(join(members, ','))"))
+                vmin = min(vmin, v)
                 vnom = max(vnom, v)
             else
                 throw(contract_error("invalid_parameter", "voltage_nom must be positive", detail="component=$(m)"))
@@ -374,6 +401,11 @@ function bus_nominal(by_id::Dict{Int,RawComponent}, members::Vector{Int})
             complete = false
         end
     end
+    # Comparing consecutive values against a growing maximum can accept a chain
+    # of incompatible ratings. The extreme pair tests the whole positive range
+    # using the same relative tolerance, independently of IDs/member order.
+    vnom > 0 && (vnom - vmin) / vnom > VOLTAGE_LEVEL_TOLERANCE &&
+        throw(network_error("voltage_level_mismatch", "Один узел содержит разные уровни напряжения", detail="members=$(join(members, ','))"))
     return vnom, complete
 end
 

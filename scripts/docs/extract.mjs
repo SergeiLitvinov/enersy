@@ -3,7 +3,8 @@ export function declarations(source, language) {
   const patterns = {
     julia: /^(?:function\s+|(?:mutable\s+)?struct\s+|abstract\s+type\s+|@enum\s+|module\s+|const\s+)[^\n]+/,
     go: /^(?:func\s+|type\s+)[^\n]+/,
-    rust: /^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:fn|struct|enum|trait|mod|type|const|impl)\s+)[^\n]+/,
+    rust: /^\s*(?:(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern\s+"[^"]+"\s+)?(?:fn|struct|enum|trait|mod|type|const|impl)\s+)[^\n]+/,
+    c: /^\s*(?:(?:typedef\s+)?(?:struct|enum)\b|(?:uint32_t|int32_t)\s+enersy_[A-Za-z0-9_]+\s*\()[^\n]*/,
     typescript: /^(?:export\s+(?:default\s+)?(?:async\s+)?(?:function|interface|type|class|const)|(?:async\s+)?function)\s+[^\n]+/,
     sql: /^\s*(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|FUNCTION|INDEX|TYPE)|ALTER\s+TABLE)\s+[^\n]+/i
   };

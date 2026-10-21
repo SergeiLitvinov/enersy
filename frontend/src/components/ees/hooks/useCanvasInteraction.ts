@@ -1,13 +1,15 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { EditorComponent, EditorConnection, DragMode, DragData, TempLine, ViewBox } from '../editor-utils';
 
-import { worldPorts, containsComponent, connectionPoints, distanceToPolyline } from '../editor-geometry';
+import { connectionGeometry, type Point } from '../editor-geometry';
+import {useEditorPicker} from './useEditorPicker';
 import { viewportTransform } from '../editor-viewport';
 
 interface UseCanvasInteractionProps {
   components: EditorComponent[];
   setComponents: React.Dispatch<React.SetStateAction<EditorComponent[]>>;
   connections: EditorConnection[];
+  paths?: ReadonlyMap<number, Point[] | null>;
   screenToWorld: (clientX: number, clientY: number) => { x: number; y: number };
   getWorldUnitsPerPixel: () => number;
   setViewBox: React.Dispatch<React.SetStateAction<ViewBox>>;
@@ -25,59 +27,42 @@ type Gesture =
   | { mode: 'connect'; schemeId?: number; componentId: number; portName: string }
   | { mode: 'pan'; schemeId?: number; startX: number; startY: number; vb: ViewBox };
 
+export interface MovePreview { componentId:number; x:number; y:number; schemeId?:number }
+
 export function useCanvasInteraction({
-  components, setComponents, connections, screenToWorld, getWorldUnitsPerPixel, setViewBox, viewBox, containerRef, currentSchemeId,
+  components, setComponents, connections, paths, screenToWorld, getWorldUnitsPerPixel, setViewBox, viewBox, containerRef, currentSchemeId,
   onMoveEnd, onConnectEnd, onSelectComponent, onSelectConnection,
 }: UseCanvasInteractionProps) {
+  const connectionPaths = useMemo(() => paths ?? connectionGeometry(components,connections), [paths,components,connections]);
+  const picker=useEditorPicker(components,connections,connectionPaths,currentSchemeId);
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [tempLine, setTempLine] = useState<TempLine | null>(null);
+  const [movePreview,setMovePreview]=useState<MovePreview|null>(null);
   const gesture = useRef<Gesture | null>(null);
   const clearGesture = useCallback(() => {
     gesture.current = null;
-    setDragMode(null); setDragData(null); setTempLine(null);
+    setDragMode(null); setDragData(null); setTempLine(null); setMovePreview(null);
   }, []);
   const resetInteraction = useCallback(() => {
-    const active = gesture.current;
     clearGesture();
-    // A cancelled preview is not a saved position. Preserve all other fields.
-    if (active?.mode === 'move' && active.moved && active.schemeId === currentSchemeId) {
-      setComponents(previous => previous.map(component => component.id === active.componentId
-        ? { ...component, x: active.x, y: active.y } : component));
-    }
-  }, [clearGesture, currentSchemeId, setComponents]);
+    // Preview never edits the committed graph, so cancellation cannot restore
+    // stale geometry over independently received changes.
+  }, [clearGesture]);
 
   const getZoom = useCallback(() => 1600 / viewBox.w, [viewBox.w]);
 
   const findPortAt = useCallback((wx: number, wy: number) => {
-    const thresh = 14 * getWorldUnitsPerPixel();
-    for (let i = components.length - 1; i >= 0; i--) {
-      const c = components[i];
-
-      for (const p of worldPorts(c)) {
-        if (Math.hypot(wx - p.x, wy - p.y) <= thresh) return { comp: c, port: p };
-      }
-    }
-    return null;
-  }, [components, getWorldUnitsPerPixel]);
+    return picker.portTargetAt({x:wx,y:wy},14 * getWorldUnitsPerPixel());
+  }, [picker, getWorldUnitsPerPixel]);
 
   const findCompAt = useCallback((wx: number, wy: number) => {
-    for (let i = components.length - 1; i >= 0; i--) {
-      const c = components[i];
-
-      if (containsComponent(c, { x: wx, y: wy })) return c;
-    }
-    return null;
-  }, [components]);
+    return picker.componentAt({x:wx,y:wy});
+  }, [picker]);
 
   const findConnAt = useCallback((wx: number, wy: number): EditorConnection | null => {
-    const thresh = 8 * getWorldUnitsPerPixel();
-    for (const conn of connections) {
-      const points = connectionPoints(conn, components);
-      if (points && distanceToPolyline({ x: wx, y: wy }, points) <= thresh) return conn;
-    }
-    return null;
-  }, [components, connections, getWorldUnitsPerPixel]);
+    return picker.connectionAt({x:wx,y:wy},8 * getWorldUnitsPerPixel());
+  }, [picker, getWorldUnitsPerPixel]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -131,11 +116,7 @@ export function useCanvasInteraction({
       // any zoom, including reflow of the inspector after selection.
       if (!active.moved && Math.hypot(e.clientX - active.startX, e.clientY - active.startY) < 3) return;
       active.moved = true;
-      setComponents(prev => prev.map(c =>
-        c.id === active.componentId
-          ? { ...c, x: w.x - active.offsetX, y: w.y - active.offsetY }
-          : c
-      ));
+      setMovePreview({componentId:active.componentId,x:w.x-active.offsetX,y:w.y-active.offsetY,schemeId:currentSchemeId});
     } else if (active.mode === 'connect') {
       setTempLine(prev => prev ? { ...prev, x2: w.x, y2: w.y } : null);
     } else if (active.mode === 'pan') {
@@ -146,7 +127,7 @@ export function useCanvasInteraction({
       const dy = (e.clientY - active.startY) / scale;
       setViewBox({ ...active.vb, x: active.vb.x - dx, y: active.vb.y - dy });
     }
-  }, [screenToWorld, setComponents, setViewBox, containerRef, currentSchemeId, resetInteraction]);
+  }, [screenToWorld, setViewBox, containerRef, currentSchemeId, resetInteraction]);
 
   const handleMouseUp = useCallback(async (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -164,15 +145,17 @@ export function useCanvasInteraction({
       }
     } else if (active.mode === 'move' && (active.moved || Math.hypot(e.clientX - active.startX, e.clientY - active.startY) >= 3)) {
       const x = w.x - active.offsetX, y = w.y - active.offsetY;
+      if(x===active.x && y===active.y) return;
+      if(!components.some(c=>c.id===active.componentId)) return;
       setComponents(previous => previous.map(component => component.id === active.componentId ? { ...component, x, y } : component));
       if (x !== active.x || y !== active.y) onMoveEnd(active.componentId, x, y);
     }
-  }, [currentSchemeId, screenToWorld, findPortAt, onMoveEnd, onConnectEnd, clearGesture, resetInteraction, setComponents]);
+  }, [components, currentSchemeId, screenToWorld, findPortAt, onMoveEnd, onConnectEnd, clearGesture, resetInteraction, setComponents]);
 
   return {
-    dragMode, dragData, tempLine,
+    dragMode, dragData, tempLine, movePreview:movePreview?.schemeId===currentSchemeId?movePreview:null,
     handleMouseDown, handleMouseMove, handleMouseUp,
     resetInteraction,
-    findCompAt, getZoom,
+    findCompAt, getZoom,queryVisible:picker.visibleIn,
   };
 }

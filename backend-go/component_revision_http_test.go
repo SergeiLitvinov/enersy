@@ -61,7 +61,7 @@ func TestComponentRevisionCORS(t *testing.T) {
 
 func TestComponentRevisionHTTPPostgres(t *testing.T) {
 	database := migrationTestDatabase(t)
-	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20261003001_component_revision.up.sql", "20261010001_auth_sessions.up.sql", "20261010002_projects.up.sql", "20261010005_topology_revision.up.sql"} {
+	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20261003001_component_revision.up.sql", "20261010001_auth_sessions.up.sql", "20261010002_projects.up.sql", "20261010005_topology_revision.up.sql", "20261020001_project_passports.up.sql", "20261021001_component_passport_binding.up.sql"} {
 		executeFixture(t, database, filepath.Join("..", "database", "migrations", name))
 	}
 	var scheme, component int

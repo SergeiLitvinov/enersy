@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { EditorComponent } from '../editor-utils';
+import { SwitchStateControl } from './SwitchStateControl';
+import { LoadProfileForm } from './LoadProfileForm';
+import { loadProfileKeys } from '../../../domain/load-profile';
 
 interface ComponentParamsProps {
   component: EditorComponent;
-  onSave: (k: string, v: string) => void;
+  onSave: (k: string, v: string) => void | Promise<void>;
+  onSaveParams?: (values: Readonly<Record<string, string>>) => Promise<void>;
   parameterResets?: Readonly<Record<string, number>>;
 }
 
@@ -26,13 +30,23 @@ function ParameterInput({ id, confirmed, boolean, placeholder, onSave }: {
   );
 }
 
-export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onSave, parameterResets }) => {
+export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onSave, onSaveParams, parameterResets }) => {
+  const switchKind = component.type === 'breaker' || component.type === 'disconnector' || component.type === 'grounding_switch' ? component.type : undefined;
+  const loadForm = component.type === 'load' && onSaveParams;
+  const templates = component.paramTemplate ?? [];
+  const fields = component.type === 'transformer' && !templates.some(p => p.key === 'phase_shift_deg')
+    ? [...templates, { key: 'phase_shift_deg', name: 'Фазосдвиг НН относительно ВН', type: 'number', unit: '°', default: 'Не задано' }]
+    : templates;
   return (
     <div className="component-params">
       <h3 className="param-title">{component.name}</h3>
+      {component.projectPassportVersionId != null && <p className="catalog-hint">Паспорт проекта · версия #{component.projectPassportVersionId}. Редактируется копия параметров экземпляра; обновление паспорта её не меняет.</p>}
       {component.equipmentModelId != null && <p className="catalog-hint">Паспорт каталога #{component.equipmentModelId} · редактируется копия параметров экземпляра</p>}
-      <p className="catalog-hint">Объект #{component.id} · значения сохраняются при выходе из поля. Подсказка не означает заданный параметр.</p>
-      {component.paramTemplate?.map(p => (
+      <p className="catalog-hint">Объект #{component.id} · {loadForm ? 'Профиль нагрузки применяется кнопкой; прочие поля сохраняются при выходе из поля.' : 'Текстовые значения сохраняются при выходе из поля.'} Подсказка не означает заданный параметр.</p>
+      {switchKind && <SwitchStateControl kind={switchKind} params={component.params} onSave={onSave} />}
+      {loadForm && <LoadProfileForm componentId={component.id} params={component.params} onSave={loadForm} parameterResets={parameterResets} />}
+      {component.type === 'transformer' && <p className="catalog-hint">φ: от −180° до 180°; положительный угол — опережение НН на холостом ходу. Без значения ядро принимает 0° с допущением. Группа соединения и нейтраль этой моделью не определяются.</p>}
+      {fields.filter(p => !(switchKind && p.key === 'status') && !(loadForm && loadProfileKeys.some(key => key === p.key))).map(p => (
         <div key={p.key} className="param-item">
           <label htmlFor={`param-${component.id}-${p.key}`}>{p.name}</label>
           <ParameterInput key={`${p.key}:${parameterResets?.[p.key] ?? 0}`} id={`param-${component.id}-${p.key}`}

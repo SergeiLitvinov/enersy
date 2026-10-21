@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "node": "v20.20.2",
+  "platform": "linux",
+  "arch": "x64",
+  "dataset": "Deterministic 100-column line grid, 200/150 world-unit spacing, rotations 0/90/180/270; i*97 sample sequence",
+  "scope": "CPU routing/build/picking only; each query tests port, body and wire. Not browser frame time, drag latency, rendering, or an incremental index.",
+  "cases": [
+    {
+      "components": 1000,
+      "connections": 999,
+      "queries": 200,
+      "routingMs": 47.81472199999999,
+      "indexMs": 76.34110899999999,
+      "baselineQueryMs": {
+        "p50": 0.16967900000000213,
+        "p95": 0.37207100000000537
+      },
+      "indexedQueryMs": {
+        "p50": 0.012334000000009837,
+        "p95": 0.02607999999997901
+      },
+      "candidates": {
+        "p50": 3,
+        "p95": 3,
+        "max": 4
+      },
+      "visitedNodesP95": 83,
+      "heapUsedMiB": 10.703659057617188,
+      "parity": true
+    },
+    {
+      "components": 10000,
+      "connections": 9999,
+      "queries": 200,
+      "routingMs": 116.71695899999997,
+      "indexMs": 223.69122900000008,
+      "baselineQueryMs": {
+        "p50": 1.2820930000000317,
+        "p95": 1.7038599999999633
+      },
+      "indexedQueryMs": {
+        "p50": 0.03402599999992617,
+        "p95": 0.049316000000089844
+      },
+      "candidates": {
+        "p50": 3,
+        "p95": 4,
+        "max": 4
+      },
+      "visitedNodesP95": 137,
+      "heapUsedMiB": 54.99226379394531,
+      "parity": true
+    },
+    {
+      "components": 20000,
+      "connections": 19999,
+      "queries": 200,
+      "routingMs": 219.59940599999993,
+      "indexMs": 451.21999800000003,
+      "baselineQueryMs": {
+        "p50": 2.9314469999999346,
+        "p95": 4.737375000000156
+      },
+      "indexedQueryMs": {
+        "p50": 0.05356400000027861,
+        "p95": 0.09640699999999924
+      },
+      "candidates": {
+        "p50": 3,
+        "p95": 4,
+        "max": 4
+      },
+      "visitedNodesP95": 141,
+      "heapUsedMiB": 137.8291473388672,
+      "parity": true
+    }
+  ],
+  "hardware": {
+    "cpu_model": "AMD Ryzen 7 7700 8-Core Processor"
+  },
+  "esbuild": "0.25.12",
+  "source_sha256": {
+    "src/domain/spatial-index.ts": "2e696ccef5172fa2a48b8ece43897928d6e42232770bedb775047fb8f95c5204",
+    "src/domain/diagram-routing.ts": "5f0b8f821e05d826b191236b7507b0ce36a2cf8b3332d2410e34a1207dd2ba7c",
+    "src/components/ees/editor-picking.ts": "67a1dcd70faf9ad4fc74fd0bbb519ca692b28821dc6659ac98b32d98b12ba0f4",
+    "src/components/ees/editor-geometry.ts": "5d68b7f8ebc8712313cf129082b8b0b7f1dd033dff051c5d574ecbeca86d0f4a",
+    "src/components/ees/editor-utils.ts": "13dfad2ebf6764b7fb7d997b610b3d1ec9ea75c51f9d774c0579c361e732acf3",
+    "benchmark/picking.ts": "16e7cd426b344da30f1afe1efc21058d8420187ed81c23a6343332ca85609aec",
+    "benchmark/picking.mjs": "7d40ee6641f6c333f27bd403430a05488e01a214ecec5048dba8865695a51c78",
+    "package-lock.json": "7c1e6d9e7378545664229bc2cfba36dc7aef4ebc5920ad8f687a5ec0c061982c"
+  },
+  "container_limits": {
+    "cpu_max": "200000 100000\n",
+    "memory_max": "2147483648\n"
+  }
+}

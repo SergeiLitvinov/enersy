@@ -23,16 +23,17 @@ type editorDraftPayload struct {
 	Graph         []editorGraphDraft     `json:"graph"`
 }
 type editorComponentBase struct {
-	ID               string            `json:"id"`
-	TypeID           string            `json:"typeId"`
-	Type             string            `json:"type"`
-	EquipmentModelID *string           `json:"equipmentModelId"`
-	Revision         string            `json:"revision"`
-	Name             string            `json:"name"`
-	X                *float64          `json:"x"`
-	Y                *float64          `json:"y"`
-	Rotation         *int              `json:"rotation"`
-	Params           map[string]string `json:"params"`
+	ProjectPassportVersionID *string           `json:"projectPassportVersionId,omitempty"`
+	ID                       string            `json:"id"`
+	TypeID                   string            `json:"typeId"`
+	Type                     string            `json:"type"`
+	EquipmentModelID         *string           `json:"equipmentModelId"`
+	Revision                 string            `json:"revision"`
+	Name                     string            `json:"name"`
+	X                        *float64          `json:"x"`
+	Y                        *float64          `json:"y"`
+	Rotation                 *int              `json:"rotation"`
+	Params                   map[string]string `json:"params"`
 }
 type editorComponentDraft struct {
 	ComponentID string                  `json:"componentId"`
@@ -49,8 +50,10 @@ type editorComponentIntent struct {
 type editorGraphDraft struct {
 	Intent editorGraphIntent `json:"intent"`
 	Reason string            `json:"reason"`
+	Phase  json.RawMessage   `json:"phase,omitempty"`
 }
 type editorGraphIntent struct {
+	ProjectPassportVersionID *string           `json:"projectPassportVersionId,omitempty"`
 	Kind                     string            `json:"kind"`
 	TypeID                   *string           `json:"typeId,omitempty"`
 	Name                     *string           `json:"name,omitempty"`
@@ -65,7 +68,7 @@ type editorGraphIntent struct {
 	FromPort                 *string           `json:"fromPort,omitempty"`
 	ToPort                   *string           `json:"toPort,omitempty"`
 	ID                       *string           `json:"id,omitempty"`
-	ExpectedTopologyRevision *string           `json:"expectedTopologyRevision,omitempty"`
+	ExpectedTopologyRevision json.RawMessage   `json:"expectedTopologyRevision,omitempty"`
 }
 
 func draftText(value string, limit int) bool {
@@ -76,6 +79,20 @@ func draftRevision(value string, zero bool) bool {
 	return err == nil && (n > 0 || (zero && n == 0)) && strconv.FormatInt(n, 10) == value
 }
 func draftID(value string) bool { _, err := intProjectID(value); return err == nil }
+func draftPassport(model, passport *string) bool {
+	if passport == nil {
+		return true
+	}
+	_, err := positiveProjectID(*passport)
+	return model == nil && err == nil
+}
+func draftExpected(raw json.RawMessage, prepared bool) bool {
+	if !prepared {
+		return len(raw) == 0
+	}
+	var value string
+	return json.Unmarshal(raw, &value) == nil && draftRevision(value, true)
+}
 func draftParams(values map[string]string) bool {
 	if values == nil || len(values) > 256 {
 		return false
@@ -103,7 +120,7 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 	if decoder.Decode(&struct{}{}) != io.EOF {
 		return payload, errEditorDraftPayload
 	}
-	if payload.FormatVersion != 1 || payload.Components == nil || payload.Graph == nil || len(payload.Components) > 128 || len(payload.Graph) > 128 {
+	if (payload.FormatVersion != 1 && payload.FormatVersion != 2) || payload.Components == nil || payload.Graph == nil || len(payload.Components) > 128 || len(payload.Graph) > 128 {
 		return payload, errEditorDraftPayload
 	}
 	seen := map[string]bool{}
@@ -112,7 +129,7 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 		if !draftID(draft.ComponentID) || seen[draft.ComponentID] || base.ID != draft.ComponentID || !draftID(base.TypeID) || !draftRevision(base.Revision, false) || !draftText(base.Type, 50) || base.Type == "" || base.X == nil || base.Y == nil || base.Rotation == nil || !draftParams(base.Params) || len(draft.Intents) == 0 || len(draft.Intents) > 64 || !draftText(draft.Reason, 1024) {
 			return payload, errEditorDraftPayload
 		}
-		if base.EquipmentModelID != nil && !draftID(*base.EquipmentModelID) {
+		if (base.EquipmentModelID != nil && !draftID(*base.EquipmentModelID)) || !draftPassport(base.EquipmentModelID, base.ProjectPassportVersionID) {
 			return payload, errEditorDraftPayload
 		}
 		if validateComponentPose(*base.X, *base.Y, base.Name) != nil || *base.Rotation < math.MinInt32 || *base.Rotation > math.MaxInt32 {
@@ -144,27 +161,42 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 	}
 	commands := map[string]bool{}
 	for _, draft := range payload.Graph {
+		prepared := true
+		if payload.FormatVersion == 1 {
+			if len(draft.Phase) != 0 {
+				return payload, errEditorDraftPayload
+			}
+		} else {
+			var phase string
+			if json.Unmarshal(draft.Phase, &phase) != nil || (phase != "unprepared" && phase != "prepared") {
+				return payload, errEditorDraftPayload
+			}
+			prepared = phase == "prepared"
+		}
 		if !draftText(draft.Reason, 1024) {
 			return payload, errEditorDraftPayload
 		}
 		i := draft.Intent
-		creation := i.TypeID != nil || i.Name != nil || i.X != nil || i.Y != nil || i.Rotation != nil || i.EquipmentModelID != nil || i.Params != nil
+		creation := i.TypeID != nil || i.Name != nil || i.X != nil || i.Y != nil || i.Rotation != nil || i.EquipmentModelID != nil || i.ProjectPassportVersionID != nil || i.Params != nil
 		connection := i.CommandID != nil || i.From != nil || i.To != nil || i.FromPort != nil || i.ToPort != nil
 		switch i.Kind {
 		case "create-component":
-			if connection || i.ID != nil || i.ExpectedTopologyRevision != nil || i.TypeID == nil || !draftID(*i.TypeID) || i.Name == nil || i.X == nil || i.Y == nil || i.Rotation == nil || !draftParams(i.Params) || validateComponentPose(*i.X, *i.Y, *i.Name) != nil || (i.EquipmentModelID != nil && !draftID(*i.EquipmentModelID)) {
+			if !draftPassport(i.EquipmentModelID, i.ProjectPassportVersionID) {
+				return payload, errEditorDraftPayload
+			}
+			if connection || i.ID != nil || len(i.ExpectedTopologyRevision) != 0 || i.TypeID == nil || !draftID(*i.TypeID) || i.Name == nil || i.X == nil || i.Y == nil || i.Rotation == nil || !draftParams(i.Params) || validateComponentPose(*i.X, *i.Y, *i.Name) != nil || (i.EquipmentModelID != nil && !draftID(*i.EquipmentModelID)) {
 				return payload, errEditorDraftPayload
 			}
 			if *i.Rotation < math.MinInt32 || *i.Rotation > math.MaxInt32 {
 				return payload, errEditorDraftPayload
 			}
 		case "create-connection":
-			if creation || i.ID != nil || i.CommandID == nil || !editorWorkspacePattern.MatchString(*i.CommandID) || commands[*i.CommandID] || i.From == nil || i.To == nil || !draftID(*i.From) || !draftID(*i.To) || i.FromPort == nil || i.ToPort == nil || *i.FromPort == "" || *i.ToPort == "" || !draftText(*i.FromPort, 64) || !draftText(*i.ToPort, 64) || i.ExpectedTopologyRevision == nil || !draftRevision(*i.ExpectedTopologyRevision, true) {
+			if creation || i.ID != nil || i.CommandID == nil || !editorWorkspacePattern.MatchString(*i.CommandID) || commands[*i.CommandID] || i.From == nil || i.To == nil || !draftID(*i.From) || !draftID(*i.To) || i.FromPort == nil || i.ToPort == nil || *i.FromPort == "" || *i.ToPort == "" || !draftText(*i.FromPort, 64) || !draftText(*i.ToPort, 64) || !draftExpected(i.ExpectedTopologyRevision, prepared) {
 				return payload, errEditorDraftPayload
 			}
 			commands[*i.CommandID] = true
 		case "delete-connection":
-			if creation || connection || i.ID == nil || !draftID(*i.ID) || i.ExpectedTopologyRevision == nil || !draftRevision(*i.ExpectedTopologyRevision, true) {
+			if creation || connection || i.ID == nil || !draftID(*i.ID) || !draftExpected(i.ExpectedTopologyRevision, prepared) {
 				return payload, errEditorDraftPayload
 			}
 		default:
@@ -180,7 +212,7 @@ func unambiguousDraftJSON(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	fields := map[string]bool{}
-	for _, field := range strings.Split("formatVersion components graph componentId base intents reason id typeId type equipmentModelId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision", " ") {
+	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision", " ") {
 		fields[field] = true
 	}
 	var value func(int, bool) bool

@@ -1,0 +1,24 @@
+.project-catalog { max-width: 1120px; margin-inline: auto; }
+.project-catalog h2 { margin-block: 6px; }
+.project-catalog h3 { margin-block: 8px; }
+.catalog-versions { list-style: none; padding: 0; display: grid; gap: 12px; }
+.catalog-versions li, .catalog-detail, .passport-editor { border: 1px solid var(--border-color); border-radius: 14px; padding: 24px; background: var(--bg-panel); margin-block: 16px; }
+.catalog-versions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.catalog-versions p, .catalog-unit { color: var(--text-secondary); font-size: 12px; }
+.catalog-detail { overflow-x: auto; }
+.catalog-detail dl { display: grid; grid-template-columns: minmax(120px, .25fr) 1fr; gap: 12px; margin-block: 20px; }
+.catalog-detail dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.catalog-detail table { width: 100%; border-collapse: collapse; margin-block: 24px; text-align: left; }
+.catalog-detail th, .catalog-detail td { border-bottom: 1px solid var(--border-color); padding: 12px; overflow-wrap: anywhere; }
+.catalog-detail caption { text-align: left; color: var(--text-secondary); margin-bottom: 12px; }
+.catalog-detail details { margin-block: 16px; }
+.catalog-digest { overflow-wrap: anywhere; font-family: monospace; }
+.catalog-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.catalog-saved { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 16px; color: var(--text-primary); }
+.passport-editor fieldset { border: 0; padding: 0; min-width: 0; }
+.passport-editor label { display: grid; gap: 8px; }
+.passport-editor .passport-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-block: 20px; }
+.passport-editor input, .passport-editor select, .passport-editor textarea { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-canvas); color: var(--text-primary); font: inherit; }
+.passport-editor h4 { margin-top: 24px; }
+.passport-editor > .projects-note { margin-block: 16px; }
+@media(max-width: 700px) { .passport-editor .passport-fields { grid-template-columns: 1fr; } .catalog-versions li { flex-direction: column; align-items: stretch; } .catalog-detail dl { grid-template-columns: 1fr; } }

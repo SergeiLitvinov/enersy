@@ -67,13 +67,14 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			return true
 		}
 		var input struct {
-			TypeID           string            `json:"typeId"`
-			EquipmentModelID *string           `json:"equipmentModelId"`
-			X                float64           `json:"x"`
-			Y                float64           `json:"y"`
-			Rotation         int               `json:"rotation"`
-			Name             string            `json:"name"`
-			Params           map[string]string `json:"params"`
+			TypeID                   string            `json:"typeId"`
+			EquipmentModelID         *string           `json:"equipmentModelId"`
+			ProjectPassportVersionID *string           `json:"projectPassportVersionId"`
+			X                        float64           `json:"x"`
+			Y                        float64           `json:"y"`
+			Rotation                 int               `json:"rotation"`
+			Name                     string            `json:"name"`
+			Params                   map[string]string `json:"params"`
 		}
 		if !decodeComponentMutation(w, r, &input) {
 			return true
@@ -92,7 +93,16 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			}
 			model = &id
 		}
-		id, params, revision, err := store.CreateComponent(r.Context(), token, project, createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params})
+		var passport *int64
+		if input.ProjectPassportVersionID != nil {
+			value, err := positiveProjectID(*input.ProjectPassportVersionID)
+			if err != nil {
+				componentWriteError(w, 400, "invalid_project_passport", "Некорректный ID проектного паспорта")
+				return true
+			}
+			passport = &value
+		}
+		id, params, revision, err := store.CreateComponent(r.Context(), token, project, createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params})
 		if err != nil {
 			status, message := projectComponentCreationError(err)
 			componentWriteError(w, status, "component_creation_failed", message)
@@ -102,10 +112,14 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 		if model != nil {
 			modelID = strconv.Itoa(*model)
 		}
+		var passportID any
+		if passport != nil {
+			passportID = strconv.FormatInt(*passport, 10)
+		}
 		decimal := strconv.FormatInt(revision, 10)
 		w.Header().Set("ETag", `"`+decimal+`"`)
 		w.WriteHeader(201)
-		json.NewEncoder(w).Encode(map[string]any{"id": strconv.Itoa(id), "revision": decimal, "params": params, "equipmentModelId": modelID, "success": true})
+		json.NewEncoder(w).Encode(map[string]any{"id": strconv.Itoa(id), "revision": decimal, "params": params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true})
 		return true
 	}
 	id, err := intProjectID(parts[4])

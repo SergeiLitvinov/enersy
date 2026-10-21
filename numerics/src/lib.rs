@@ -2,6 +2,9 @@
 //! matrix. It does NOT solve the general AC Newton Jacobian or a complete network.
 //! Input units and scaling belong to the caller's explicitly defined model.
 pub mod csr;
+#[cfg(feature = "c-abi")]
+pub mod ffi;
+pub mod jacobian;
 pub mod pcg;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,6 +14,7 @@ pub enum Error {
     InvalidOptions,
     NotSymmetric,
     InvalidDiagonal,
+    InvalidVoltage,
     Breakdown,
     Cancelled,
     NotConverged { iterations: usize, residual: f64 },

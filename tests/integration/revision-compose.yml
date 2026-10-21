@@ -1,6 +1,38 @@
 # Disposable acceptance environment. Never uses the application database volume.
 name: enersy-revision-acceptance
 services:
+  calculation-archive-check:
+    image: golang:1.24-alpine
+    profiles: [archive-check]
+    networks: [default, web]
+    cpus: 2
+    mem_limit: 1g
+    working_dir: /workspace/backend-go
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      GOMAXPROCS: 2
+      TEST_DATABASE_URL: host=postgres port=5432 user=acceptance password=disposable_acceptance dbname=revision_acceptance sslmode=disable
+      TEST_JULIA_URL: http://julia-compute:8001
+    command: ["go", "test", "-run", "^TestCalculationArchive", "-v", "-count=1", "./..."]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      julia-compute:
+        condition: service_started
+  editor-draft-client-check:
+    profiles: [draft-client]
+    build:
+      context: ../..
+      dockerfile: tests/integration/editor-draft-client.Dockerfile
+    environment:
+      VITE_DRAFT_HTTP_ACCEPTANCE: "1"
+    depends_on:
+      go-api:
+        condition: service_healthy
   snapshot-profile-check:
     image: golang:1.24-alpine
     profiles: [snapshot-profile]

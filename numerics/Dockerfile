@@ -4,4 +4,5 @@ WORKDIR /workspace
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY tests ./tests
-CMD ["sh", "-c", "cargo test --locked --offline --target-dir /tmp/target && cargo clippy --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]
+COPY examples ./examples
+CMD ["sh", "-c", "cargo test --all-features --locked --offline --target-dir /tmp/target && cargo clippy --all-features --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]

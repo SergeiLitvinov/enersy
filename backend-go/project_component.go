@@ -40,6 +40,16 @@ func (store projectStore) CreateComponent(ctx context.Context, token string, pro
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, req.SchemeID); err != nil {
 		return 0, nil, 0, err
 	}
+	if req.ProjectPassportVersionID != nil {
+		if _, err := lockArchiveProject(ctx, tx, token, project, true); err != nil {
+			return 0, nil, 0, err
+		}
+		params, err := copyProjectPassport(ctx, tx, project, req)
+		if err != nil {
+			return 0, nil, 0, err
+		}
+		req.Params = params
+	}
 	id, params, revision, err := createComponentInTx(ctx, tx, req)
 	if err != nil {
 		return 0, nil, 0, err

@@ -18,7 +18,7 @@
   коэффициент stamp `U_lv/U_hv` на общем базисе напряжения и ветвь намагничивания `p_xx`, `i_xx`,
   отнесённая к обмотке ВН;
 * **шунт** — постоянная проводимость, обеспечивающая `Q_nom` при номинальном
-  напряжении узла. `q_nom` — неотрицательный паспортный модуль мощности;
+  напряжении шунта (при отсутствии — явно записанном номинале узла). `q_nom` — неотрицательный паспортный модуль мощности;
   конденсатор выдаёт реактивную мощность, реактор потребляет;
 * **идеальный аппарат** (замкнутый выключатель, разъединитель) —
   в Y-матрицу не вносится; разомкнутый аппарат, наоборот, не объединяет узлы
@@ -60,7 +60,15 @@ struct BranchModel
     y_from::ComplexF64
     y_to::ComplexF64
     owner::String
+    phase_shift_rad::Float64
 end
+
+# Existing lines/source impedances and callers retain the zero-shift model.
+BranchModel(id, code, from, to, ratio, ys, yf, yt, owner) =
+    BranchModel(id, code, from, to, ratio, ys, yf, yt, owner, 0.0)
+
+"""Complex LV/HV no-load ratio: positive angle means LV leads HV."""
+complex_ratio(m::BranchModel) = m.ratio * cis(m.phase_shift_rad)
 
 """Модель шунта постоянной проводимости, приведённая к базису узла."""
 struct ShuntModel
@@ -78,15 +86,18 @@ end
 Внесение двухполюсного элемента в Y-матрицу:
 
     Y[i,i] += y + y_from;   Y[j,j] += y/ratio² + y_to
-    Y[i,j] -= y/ratio;      Y[j,i] -= y/ratio
+    Y[i,j] -= y/t;          Y[j,i] -= y/conj(t)
+
+where t = ratio·exp(j·phase_shift_rad); diagonal uses the real ratio².
 """
 function stamp!(Y::Matrix{ComplexF64}, m::BranchModel)
     i, j, t = m.from_bus, m.to_bus, m.ratio
     ys = m.y_series
+    tap = complex_ratio(m)
     Y[i, i] += ys + m.y_from
     Y[j, j] += ys / (t * t) + m.y_to
-    Y[i, j] -= ys / t
-    Y[j, i] -= ys / t
+    Y[i, j] -= ys / tap
+    Y[j, i] -= ys / conj(tap)
     return Y
 end
 
@@ -183,6 +194,11 @@ function transformer_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSyste
     u_kz = param_number(p, "u_kz"; unit="%", owner=owner)
     p_xx = param_number(p, "p_xx"; required=false, default=0.0, unit="MW", owner=owner)
     i_xx = param_number(p, "i_xx"; required=false, default=0.0, unit="%", owner=owner)
+    shift = param_number(p, "phase_shift_deg"; required=false, default=0.0, unit="deg", owner=owner)
+    -180 <= shift <= 180 || throw(contract_error("invalid_parameter", "phase_shift_deg must be in [-180,180]", detail=owner))
+    if !haskey(p, "phase_shift_deg") || isempty(strip(p["phase_shift_deg"]))
+        push!(assumptions, "трансформатор $(branch.component_id): phase_shift_deg не задан; принят фазосдвиг 0°")
+    end
     s_nom > 0 || throw(contract_error("invalid_parameter", "power_nom must be positive",
                                       detail="$(owner).power_nom=$(s_nom)"))
     u_hv > 0 || throw(contract_error("invalid_parameter", "voltage_hv must be positive",
@@ -194,7 +210,7 @@ function transformer_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSyste
     r_own, z_abs = p_kz / s_nom, u_kz / 100.0
     (0 <= r_own <= z_abs) || throw(contract_error("invalid_parameter", "p_kz is inconsistent with u_kz", detail=owner))
     z_own = complex(r_own, sqrt(z_abs^2 - r_own^2))
-    y_series = 1.0 / impedance_from_own_base(z_own, s_nom, u_hv, base)
+    y_series = 1.0 / impedance_from_own_base(z_own, s_nom, u_hv, base; owner=owner)
     # One global voltage base: vi - vj / ratio = vi - (Uhv/Ulv)*vj.
     ratio = u_lv / u_hv
     y_from = 0.0 + 0.0im
@@ -204,13 +220,13 @@ function transformer_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSyste
     else
         g_own, y_abs = p_xx / s_nom, i_xx / 100.0
         (0 <= g_own <= y_abs) || throw(contract_error("invalid_parameter", "p_xx is inconsistent with i_xx", detail=owner))
-        y_from = admittance_from_own_base(complex(g_own, -sqrt(y_abs^2 - g_own^2)), s_nom, u_hv, base)
+        y_from = admittance_from_own_base(complex(g_own, -sqrt(y_abs^2 - g_own^2)), s_nom, u_hv, base; owner=owner)
         push!(assumptions, "трансформатор $(branch.component_id): ветвь намагничивания " *
                            "(p_xx=$(p_xx) МВт, i_xx=$(i_xx) %) отнесена к обмотке ВН")
     end
     _check_transformer_levels(branch, buses, u_hv, u_lv, warnings)
     return BranchModel(branch.component_id, branch.code, branch.from_bus, branch.to_bus,
-                       ratio, y_series, y_from, 0.0 + 0.0im, owner)
+                       ratio, y_series, y_from, 0.0 + 0.0im, owner, deg2rad(shift))
 end
 
 """
@@ -251,21 +267,28 @@ end
     shunt_model(inj, bus, base, assumptions)
 
 Проводимость шунта: `B = (Q_nom/S_base)·(V_base/V_nom)²`, что обеспечивает
-реактивную выдачу `Q_nom` при номинальном напряжении узла. Знак `B` соответствует
+реактивную выдачу `Q_nom` при собственном номинальном напряжении шунта.
+При отсутствии номинала используется напряжение узла с записью допущения. Знак `B` соответствует
 физическому смыслу `q_nom`: конденсатор выдаёт, реактор потребляет.
 """
 function shunt_model(inj::Injection, bus::Bus, base::BaseSystem, assumptions::Vector{String})
     owner = "$(inj.code)#$(inj.component_id)"
     q_nom = inj.q_mvar
+    u_nom = param_number(inj.params, "voltage_nom"; required=false, default=nothing, unit="kV", owner)
+    (u_nom === nothing || u_nom > 0) ||
+        throw(contract_error("invalid_parameter", "shunt rated voltage must be positive", detail="$(owner).voltage_nom=$(u_nom)"))
     if q_nom == 0.0
-        push!(assumptions, "шунт $(owner): q_nom не задан, в проводимость не вносится")
+        push!(assumptions, "шунт $(owner): q_nom = 0, вклад в проводимость равен нулю")
         return ShuntModel(inj.component_id, inj.code, inj.bus, 0.0 + 0.0im, 0.0, owner)
     end
-    bus.v_nom_kv > 0 ||
-        throw(contract_error("missing_parameter",
-                             "shunt requires the bus nominal voltage 'voltage_nom'",
-                             detail="$(owner): node $(inj.bus) has no nominal voltage"))
-    b_pu = (q_nom / base.s_base_mva) * (base.v_base_kv / bus.v_nom_kv)^2
+    if u_nom === nothing
+        (isfinite(bus.v_nom_kv) && bus.v_nom_kv > 0) ||
+            throw(contract_error("missing_parameter", "shunt requires its rated voltage or a known bus nominal voltage",
+                                 detail="$(owner): node $(inj.bus) has no nominal voltage"))
+        u_nom = bus.v_nom_kv
+        push!(assumptions, "шунт $(owner): voltage_nom не задан; принят номинал узла $(u_nom) кВ")
+    end
+    b_pu = (q_nom / base.s_base_mva) * (base.v_base_kv / u_nom)^2
     y_pu = inj.code == "capacitor" ? complex(0.0, b_pu) : complex(0.0, -b_pu)
     return ShuntModel(inj.component_id, inj.code, inj.bus, y_pu, q_nom, owner)
 end
@@ -518,20 +541,32 @@ function _check_level(bus::Bus, u_nom::Float64, side::AbstractString, cid::Int,
     return nothing
 end
 
-"""Сверка симметрии фазных параметров ЛЭП с удельными `r0`, `x0`."""
+"""Validate supplementary phase metadata without interpreting it as Z1.
+The symmetric AC model uses explicit r0/x0; it does not compile a phase matrix.
+"""
 function _check_line_symmetry(p::Dict{String,String}, r0::Float64, x0::Float64,
                               owner::AbstractString, warnings::Vector{String})
     for (key, ref) in (("r_aa", r0), ("x_aa", x0), ("r_bb", r0), ("x_bb", x0),
                        ("r_cc", r0), ("x_cc", x0))
-        haskey(p, key) || continue
-        v = tryparse(Float64, strip(p[key]))
-        (v === nothing || ref == 0.0) && continue
-        abs(v - ref) / abs(ref) > LINE_SYMMETRY_TOLERANCE || continue
-        push!(warnings, "$(owner): параметр $(key)=$(v) отличается от симметричного " *
-                        "r0=$(r0)/x0=$(x0); симметричный AC-режим использует r0/x0, " *
-                        "несимметричные фазы не учитываются")
-        return nothing
+        v = param_number(p, key; required=false, unit="Ohm/km", owner=owner)
+        v === nothing && continue
+        startswith(key, "r") && v < 0 &&
+            throw(contract_error("invalid_parameter", "phase self resistance must be non-negative", detail="$(owner).$(key)=$(v)"))
+        abs(v - ref) > LINE_SYMMETRY_TOLERANCE * abs(ref) || continue
+        push!(warnings, "$(owner): параметр $(key)=$(v) отличается от выбранного " *
+                        "r0=$(r0)/x0=$(x0); симметричный AC-режим использует r0/x0. " *
+                        "Фазная матрица не компилируется; это сравнение не определяет её симметрию или параметры последовательностей")
     end
+    mutual = String[]
+    for phase in ("ab", "ba", "ac", "ca", "bc", "cb"), prefix in ("r", "x")
+        key = prefix * "_" * phase
+        v = param_number(p, key; required=false, unit="Ohm/km", owner=owner)
+        (v === nothing || v == 0) && continue
+        push!(mutual, "$(key)=$(v)")
+    end
+    isempty(mutual) || push!(warnings, "$(owner): заданы взаимные фазные параметры $(join(mutual, ", ")) Ом/км; " *
+        "фазная матрица в симметричной π-модели не используется. Расчёт использует независимо заданные r0/x0; " *
+        "их согласованность с полной фазной матрицей этой проверкой не подтверждается")
     return nothing
 end
 
@@ -549,8 +584,9 @@ function branch_flow(m::BranchModel, v::Vector{Float64}, theta::Vector{Float64},
     i, j, t = m.from_bus, m.to_bus, m.ratio
     vi = complex(v[i], 0.0) * cis(theta[i])
     vj = complex(v[j], 0.0) * cis(theta[j])
-    i_series_from = m.y_series * (vi - vj / t)
-    i_series_to = (m.y_series / (t * t)) * vj - (m.y_series / t) * vi
+    tap = complex_ratio(m)
+    i_series_from = m.y_series * (vi - vj / tap)
+    i_series_to = (m.y_series / (t * t)) * vj - (m.y_series / conj(tap)) * vi
     i_from = i_series_from + m.y_from * vi
     i_to = i_series_to + m.y_to * vj
     s_from = vi * conj(i_from)

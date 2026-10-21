@@ -20,6 +20,7 @@ const copyComponent = (component: SchemeComponent): SchemeComponent => ({
   id: component.id, revision: component.revision, type: component.type, typeId: component.typeId,
   name: component.name, x: component.x, y: component.y, rotation: component.rotation,
   equipmentModelId: component.equipmentModelId, params: { ...component.params },
+  ...(component.projectPassportVersionId == null ? {} : { projectPassportVersionId: component.projectPassportVersionId }),
 });
 const copyIntent = (intent: ComponentIntent): ComponentIntent => intent.kind === 'pose'
   ? { kind: 'pose', values: { ...intent.values } } : { ...intent };
@@ -30,6 +31,31 @@ export class ComponentDrafts {
   private pending = new Map<string, PendingDraft>();
   private reviews = new WeakMap<ComponentDraft, { key: string; base: SchemeComponent; intents: Map<object, ComponentIntent> }>();
   private key(schemeId: number, componentId: number) { return `${schemeId}:${componentId}`; }
+
+  /** Include in-flight intentions; only an acknowledgement may remove them. */
+  snapshot(schemeId: number): ComponentDraft[] {
+    return [...this.pending.values()].filter(draft => draft.schemeId === schemeId).map(draft => ({
+      schemeId, componentId: draft.componentId, base: copyComponent(draft.base),
+      intents: [...draft.intents.values()].map(copyIntent), reason: draft.reason,
+    }));
+  }
+
+  /** Fresh journals only. Imported intentions are evidence, never queued actions. */
+  restore(schemeId: number, snapshots: readonly ComponentDraft[]) {
+    if (this.pending.size || this.confirmed.size) throw new Error('Восстанавливайте журнал в новом рабочем контексте');
+    const entries = new Map<string, PendingDraft>();
+    for (const draft of snapshots) {
+      const key = this.key(schemeId, draft.componentId);
+      if (draft.schemeId !== schemeId || entries.has(key) || draft.base.id !== draft.componentId || !draft.intents.length) {
+        throw new Error('Некорректный контекст журнала оборудования');
+      }
+      parseComponentRevision(draft.base.revision);
+      entries.set(key, { schemeId, componentId: draft.componentId, base: copyComponent(draft.base),
+        intents: new Map(draft.intents.map(intent => [{}, copyIntent(intent)])),
+        reason: draft.reason || 'Восстановленное намерение требует сверки с сервером' });
+    }
+    this.pending = entries;
+  }
 
   seed(schemeId: number, component: SchemeComponent) {
     this.confirmed.set(this.key(schemeId, component.id), copyComponent(component));
@@ -112,7 +138,8 @@ export class ComponentDrafts {
     const draft = this.pending.get(review.key);
     if (!draft) return false;
     if (server.id !== draft.componentId || server.type !== draft.base.type || server.typeId !== draft.base.typeId ||
-      (server.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null)) {
+      (server.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null) ||
+      (server.projectPassportVersionId ?? null) !== (draft.base.projectPassportVersionId ?? null)) {
       throw new Error('Объект или его паспорт изменился. Повторно сравните оборудование.');
     }
     parseComponentRevision(server.revision);

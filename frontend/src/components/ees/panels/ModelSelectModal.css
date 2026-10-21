@@ -1,0 +1,25 @@
+.passport-layout { display: grid; grid-template-columns: minmax(210px, .85fr) minmax(0, 1.4fr); gap: 20px; margin-top: 20px; }
+.passport-manual, .passport-option { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; background: var(--bg-card); }
+.passport-manual small, .passport-option small, .passport-table small { display: block; color: var(--text-secondary); font-weight: normal; margin-top: 5px; }
+.passport-option > span { min-width: 0; overflow-wrap: anywhere; }
+.passport-option input[type="radio"], .passport-manual input[type="radio"] { flex: 0 0 16px; width: 16px; height: 16px; min-height: 16px; margin: 3px 0 0; padding: 0; accent-color: var(--accent-blue); }
+.passport-option > span > span { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 8px; }
+.passport-manual.is-selected, .passport-option.is-selected { border-color: var(--accent-blue); background: var(--accent-blue-selected); }
+.passport-field { display: grid; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.passport-field input, .passport-field select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font: inherit; }
+.passport-field :focus-visible, .passport-option:focus-within, .passport-manual:focus-within { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.passport-count { color: var(--text-secondary); font-size: 12px; }
+.passport-options { display: grid; gap: 8px; max-height: 430px; overflow-y: auto; padding: 3px; }
+.passport-preview { min-width: 0; padding: 18px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-card); font-size: 13px; overflow-wrap: anywhere; }
+.passport-heading > span { color: var(--accent-blue); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.passport-heading h3 { margin: 8px 0; font-size: 21px; }
+.passport-heading p { color: var(--text-secondary); }
+.passport-provenance, .passport-notice { padding: 12px; border-radius: 8px; background: var(--bg-toolbar); color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.passport-table-wrap { overflow-x: auto; }
+.passport-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.passport-table caption { text-align: left; margin: 8px 0; color: var(--text-secondary); }
+.passport-table th, .passport-table td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid var(--border-color); overflow-wrap: anywhere; min-width: 80px; }
+.passport-table thead { background: var(--bg-toolbar); }
+.passport-different { background: var(--accent-blue-selected); }
+.passport-empty { padding: 12px; color: var(--text-secondary); line-height: 1.7; }
+@media (max-width: 640px) { .passport-layout { grid-template-columns: minmax(0, 1fr); } .passport-options { max-height: 230px; } .passport-preview { padding: 12px; } }

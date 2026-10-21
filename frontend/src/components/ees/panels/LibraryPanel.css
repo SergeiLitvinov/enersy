@@ -3,13 +3,13 @@
 .panel-heading h2, .catalog-heading h2 { font-size: 15px; font-weight: 650; letter-spacing: -.25px; }
 .eyebrow { font-size: 10px; font-weight: 650; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
 .full-width { width: 100%; justify-content: center; margin-bottom: 16px; }
-.schemes-list { display: grid; gap: 4px; max-height: 190px; overflow-y: auto; margin-bottom: 24px; }
-.scheme-row { display: flex; align-items: center; border: 1px solid transparent; border-radius: 8px; }
+.schemes-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; max-height: 190px; overflow-y: auto; margin-bottom: 24px; }
+.scheme-row { min-width: 0; display: flex; align-items: center; border: 1px solid transparent; border-radius: 8px; }
 .scheme-row.active { background: var(--accent-blue-light); border-color: var(--accent-blue-selected); }
 .scheme-select { display: flex; align-items: center; flex: 1; gap: 10px; min-width: 0; padding: 10px; background: none; border: none; color: var(--text-secondary); text-align: left; font-size: 12px; }
-.scheme-select span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scheme-select span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scheme-row.active .scheme-select { color: var(--accent-blue); font-weight: 600; }
-.scheme-row-delete { display: grid; place-items: center; background: none; border: none; color: var(--text-muted); padding: 8px; border-radius: 6px; }
+.scheme-row-delete { flex-shrink: 0; display: grid; place-items: center; background: none; border: none; color: var(--text-muted); padding: 8px; border-radius: 6px; }
 .scheme-row-delete:hover { color: var(--accent-red); background: var(--danger-bg); }
 .catalog-heading { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid var(--border-color); margin-bottom: 14px; }
 .count-badge { background: var(--bg-toolbar); border-radius: 5px; padding: 3px 6px; font-size: 10px; color: var(--text-muted); }
@@ -30,3 +30,5 @@
 .library-footnote { display: flex; gap: 9px; margin-top: 24px; font-size: 10px; color: var(--text-muted); line-height: 1.7; }
 .library-footnote svg { flex-shrink: 0; }
 .small-empty { font-size: 12px; line-height: 1.7; padding: 14px 4px; color: var(--text-muted); }
+
+.scheme-select svg { flex-shrink: 0; }

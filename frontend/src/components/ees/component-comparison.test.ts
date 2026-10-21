@@ -6,6 +6,11 @@ const draft: ComponentDraft = { schemeId: 1, componentId: 101, reason: 'conflict
   id: 101, revision: '1', type: 'busbar', typeId: 1, name: 'Bus', x: 0, y: 0, rotation: 0, params: { voltage: '110', empty: '' },
 }, intents: [{ kind: 'pose', values: { x: 10 } }, { kind: 'pose', values: { rotation: 90 } }, { kind: 'parameter', key: 'voltage', value: '220' }] };
 
+test('recovery refuses a different project passport version even when all object fields match', () => {
+  const bound = { ...draft, base: { ...draft.base, projectPassportVersionId: '9007199254740993' } };
+  expect(() => prepareRecoveryPatch(bound, { ...bound.base, projectPassportVersionId: '9007199254740994' }, new Set(['pose:x']))).toThrow();
+});
+
 test('comparison separates pending, externally changed and already applied fields', () => {
   const rows = compareComponentDraft(draft, { ...draft.base, revision: '8', rotation: 90, y: 200, params: { voltage: '330' } });
   expect(rows.map(row => [row.key, row.status])).toEqual([

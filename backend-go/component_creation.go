@@ -15,14 +15,15 @@ import (
 )
 
 type createComponentRequest struct {
-	SchemeID         int               `json:"schemeId"`
-	TypeID           int               `json:"typeId"`
-	X                float64           `json:"x"`
-	Y                float64           `json:"y"`
-	Rotation         int               `json:"rotation"`
-	Name             string            `json:"name"`
-	EquipmentModelID *int              `json:"equipmentModelId"`
-	Params           map[string]string `json:"params"`
+	SchemeID                 int               `json:"schemeId"`
+	TypeID                   int               `json:"typeId"`
+	X                        float64           `json:"x"`
+	Y                        float64           `json:"y"`
+	Rotation                 int               `json:"rotation"`
+	Name                     string            `json:"name"`
+	EquipmentModelID         *int              `json:"equipmentModelId"`
+	ProjectPassportVersionID *int64            `json:"projectPassportVersionId,omitempty"`
+	Params                   map[string]string `json:"params"`
 }
 
 type componentCreationError struct {
@@ -42,6 +43,9 @@ func validateComponentCreation(req createComponentRequest) error {
 	}
 	if req.EquipmentModelID != nil && *req.EquipmentModelID <= 0 {
 		return creationError("Некорректный идентификатор паспортной модели", http.StatusBadRequest)
+	}
+	if req.ProjectPassportVersionID != nil && (*req.ProjectPassportVersionID <= 0 || req.EquipmentModelID != nil) {
+		return creationError("Укажите один корректный источник паспорта", http.StatusBadRequest)
 	}
 	if len(req.Params) > 256 {
 		return creationError("Слишком много параметров", http.StatusBadRequest)
@@ -74,6 +78,9 @@ func validateComponentParameter(key, value string) error {
 // The stored parameters are a snapshot, not a live link to mutable catalogue values.
 // A repeatable-read transaction makes model validation, copying and creation atomic.
 func createComponent(ctx context.Context, database *sql.DB, req createComponentRequest) (int, map[string]string, int64, error) {
+	if req.ProjectPassportVersionID != nil {
+		return 0, nil, 0, creationError("Проектный паспорт доступен только в приватном проекте", http.StatusBadRequest)
+	}
 	if err := validateComponentCreation(req); err != nil {
 		return 0, nil, 0, err
 	}
@@ -172,8 +179,8 @@ func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentReq
 	}
 	var id int
 	err = tx.QueryRowContext(ctx, `INSERT INTO scheme_components
-		(scheme_id, component_type_id, pos_x, pos_y, rotation, custom_name, equipment_model_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, req.SchemeID, req.TypeID, req.X, req.Y, req.Rotation, req.Name, req.EquipmentModelID).Scan(&id)
+		(scheme_id, component_type_id, pos_x, pos_y, rotation, custom_name, equipment_model_id, project_passport_version_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, req.SchemeID, req.TypeID, req.X, req.Y, req.Rotation, req.Name, req.EquipmentModelID, req.ProjectPassportVersionID).Scan(&id)
 	if err != nil {
 		return 0, nil, 0, err
 	}

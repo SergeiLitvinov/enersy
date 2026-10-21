@@ -9,6 +9,20 @@ const link = { id: '20', from: '10', to: '11', fromPort: 'right', toPort: 'left'
 const graph = (topologyRevision = '0', components = [item('10'), item('11')], connections: typeof link[] = []) => ({ id: schemeId, projectId, name: 'Private', description: '', topologyRevision, components, connections });
 const reply = (data: unknown, revision?: string) => new Response(JSON.stringify(data), { headers: revision === undefined ? {} : { ETag: `"${revision}"` } });
 const options = () => ({ projectId, schemeId, name: 'Private', writable: true, signal: new AbortController().signal });
+
+test('project passport identity is captured before dispatch and retained after graph synchronization', async () => {
+  const passport = '9007199254740993';
+  const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('0', [])))
+    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, projectPassportVersionId: passport, params: { power_nom: '10.00' } }, '1'))
+    .mockResolvedValueOnce(reply({ ...graph('1', [item('10')]), components: [{ ...item('10'), projectPassportVersionId: passport, params: { power_nom: '10.00' } }] }));
+  vi.stubGlobal('fetch', fetcher);
+  const transport = createProjectEditorTransport(options()); await transport.getScheme(7);
+  const capture = vi.fn(() => { expect(fetcher).toHaveBeenCalledTimes(1); });
+  const created = await transport.addComponent(7, 1, 0, 0, 0, 'Источник', null, {}, capture, passport);
+  expect(capture).toHaveBeenCalledWith(expect.objectContaining({ projectPassportVersionId: passport, equipmentModelId: null }));
+  expect(created.projectPassportVersionId).toBe(passport);
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).projectPassportVersionId).toBe(passport);
+});
 test('structural mutations serialize, verify the complete graph and advance only confirmed topology', async () => {
   let release!: (response: Response) => void;
   const first = new Promise<Response>(resolve => { release = resolve; });
@@ -74,15 +88,16 @@ test('revoked scope signals unavailability; cancellation hides late responses wi
 });
 test('calculation uses the loaded topology and forwards source only after response validation', async () => {
   const onCalculation = vi.fn();
-  const source = { projectId, schemeId, topologyRevision: '9007199254740994', inputSha256: 'a'.repeat(64) };
+  const source = { projectId, schemeId, topologyRevision: '9007199254740994', inputSha256: 'a'.repeat(64), archiveId: '9007199254740995' };
   const result = { success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph(source.topologyRevision))).mockResolvedValueOnce(new Response(JSON.stringify(result), { headers: {
-    'X-Enersy-Project-Id': projectId, 'X-Enersy-Scheme-Id': schemeId, 'X-Enersy-Topology-Revision': source.topologyRevision, 'X-Enersy-Input-SHA256': source.inputSha256,
+    'X-Enersy-Project-Id': projectId, 'X-Enersy-Scheme-Id': schemeId, 'X-Enersy-Topology-Revision': source.topologyRevision, 'X-Enersy-Input-SHA256': source.inputSha256, 'X-Enersy-Archive-Id': source.archiveId,
   } }));
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport({ ...options(), onCalculation }); await transport.getScheme(7);
   expect(await transport.calculateScheme(7)).toEqual(result); expect(onCalculation).toHaveBeenCalledWith(source);
   expect(fetcher.mock.calls[1][1].headers['If-Match']).toBe('"9007199254740994"');
+  expect(fetcher.mock.calls[1][0]).toContain('/archive-calculation?');
 });
 test('deletion verifies incident edges and subsequent geometry uses only scoped object CAS', async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('3', undefined, [link])))

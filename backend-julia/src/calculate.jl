@@ -27,7 +27,17 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
     # 3. Топология → модели элементов → типы узлов.
     net = compile_network(components, connections; default_s_base_mva=default_s_base_mva)
     sys = assemble_system(net, sys_base)
-    return calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns)
+    response = calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns)
+    response["topology"] = Dict(
+        "schema_version" => 1,
+        "node_numbering" => "min-component-terminal",
+        "terminals" => [Dict("component_id" => t.component_id,
+            "component_type" => t.component_type, "terminal" => t.terminal,
+            "bus_id" => t.bus, "omitted_reason" => t.omitted_reason === nothing ? nothing : String(t.omitted_reason))
+            for t in net.terminal_buses],
+        "internal_nodes" => [Dict("bus_id" => source.bus,
+            "component_id" => source.component_id, "role" => "source_emf") for source in sys.sources])
+    return response
 end
 
 """Solve one connected, locally indexed system; orchestration owns global IDs."""
@@ -43,6 +53,9 @@ function calculate_connected(sys::AcSystem, sys_base::BaseSystem, options::Solve
     push!(sys.assumptions,
         "начальное приближение метода Ньютона–Рафсона: |V| = voltage_nom / V_base для PQ-узлов (1 p.u. при отсутствии номинала), " *
         "θ = θ_балансирующего")
+    push!(sys.assumptions,
+        "корень AC-уравнений зависит от начального состояния; численная сходимость не подтверждает единственность или устойчивость режима, " *
+        "а номинальное напряжение не является автоматически заданной режимной границей")
     initial_v = [b.v_nom_kv > 0 ? kv_to_pu(b.v_nom_kv, sys_base) : 1.0 for b in sys.buses]
     result, effective, fixed, events, passes = solve_with_q_limits(Y, setup, options, q_limits; initial_v)
     cls = BusClassification(cls.slack, cls.slack_component, cls.slack_v_pu, cls.slack_theta_rad,
@@ -96,10 +109,18 @@ function power_flow_setup(sys::AcSystem, cls::BusClassification, base::BaseSyste
     end
     p_pq_by_bus = Dict{Int,Float64}()
     q_pq_by_bus = Dict{Int,Float64}()
+    demands = VoltageDemand[]
     for inj in sys.injections
         inj.kind === :pq || continue
-        p_pq_by_bus[inj.bus] = get(p_pq_by_bus, inj.bus, 0.0) + mva_to_pu(inj.p_mw, base)
-        q_pq_by_bus[inj.bus] = get(q_pq_by_bus, inj.bus, 0.0) + mva_to_pu(inj.q_mvar, base)
+        profile = load_profile(inj.params, "load#$(inj.component_id)")
+        p, q = mva_to_pu(inj.p_mw, base), mva_to_pu(inj.q_mvar, base)
+        p_pq_by_bus[inj.bus] = get(p_pq_by_bus, inj.bus, 0.0) + p * profile.p[3]
+        q_pq_by_bus[inj.bus] = get(q_pq_by_bus, inj.bus, 0.0) + q * profile.q[3]
+        if profile.zip
+            ratio = base.v_base_kv / profile.voltage_kv
+            push!(demands, VoltageDemand(inj.bus, -p * profile.p[2] * ratio,
+                -p * profile.p[1] * ratio^2, -q * profile.q[2] * ratio, -q * profile.q[1] * ratio^2))
+        end
     end
     p_pq = Float64[]
     q_pq = Float64[]
@@ -108,7 +129,8 @@ function power_flow_setup(sys::AcSystem, cls::BusClassification, base::BaseSyste
         push!(q_pq, get(q_pq_by_bus, bus, 0.0))
     end
     return PowerFlowSetup(length(sys.buses), cls.slack, cls.slack_v_pu,
-                          cls.slack_theta_rad, cls.pv, cls.pq, pv_v, p_pv, p_pq, q_pq)
+                          cls.slack_theta_rad, cls.pv, cls.pq, pv_v, p_pv, p_pq, q_pq;
+                          voltage_demands=demands)
 end
 
 """Y-матрица в p.u.: ветви (включая ветви источников) и шунты."""
@@ -122,10 +144,11 @@ function build_admittance(sys::AcSystem)
     end
     for m in sys.branch_models
         i, j, t, ys = m.from_bus, m.to_bus, m.ratio, m.y_series
+        tap = complex_ratio(m)
         add(i, i, ys + m.y_from)
         add(j, j, ys / (t * t) + m.y_to)
-        add(i, j, -ys / t)
-        add(j, i, -ys / t)
+        add(i, j, -ys / tap)
+        add(j, i, -ys / conj(tap))
     end
     for s in sys.shunts
         add(s.bus, s.bus, s.y_pu)
@@ -186,6 +209,7 @@ function branch_dict(m::BranchModel, result::PowerFlowResult, base::BaseSystem)
         "from_bus" => m.from_bus,
         "to_bus" => m.to_bus,
         "ratio" => m.ratio,
+        "phase_shift_deg" => rad2deg(m.phase_shift_rad),
         "p_from_mw" => f.p_from_mw,
         "q_from_mvar" => f.q_from_mvar,
         "p_to_mw" => f.p_to_mw,
@@ -197,8 +221,9 @@ function branch_dict(m::BranchModel, result::PowerFlowResult, base::BaseSystem)
     )
 end
 
-function source_dict(s::Injection, terminal::Int, result::PowerFlowResult,
+function source_dict(s::Injection, branch::AbstractDict, result::PowerFlowResult,
                      base::BaseSystem, is_slack::Bool)
+    terminal = branch["to_bus"]
     return Dict{String,Any}(
         "component_id" => s.component_id,
         "code" => s.code,
@@ -207,6 +232,12 @@ function source_dict(s::Injection, terminal::Int, result::PowerFlowResult,
         "terminal_bus" => terminal,
         "p_mw" => pu_to_mva(result.p[s.bus], base),
         "q_mvar" => pu_to_mva(result.q[s.bus], base),
+        # Branch endpoint powers point into the impedance; external source
+        # injection points out into the network. Reuse the published flow.
+        "terminal_p_mw" => -branch["p_to_mw"],
+        "terminal_q_mvar" => -branch["q_to_mvar"],
+        "losses_p_mw" => branch["losses_p_mw"],
+        "losses_q_mvar" => branch["losses_q_mvar"],
         "terminal_voltage_kv" => pu_to_kv(result.v[terminal], base),
         "terminal_angle_deg" => rad2deg(result.theta[terminal]),
         "q_limits_applied" => false,
@@ -228,6 +259,18 @@ function shunt_dict(s::ShuntModel, result::PowerFlowResult, base::BaseSystem)
     )
 end
 
+"""Per-device load consumption at the solved voltage; positive means demand."""
+function load_dict(inj::Injection, result::PowerFlowResult, base::BaseSystem)
+    voltage = pu_to_kv(result.v[inj.bus], base)
+    p, q = load_injection(inj, voltage)
+    profile = load_profile(inj.params, "load#$(inj.component_id)")
+    return Dict{String,Any}("component_id" => inj.component_id, "bus" => inj.bus,
+        "profile" => profile.zip ? "zip" : "pq", "voltage_kv" => voltage,
+        "voltage_nom_kv" => profile.voltage_kv,
+        "p_mw" => -p, "q_mvar" => -q,
+        "p_nom_mw" => -inj.p_mw, "q_nom_mvar" => -inj.q_mvar)
+end
+
 """
     balance_report(sys, result, base, base_tolerance)
 
@@ -247,8 +290,9 @@ function balance_report(sys::AcSystem, result::PowerFlowResult, base::BaseSystem
     load_q = 0.0
     for inj in sys.injections
         inj.kind === :pq || continue
-        load_p += inj.p_mw
-        load_q += inj.q_mvar
+        p, q = load_injection(inj, pu_to_kv(result.v[inj.bus], base))
+        load_p += p
+        load_q += q
     end
     losses_p = 0.0
     losses_q = 0.0
@@ -286,11 +330,11 @@ function result_dict(sys::AcSystem, cls::BusClassification,
                      base::BaseSystem, model_group::AbstractString,
                      method::AbstractString, elapsed_ms::Float64)
     source_buses = Set{Int}(s.bus for s in sys.sources)
-    terminal_of_source = Dict{Int,Int}(m.from_bus => m.to_bus for m in sys.branch_models
-                                      if m.code == "generator")
+    branches = [branch_dict(m, result, base) for m in sys.branch_models]
+    branch_of_source = Dict(b["component_id"] => b for b in branches if b["code"] == "generator")
     nodes = [node_dict(b, cls, result, base, source_buses)
              for b in sort(sys.buses; by=x -> x.index)]
-    sources = [source_dict(s, get(terminal_of_source, s.bus, s.bus), result, base,
+    sources = [source_dict(s, branch_of_source[s.component_id], result, base,
                            s.bus == cls.slack) for s in sys.sources]
     return Dict{String,Any}(
         "success" => true,
@@ -310,6 +354,13 @@ function result_dict(sys::AcSystem, cls::BusClassification,
             "coordinates" => "polar",
             "matrix_storage" => "csc",
             "linear_solver" => "SuiteSparse/UMFPACK sparse LU",
+            "step_policy" => "armijo-infinity-positive-voltage-v1",
+            "root_selection" => "initial-state-dependent-no-stability-certification",
+            "armijo_coefficient" => NEWTON_ARMIJO,
+            "max_backtracks_per_step" => NEWTON_MAX_BACKTRACKS,
+            "line_search_trials" => result.line_search_trials,
+            "damped_steps" => result.damped_steps,
+            "min_step_length" => result.min_step_length,
             "equations" => number_of_equations(setup),
             "unknowns" => number_of_equations(setup),
             "tolerance_pu" => options.tolerance,
@@ -323,9 +374,10 @@ function result_dict(sys::AcSystem, cls::BusClassification,
             "pq_buses" => cls.pq,
             "islands" => length(unique(b.island for b in sys.buses)),
         ),
-        "branches" => [branch_dict(m, result, base) for m in sys.branch_models],
+        "branches" => branches,
         "sources" => sources,
         "shunts" => [shunt_dict(s, result, base) for s in sys.shunts],
+        "loads" => [load_dict(i, result, base) for i in sys.injections if i.kind === :pq],
         "balance" => balance_report(sys, result, base),
         "warnings" => sys.warnings,
         "assumptions" => sys.assumptions,

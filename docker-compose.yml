@@ -99,7 +99,17 @@ services:
     volumes:
       - ./numerics:/workspace:ro
     network_mode: none
-    command: ["sh", "-c", "cargo test --locked --offline --target-dir /tmp/target && cargo clippy --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]
+    command: ["sh", "-c", "cargo test --all-features --locked --offline --target-dir /tmp/target && cargo clippy --all-features --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]
+    restart: "no"
+
+  numerics-ffi-check:
+    profiles: [numerics-ffi-check]
+    build:
+      context: .
+      dockerfile: numerics/ffi.Dockerfile
+    network_mode: none
+    cpus: 2
+    mem_limit: 2g
     restart: "no"
 
 volumes:

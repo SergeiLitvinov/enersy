@@ -1,0 +1,1350 @@
+{
+  "schema_version": 1,
+  "image_id": "sha256:7e6c0fda0b259597617f94be697864420d7cf0c675debdbbc3b49aa8a1dd4d2c",
+  "rust_source_sha256": {
+    "numerics/Cargo.toml": "13555ee944cc1bf9106907ea6a30ce91caebd87443b5817b18e60560bcae1080",
+    "numerics/Cargo.lock": "96bf709c298e55bbde6bfe728645bee865c93d13dc7220255551a3ca69a1814b",
+    "numerics/ffi.Dockerfile": "2e6ef19d2720b286a198ce85f12e2a472668cdeacb3e68eed6b424042a186841",
+    "tests/integration/Profile-RustFfi.ps1": "ed467e279056f2750694d8d55331d47dba57f469ad3857cfd9f98b50cf87596d",
+    "numerics/src/csr.rs": "311037d386338ff03f1a8f6c6d465351017495f50d5fc34ff1ce60f39e5d0f3a",
+    "numerics/src/ffi.rs": "93bfc33c8fc940fbef7a52112da350ddf3ba128cb993e1e4d26d3766d915af58",
+    "numerics/src/jacobian.rs": "25a776dc6da7b23490e8204d708fc3bca0845293972af9ceaeeb6b77341eb463",
+    "numerics/src/lib.rs": "5ecd3197202379f2c995a319ec07ce2cd2836ef396db75cf6ccfddd6089ce9b7",
+    "numerics/src/pcg.rs": "5516028ca0a7681fd5a5ad5d9a6b61cc2a7e1be1a1ee553f7898cee06413cdd0",
+    "numerics/include/enersy_numerics.h": "c2b7fed87b80b970332754561f965faec3a634c1ab6b882144565d3626b550a7"
+  },
+  "records": [
+    {
+      "family": "radial",
+      "container_peak_bytes": 231907328,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00069015,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000496247,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000575269,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000513761,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00045674,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000351858,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000325036,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000437694,
+          "allocated_bytes": 1049104
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000313364,
+          "allocated_bytes": 1049104
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 142,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 1000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 46300,
+          "seconds": 0.000210936,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 55036,
+          "seconds": 0.000164948,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 51639,
+          "seconds": 0.000147343,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 51459,
+          "seconds": 0.000165298,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 53744,
+          "seconds": 0.000148166,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 63032,
+          "seconds": 0.000163064,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 47582,
+          "seconds": 0.000147704,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 49285,
+          "seconds": 0.000133166,
+          "allocated_bytes": 300072
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 48534,
+          "seconds": 0.000184455,
+          "allocated_bytes": 300072
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.000361697,
+      "first_ffi_seconds": 0.000113208,
+      "julia_threads": 1,
+      "library_first_seconds": 0.260935933,
+      "zip_demands": 85,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 4.8331718106619134E-11
+    },
+    {
+      "family": "radial",
+      "container_peak_bytes": 266719232,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00372637,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003534862,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003013859,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003204786,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.002830414,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003792599,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003561796,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00358057,
+          "allocated_bytes": 9344752
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.002815316,
+          "allocated_bytes": 9344752
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 1428,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 10000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 389060,
+          "seconds": 0.000836121,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 501627,
+          "seconds": 0.001008774,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 429157,
+          "seconds": 0.000937306,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 386275,
+          "seconds": 0.000761367,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 356156,
+          "seconds": 0.000729125,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 395733,
+          "seconds": 0.000760926,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 363601,
+          "seconds": 0.000741499,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 379140,
+          "seconds": 0.000771787,
+          "allocated_bytes": 2949304
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 362709,
+          "seconds": 0.000815491,
+          "allocated_bytes": 2949304
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.004135199,
+      "first_ffi_seconds": 0.001591968,
+      "julia_threads": 1,
+      "library_first_seconds": 0.182373196,
+      "zip_demands": 857,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 4.8879077783435386E-11
+    },
+    {
+      "family": "radial",
+      "container_peak_bytes": 655601664,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.000428093,
+          "seconds": 0.120734557,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.00030709,
+          "seconds": 0.099346155,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000428113,
+          "seconds": 0.093530178,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000532122,
+          "seconds": 0.093977099,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000347288,
+          "seconds": 0.079169806,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.00028612,
+          "seconds": 0.075797758,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000423685,
+          "seconds": 0.078614325,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000828018,
+          "seconds": 0.125916382,
+          "allocated_bytes": 97876400
+        },
+        {
+          "gc_seconds": 0.000320046,
+          "seconds": 0.105109388,
+          "allocated_bytes": 97876400
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 14285,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 100000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4028326,
+          "seconds": 0.007667474,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4690951,
+          "seconds": 0.008338825,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4022757,
+          "seconds": 0.00763312,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4502168,
+          "seconds": 0.00814318,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 3992718,
+          "seconds": 0.007403648,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4626778,
+          "seconds": 0.008410274,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5077154,
+          "seconds": 0.009000669,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5060592,
+          "seconds": 0.008796647,
+          "allocated_bytes": 29184696
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4239032,
+          "seconds": 0.007927235,
+          "allocated_bytes": 29184696
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.097421835,
+      "first_ffi_seconds": 0.045658439,
+      "julia_threads": 1,
+      "library_first_seconds": 0.233878795,
+      "zip_demands": 8571,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 4.9178913189322764E-11
+    },
+    {
+      "family": "ring",
+      "container_peak_bytes": 231804928,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000549369,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00037874,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000403288,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000344174,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000339184,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000351238,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000315648,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000315729,
+          "allocated_bytes": 1049552
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000303716,
+          "allocated_bytes": 1049552
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 142,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 1000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 45228,
+          "seconds": 0.000204935,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 65346,
+          "seconds": 0.000169337,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 48553,
+          "seconds": 0.000136533,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 61899,
+          "seconds": 0.000162754,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 55036,
+          "seconds": 0.000143306,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 49836,
+          "seconds": 0.000131644,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 48042,
+          "seconds": 0.000137816,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 52031,
+          "seconds": 0.000137715,
+          "allocated_bytes": 300200
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 48995,
+          "seconds": 0.000138016,
+          "allocated_bytes": 300200
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.000342691,
+      "first_ffi_seconds": 9.7177E-05,
+      "julia_threads": 1,
+      "library_first_seconds": 0.179448265,
+      "zip_demands": 85,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 3.5856073490058424E-11
+    },
+    {
+      "family": "ring",
+      "container_peak_bytes": 308027392,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.006325378,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003822362,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003152821,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003229608,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.004152188,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00268058,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003405467,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00308068,
+          "allocated_bytes": 9345200
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.003458238,
+          "allocated_bytes": 9345200
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 1428,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 10000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 399020,
+          "seconds": 0.000857254,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 366847,
+          "seconds": 0.000793531,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 364183,
+          "seconds": 0.000765777,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 378199,
+          "seconds": 0.000815764,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 372469,
+          "seconds": 0.000821144,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 376046,
+          "seconds": 0.00077229,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 366406,
+          "seconds": 0.000763823,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 378450,
+          "seconds": 0.000824471,
+          "allocated_bytes": 2949432
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 362500,
+          "seconds": 0.000768012,
+          "allocated_bytes": 2949432
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.005841187,
+      "first_ffi_seconds": 0.001557634,
+      "julia_threads": 1,
+      "library_first_seconds": 0.200161735,
+      "zip_demands": 857,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 3.62304067921571E-11
+    },
+    {
+      "family": "ring",
+      "container_peak_bytes": 557445120,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.000217529,
+          "seconds": 0.097541659,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000226126,
+          "seconds": 0.07971874,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000318755,
+          "seconds": 0.07457638,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000683759,
+          "seconds": 0.096337087,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000235144,
+          "seconds": 0.075195224,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.00032691,
+          "seconds": 0.088479367,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000235595,
+          "seconds": 0.072090867,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.00023352,
+          "seconds": 0.070960884,
+          "allocated_bytes": 97876848
+        },
+        {
+          "gc_seconds": 0.000211518,
+          "seconds": 0.060481009,
+          "allocated_bytes": 97876848
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 14285,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 100000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4254076,
+          "seconds": 0.007872105,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5753906,
+          "seconds": 0.009826142,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4801552,
+          "seconds": 0.008878577,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4115215,
+          "seconds": 0.00776699,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4283773,
+          "seconds": 0.008164499,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5893829,
+          "seconds": 0.01060151,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5379326,
+          "seconds": 0.009157966,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 5205872,
+          "seconds": 0.00998917,
+          "allocated_bytes": 29184824
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 4306447,
+          "seconds": 0.008000804,
+          "allocated_bytes": 29184824
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.081110205,
+      "first_ffi_seconds": 0.027682662,
+      "julia_threads": 1,
+      "library_first_seconds": 0.216777069,
+      "zip_demands": 8571,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 3.629267349231269E-11
+    },
+    {
+      "family": "mesh",
+      "container_peak_bytes": 275685376,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.001287751,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000531595,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000748352,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000469895,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000753121,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00078917,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000509652,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000591249,
+          "allocated_bytes": 1451856
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.000689729,
+          "allocated_bytes": 1451856
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 142,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 1000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 69845,
+          "seconds": 0.000254801,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 83331,
+          "seconds": 0.000193563,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 74494,
+          "seconds": 0.000170829,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 81998,
+          "seconds": 0.000191088,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 77158,
+          "seconds": 0.000175237,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 80815,
+          "seconds": 0.000196559,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 114731,
+          "seconds": 0.000214975,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 78762,
+          "seconds": 0.000177783,
+          "allocated_bytes": 441384
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 71387,
+          "seconds": 0.000174366,
+          "allocated_bytes": 441384
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.000618632,
+      "first_ffi_seconds": 0.000154187,
+      "julia_threads": 1,
+      "library_first_seconds": 0.24185034,
+      "zip_demands": 85,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 6.057127677180813E-11
+    },
+    {
+      "family": "mesh",
+      "container_peak_bytes": 321175552,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.009797371,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.009287798,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.005198659,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.005323138,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.00725979,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.005093675,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.004917296,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.004614192,
+          "allocated_bytes": 13556272
+        },
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.004975677,
+          "allocated_bytes": 13556272
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 1428,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 10000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 601008,
+          "seconds": 0.001057558,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 963697,
+          "seconds": 0.001654488,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 667206,
+          "seconds": 0.001233317,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 1008303,
+          "seconds": 0.001760633,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 986441,
+          "seconds": 0.001754281,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 935653,
+          "seconds": 0.001698523,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 748402,
+          "seconds": 0.001432742,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 671594,
+          "seconds": 0.001246933,
+          "allocated_bytes": 4427832
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 927277,
+          "seconds": 0.001511993,
+          "allocated_bytes": 4427832
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.006306364,
+      "first_ffi_seconds": 0.004216154,
+      "julia_threads": 1,
+      "library_first_seconds": 0.203290191,
+      "zip_demands": 857,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 6.058745430622874E-11
+    },
+    {
+      "family": "mesh",
+      "container_peak_bytes": 778711040,
+      "julia_samples": [
+        {
+          "gc_seconds": 0.0,
+          "seconds": 0.097707313,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000307513,
+          "seconds": 0.091141637,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000285841,
+          "seconds": 0.07006946,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000278527,
+          "seconds": 0.07308364,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000293095,
+          "seconds": 0.091953049,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000355245,
+          "seconds": 0.108730589,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000387016,
+          "seconds": 0.078242465,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000283096,
+          "seconds": 0.077828245,
+          "allocated_bytes": 140576176
+        },
+        {
+          "gc_seconds": 0.000299016,
+          "seconds": 0.06767837,
+          "allocated_bytes": 140576176
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+        "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+        "benchmark/rust_ffi.jl": "ea72aa4a470fea7d780a38fbbb888f6b6f5790f31e5cb640330b9c039e4ef3bc",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+        "experimental/RustJacobian.jl": "2959223238c2b4eaedc4f7fd0feb9b5167a557f619fd8b3e2cb94837f943f9b9",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "pv_buses": 14285,
+      "abi_version": 1,
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 100000,
+      "ffi_samples": [
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7062682,
+          "seconds": 0.011386548,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7048266,
+          "seconds": 0.011657391,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7108391,
+          "seconds": 0.011556535,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 6847097,
+          "seconds": 0.01135729,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 6892015,
+          "seconds": 0.011433739,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7196722,
+          "seconds": 0.011587836,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7429289,
+          "seconds": 0.011785496,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7481590,
+          "seconds": 0.013093508,
+          "allocated_bytes": 44175032
+        },
+        {
+          "gc_seconds": 0.0,
+          "foreign_call_ns": 7091378,
+          "seconds": 0.011641294,
+          "allocated_bytes": 44175032
+        }
+      ],
+      "blas_threads": 1,
+      "scope": "Warm Jacobian only; FFI wrapper includes validation, complex/ZIP conversion and owned CSC copies; no Newton solve",
+      "max_abs_error": 0.0,
+      "plan_first_seconds": 0.09936109,
+      "first_ffi_seconds": 0.034929817,
+      "julia_threads": 1,
+      "library_first_seconds": 0.194269648,
+      "zip_demands": 8571,
+      "seed": "20261021",
+      "schema_version": 1,
+      "tolerance": 6.161455144292851E-11
+    }
+  ]
+}

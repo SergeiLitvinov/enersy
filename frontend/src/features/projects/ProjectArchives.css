@@ -1,0 +1,9 @@
+.project-archives { padding: 24px 0; }
+.archive-cards { display: grid; gap: 12px; list-style: none; padding: 0; margin: 24px 0; }
+.archive-cards li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 22px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-panel); }
+.archive-cards h3 { margin: 8px 0; }
+.archive-cards p { color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; margin: 6px 0; }
+.archive-origin { padding: 16px; margin-bottom: 18px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-panel); font-size: 12px; line-height: 1.6; }
+.archive-origin p { margin: 8px 0; }
+.archive-origin dd { overflow-wrap: anywhere; font-family: monospace; margin: 4px 0 12px; }
+.archive-inputs td { overflow-wrap: anywhere; max-width: 360px; }

@@ -17,3 +17,8 @@ test('source containing fences cannot break generated Markdown', () => {
 test('comments and imports are not advertised as declarations', () => {
   assert.deepEqual(declarations('// export function fake\nimport X from "x"', 'typescript'), []);
 });
+
+test('native ABI index includes unsafe extern Rust and C header declarations', () => {
+  assert.deepEqual(declarations('pub extern "C" fn version() -> u32 { 1 }\n// fn fake\npub unsafe extern "C" fn update() {}', 'rust').map(d => d.line), [1, 3]);
+  assert.deepEqual(declarations('typedef struct { uint64_t len; } slice;\n/* ignored */\nint32_t enersy_update(slice input);', 'c').map(d => d.line), [1, 3]);
+});

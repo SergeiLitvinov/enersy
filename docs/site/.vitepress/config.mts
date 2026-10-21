@@ -16,6 +16,7 @@ export default defineConfig({
     ],
     sidebar: [
       { text: 'Работа с программой', items: [
+        { text: 'Возможности и границы', link: '/guide/capabilities' },
         { text: 'Запуск', link: '/guide/quickstart' },
         { text: 'Схемы и каталог', link: '/guide/editor' },
         { text: 'Расчёт и ошибки', link: '/guide/calculation' }
@@ -24,16 +25,21 @@ export default defineConfig({
         { text: 'Архитектура', link: '/development/architecture' },
         { text: 'Реестр дефектов', link: '/development/defects' },
         { text: 'Численная проверка', link: '/development/numerical-validation' },
+        { text: 'Приёмка A01–A08', link: '/development/calculation-acceptance' },
         { text: 'Разреженные расчёты', link: '/development/sparse-compute' },
         { text: 'Профиль хранения', link: '/development/storage-profile' },
+        { text: 'Производительность редактора', link: '/development/editor-performance' },
         { text: 'Пользователи и сессии', link: '/development/sessions' },
+        { text: 'Проектный каталог', link: '/development/project-catalog' },
         { text: 'Обновление базы', link: '/development/database' },
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
+        { text: 'Граница Julia↔Rust', link: '/development/native-jacobian' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },
         { text: 'Документация и CI', link: '/development/documentation' },
         { text: 'Правила кодирования', link: '/generated/rules' },
         { text: 'Анализ проекта', link: '/generated/review' },
         { text: 'Проверка реализации', link: '/generated/implementation' },
+        { text: 'История проверок', link: '/development/verification-history' },
         { text: 'План работ', link: '/generated/todo' }
       ] },
       { text: 'Справочник', items: [

@@ -51,6 +51,10 @@ function jacobian(Y::SparseMatrixCSC{ComplexF64}, v::Vector{Float64}, theta::Vec
         row_v[i] == 0 || stamp(row_v[i], col_v[i], 2 * v[i])
     end
     neq = number_of_equations(setup)
+    for d in setup.voltage_demands
+        stamp(row_p[d.bus], col_v[d.bus], d.p_i + 2 * d.p_z * v[d.bus])
+        stamp(row_q[d.bus], col_v[d.bus], d.q_i + 2 * d.q_z * v[d.bus])
+    end
     J = sparse(rows, cols, vals, neq, neq)
     dropzeros!(J)
     return J, col_theta, col_v

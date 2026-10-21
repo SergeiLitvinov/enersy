@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "node": "v20.20.2",
+  "platform": "linux",
+  "arch": "x64",
+  "dataset": "100-column line grid at 200/150 spacing; rotations 0/90/180/270; move middle component with two incident wires by i%40/i%20",
+  "scope": "CPU preview geometry only, 100 warmup and 1000 measured frames. One full geometry/index rebuild sample per scene. Excludes React, SVG, FPS, request latency and committed-index incremental updates.",
+  "cases": [
+    {
+      "components": 1000,
+      "connections": 999,
+      "frames": 1000,
+      "adjacencySetupMs": 1.1801130000000057,
+      "previewGeometryMs": {
+        "p50": 0.019497999999998683,
+        "p95": 0.09322000000003072,
+        "max": 0.3820789999999761
+      },
+      "fullGeometryRebuildMs": 80.75706199999996,
+      "incidentWires": 2,
+      "committedGraphUnchanged": true
+    },
+    {
+      "components": 10000,
+      "connections": 9999,
+      "frames": 1000,
+      "adjacencySetupMs": 11.809505000000001,
+      "previewGeometryMs": {
+        "p50": 0.01805500000000393,
+        "p95": 0.05662000000000944,
+        "max": 25.935010999999975
+      },
+      "fullGeometryRebuildMs": 303.6770120000001,
+      "incidentWires": 2,
+      "committedGraphUnchanged": true
+    },
+    {
+      "components": 20000,
+      "connections": 19999,
+      "frames": 1000,
+      "adjacencySetupMs": 31.543626000000017,
+      "previewGeometryMs": {
+        "p50": 0.009939000000031228,
+        "p95": 0.01751400000000558,
+        "max": 1.0095529999999826
+      },
+      "fullGeometryRebuildMs": 565.375903,
+      "incidentWires": 2,
+      "committedGraphUnchanged": true
+    }
+  ],
+  "hardware": {
+    "cpu_model": "AMD Ryzen 7 7700 8-Core Processor"
+  },
+  "esbuild": "0.25.12",
+  "source_sha256": {
+    "src/domain/spatial-index.ts": "2e696ccef5172fa2a48b8ece43897928d6e42232770bedb775047fb8f95c5204",
+    "src/domain/diagram-routing.ts": "5f0b8f821e05d826b191236b7507b0ce36a2cf8b3332d2410e34a1207dd2ba7c",
+    "src/components/ees/editor-picking.ts": "67a1dcd70faf9ad4fc74fd0bbb519ca692b28821dc6659ac98b32d98b12ba0f4",
+    "src/components/ees/editor-geometry.ts": "975f0885074aa1c6a5c2af1b9c89d3c4f0c6c8840d68a6fad9d1eb48a44914e4",
+    "src/components/ees/editor-utils.ts": "13dfad2ebf6764b7fb7d997b610b3d1ec9ea75c51f9d774c0579c361e732acf3",
+    "benchmark/drag-preview.ts": "9d40c7530025e3c837aacd768716342b8597054efa2fb64e7fe68302aff46981",
+    "benchmark/picking.mjs": "604961b8584903fc0ed2d5c2844d3df76ba95327c1db7137830c67147cea7a42",
+    "package-lock.json": "7c1e6d9e7378545664229bc2cfba36dc7aef4ebc5920ad8f687a5ec0c061982c"
+  },
+  "container_limits": {
+    "cpu_max": "200000 100000\n",
+    "memory_max": "2147483648\n"
+  }
+}

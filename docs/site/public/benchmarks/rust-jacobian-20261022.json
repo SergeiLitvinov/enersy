@@ -1,0 +1,1290 @@
+{
+  "records": [
+    {
+      "julia": {
+        "family": "radial",
+        "container_peak_bytes": 222126080,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.054586576,
+        "pv_buses": 142,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 1000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 1998,
+        "input_sha256": "e017771c79203b3ad81df42ac6b468fc158f3a22cb2089540132d73b7ba273de",
+        "serialization_seconds": 0.002082468,
+        "julia_threads": 1,
+        "nnz": 11262,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000525985,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000361725,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000502569,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.00035419,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000337086,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000377275,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000565732,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000384108,
+            "allocated_bytes": 1049104
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000318231,
+            "allocated_bytes": 1049104
+          }
+        ],
+        "zip_demands": 85,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 1998,
+        "pattern_nnz": 11262,
+        "input_bytes": 123408,
+        "load_ns": 2515210,
+        "save_ns": 5409337,
+        "first_plan_ns": 557261,
+        "first_update_ns": 114272,
+        "plan_ns": [
+          472747,
+          160000,
+          162987,
+          230928,
+          388189,
+          282178,
+          481705,
+          274593,
+          343688
+        ],
+        "update_ns": [
+          41280,
+          31000,
+          39837,
+          40940,
+          54957,
+          44105,
+          44346,
+          55628,
+          45739
+        ],
+        "fresh_ns": [
+          360028,
+          242641,
+          283039,
+          367648,
+          911078,
+          1005892,
+          469881,
+          508997,
+          440845
+        ],
+        "container_peak_bytes": 6025216
+      },
+      "case": "radial-1000",
+      "max_abs_error": 0.0,
+      "tolerance": 4.8331718106619134E-11
+    },
+    {
+      "julia": {
+        "family": "radial",
+        "container_peak_bytes": 249896960,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.092223788,
+        "pv_buses": 1428,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 10000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 19998,
+        "input_sha256": "33ae2e3c634b7a8c29dcd3f16772876a61244bdf8066255c2639adb9c0e46818",
+        "serialization_seconds": 0.008169891,
+        "julia_threads": 1,
+        "nnz": 112832,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004402562,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.00488595,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003126636,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003229266,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003367486,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.00300435,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003247491,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.002763462,
+            "allocated_bytes": 9344752
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.002857744,
+            "allocated_bytes": 9344752
+          }
+        ],
+        "zip_demands": 857,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 19998,
+        "pattern_nnz": 112832,
+        "input_bytes": 1234288,
+        "load_ns": 8382180,
+        "save_ns": 32504002,
+        "first_plan_ns": 4906586,
+        "first_update_ns": 335391,
+        "plan_ns": [
+          4155794,
+          2390087,
+          2415697,
+          2485222,
+          2455545,
+          3255997,
+          3327361,
+          2565559,
+          2797317
+        ],
+        "update_ns": [
+          403974,
+          392963,
+          397070,
+          397471,
+          381441,
+          401700,
+          667340,
+          409354,
+          528385
+        ],
+        "fresh_ns": [
+          3951619,
+          2248001,
+          2290555,
+          2423864,
+          2304071,
+          2585917,
+          2454011,
+          2266408,
+          3055028
+        ],
+        "container_peak_bytes": 14184448
+      },
+      "case": "radial-10000",
+      "max_abs_error": 0.0,
+      "tolerance": 4.8879077783435386E-11
+    },
+    {
+      "julia": {
+        "family": "radial",
+        "container_peak_bytes": 448671744,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.239460412,
+        "pv_buses": 14285,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 100000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 199998,
+        "input_sha256": "bf185d07833f9a456e3f71a1f2e8e3a9568f952edd02cc4878da40d31075086c",
+        "serialization_seconds": 0.062978727,
+        "julia_threads": 1,
+        "nnz": 1128549,
+        "samples": [
+          {
+            "gc_seconds": 0.000231529,
+            "seconds": 0.100772443,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000214136,
+            "seconds": 0.11340573,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000198505,
+            "seconds": 0.078308181,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000207763,
+            "seconds": 0.086407457,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000214206,
+            "seconds": 0.075068042,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000281867,
+            "seconds": 0.102794231,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000223483,
+            "seconds": 0.089764099,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000240937,
+            "seconds": 0.08955877,
+            "allocated_bytes": 97876400
+          },
+          {
+            "gc_seconds": 0.000212242,
+            "seconds": 0.099769833,
+            "allocated_bytes": 97876400
+          }
+        ],
+        "zip_demands": 8571,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 199998,
+        "pattern_nnz": 1128549,
+        "input_bytes": 12342848,
+        "load_ns": 70078550,
+        "save_ns": 349540519,
+        "first_plan_ns": 56195078,
+        "first_update_ns": 12007909,
+        "plan_ns": [
+          60672642,
+          41712439,
+          35580097,
+          24009831,
+          23274189,
+          25097096,
+          22785932,
+          18379519,
+          23955201
+        ],
+        "update_ns": [
+          6378506,
+          7809718,
+          5996554,
+          4641546,
+          6019048,
+          5935917,
+          4347725,
+          4568734,
+          6440056
+        ],
+        "fresh_ns": [
+          56799368,
+          46953254,
+          30186571,
+          27689181,
+          30546208,
+          29711599,
+          26367699,
+          24893684,
+          28858614
+        ],
+        "container_peak_bytes": 123342848
+      },
+      "case": "radial-100000",
+      "max_abs_error": 0.0,
+      "tolerance": 4.9178913189322764E-11
+    },
+    {
+      "julia": {
+        "family": "ring",
+        "container_peak_bytes": 222318592,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.085997293,
+        "pv_buses": 142,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 1000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 1998,
+        "input_sha256": "ccfb481445bf6c06af0ce6045b3f3a7562180a07f7ece02d1c7224f629e0a5f0",
+        "serialization_seconds": 0.002490965,
+        "julia_threads": 1,
+        "nnz": 11270,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000572291,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000337204,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000563605,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000452759,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000389586,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000321745,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000324099,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000299912,
+            "allocated_bytes": 1049552
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000536381,
+            "allocated_bytes": 1049552
+          }
+        ],
+        "zip_demands": 85,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 1998,
+        "pattern_nnz": 11270,
+        "input_bytes": 123456,
+        "load_ns": 2176971,
+        "save_ns": 5708086,
+        "first_plan_ns": 497516,
+        "first_update_ns": 53123,
+        "plan_ns": [
+          472518,
+          206541,
+          191171,
+          262178,
+          190089,
+          189688,
+          192815,
+          636155,
+          281026
+        ],
+        "update_ns": [
+          29176,
+          26552,
+          30319,
+          40008,
+          26992,
+          28455,
+          26381,
+          46641,
+          39005
+        ],
+        "fresh_ns": [
+          304180,
+          328788,
+          285464,
+          281797,
+          302678,
+          259373,
+          261287,
+          406730,
+          411940
+        ],
+        "container_peak_bytes": 5713920
+      },
+      "case": "ring-1000",
+      "max_abs_error": 0.0,
+      "tolerance": 3.5856073490058424E-11
+    },
+    {
+      "julia": {
+        "family": "ring",
+        "container_peak_bytes": 250601472,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.092462448,
+        "pv_buses": 1428,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 10000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 19998,
+        "input_sha256": "947c957664376e76ae9cdd981d67b9a20d5309a1faadd6f2a34154e7d992f6df",
+        "serialization_seconds": 0.010680307,
+        "julia_threads": 1,
+        "nnz": 112840,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004962495,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.00577889,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004401529,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004622656,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003732066,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.005565036,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004480479,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.005178074,
+            "allocated_bytes": 9345200
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.003750102,
+            "allocated_bytes": 9345200
+          }
+        ],
+        "zip_demands": 857,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 19998,
+        "pattern_nnz": 112840,
+        "input_bytes": 1234336,
+        "load_ns": 6801937,
+        "save_ns": 30834849,
+        "first_plan_ns": 4968167,
+        "first_update_ns": 738925,
+        "plan_ns": [
+          3802764,
+          1704129,
+          1930108,
+          1666075,
+          1663930,
+          1658471,
+          1637630,
+          1776469,
+          1959311
+        ],
+        "update_ns": [
+          491575,
+          364317,
+          481515,
+          352945,
+          359037,
+          360651,
+          414675,
+          397020,
+          513039
+        ],
+        "fresh_ns": [
+          4687211,
+          1964935,
+          2749479,
+          2045953,
+          2105693,
+          2089176,
+          2470723,
+          2405941,
+          2109236
+        ],
+        "container_peak_bytes": 15106048
+      },
+      "case": "ring-10000",
+      "max_abs_error": 0.0,
+      "tolerance": 3.62304067921571E-11
+    },
+    {
+      "julia": {
+        "family": "ring",
+        "container_peak_bytes": 476712960,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.152600146,
+        "pv_buses": 14285,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 100000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 199998,
+        "input_sha256": "7de25930d6eb66da938661d1b7bba80929e0f62fb42fbbf774028b59d0dde3c8",
+        "serialization_seconds": 0.054081989,
+        "julia_threads": 1,
+        "nnz": 1128555,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.060579794,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000219667,
+            "seconds": 0.055560604,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000211641,
+            "seconds": 0.058352343,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000213524,
+            "seconds": 0.053244401,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000209747,
+            "seconds": 0.059479911,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.00020616,
+            "seconds": 0.110058875,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000218755,
+            "seconds": 0.064525292,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000215599,
+            "seconds": 0.058328667,
+            "allocated_bytes": 97876848
+          },
+          {
+            "gc_seconds": 0.000213033,
+            "seconds": 0.057365969,
+            "allocated_bytes": 97876848
+          }
+        ],
+        "zip_demands": 8571,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 199998,
+        "pattern_nnz": 1128555,
+        "input_bytes": 12342896,
+        "load_ns": 61676724,
+        "save_ns": 322949833,
+        "first_plan_ns": 57003061,
+        "first_update_ns": 4735219,
+        "plan_ns": [
+          53209833,
+          29587624,
+          25683106,
+          22662512,
+          22957379,
+          20949523,
+          22773592,
+          23295936,
+          22334810
+        ],
+        "update_ns": [
+          4273413,
+          6349061,
+          6319660,
+          4382494,
+          4232633,
+          4046713,
+          4430586,
+          4280906,
+          4359600
+        ],
+        "fresh_ns": [
+          51516478,
+          32025053,
+          30136069,
+          28952342,
+          30159223,
+          27016866,
+          32683222,
+          26149082,
+          27581351
+        ],
+        "container_peak_bytes": 131878912
+      },
+      "case": "ring-100000",
+      "max_abs_error": 0.0,
+      "tolerance": 3.629267349231269E-11
+    },
+    {
+      "julia": {
+        "family": "mesh",
+        "container_peak_bytes": 224075776,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.059264866,
+        "pv_buses": 142,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 1000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 1998,
+        "input_sha256": "b3a875e46fda85aaee7bdd73f1da30c6fa96b3deb8dcf1e65ec1e81436f1d6f5",
+        "serialization_seconds": 0.002748097,
+        "julia_threads": 1,
+        "nnz": 18224,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000615925,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000508968,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000471906,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000454462,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000460173,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000471835,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000485702,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000455624,
+            "allocated_bytes": 1451856
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.000450614,
+            "allocated_bytes": 1451856
+          }
+        ],
+        "zip_demands": 85,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 1998,
+        "pattern_nnz": 18224,
+        "input_bytes": 168384,
+        "load_ns": 2725499,
+        "save_ns": 12353441,
+        "first_plan_ns": 1094153,
+        "first_update_ns": 195339,
+        "plan_ns": [
+          718354,
+          400026,
+          450003,
+          549586,
+          313007,
+          453500,
+          403945,
+          448059,
+          450844
+        ],
+        "update_ns": [
+          70827,
+          49115,
+          70858,
+          67672,
+          45709,
+          73032,
+          70958,
+          76659,
+          74264
+        ],
+        "fresh_ns": [
+          777609,
+          482025,
+          620815,
+          469961,
+          496043,
+          680631,
+          611036,
+          688426,
+          608450
+        ],
+        "container_peak_bytes": 5459968
+      },
+      "case": "mesh-1000",
+      "max_abs_error": 0.0,
+      "tolerance": 6.057127677180813E-11
+    },
+    {
+      "julia": {
+        "family": "mesh",
+        "container_peak_bytes": 255008768,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.071094784,
+        "pv_buses": 1428,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 10000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 19998,
+        "input_sha256": "b62c057b8b89daf2d80d91f2c209d69318c4a468223fbe05bc4ee24a977bc2d0",
+        "serialization_seconds": 0.518947976,
+        "julia_threads": 1,
+        "nnz": 185640,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.005478901,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.007675994,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.005561171,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.004819612,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.007610659,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.008484885,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.007488552,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.007542896,
+            "allocated_bytes": 13556272
+          },
+          {
+            "gc_seconds": 0,
+            "seconds": 0.0075763,
+            "allocated_bytes": 13556272
+          }
+        ],
+        "zip_demands": 857,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 19998,
+        "pattern_nnz": 185640,
+        "input_bytes": 1704736,
+        "load_ns": 10554300,
+        "save_ns": 52831805,
+        "first_plan_ns": 12485565,
+        "first_update_ns": 2019889,
+        "plan_ns": [
+          6909928,
+          2695861,
+          2616597,
+          3218836,
+          4370791,
+          3600666,
+          2563033,
+          3089514,
+          4630624
+        ],
+        "update_ns": [
+          635283,
+          673056,
+          922890,
+          1045639,
+          923942,
+          684939,
+          702663,
+          736259,
+          1094484
+        ],
+        "fresh_ns": [
+          7194281,
+          3271257,
+          4562531,
+          5225098,
+          5424958,
+          3241459,
+          3894277,
+          3441497,
+          4945006
+        ],
+        "container_peak_bytes": 22196224
+      },
+      "case": "mesh-10000",
+      "max_abs_error": 0.0,
+      "tolerance": 6.058745430622874E-11
+    },
+    {
+      "julia": {
+        "family": "mesh",
+        "container_peak_bytes": 599478272,
+        "source_sha256": {
+          "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+          "benchmark/rust_jacobian.jl": "7f19638c834faf01ccc8933283ef9d5b6ba422849a44f6dd0436721875b4fb1b",
+          "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+          "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+          "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+          "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+          "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+          "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+          "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+          "src/solver/newton_raphson.jl": "5459b55990a92a44027588403ebf982da9ad0351cdd60d07ed83ccc5bd10f78b",
+          "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+          "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+          "src/model_definitions.jl": "46feb4ba9b77bf8c618d02d3963f9a228d1c9170495ece48d3471330214381f4",
+          "src/solver/q_limits.jl": "e8dad6f980810f06f0ee514d8269fc9b477505220e4798aceb6b2ff34a2bcc33",
+          "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+          "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+          "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+          "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+          "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+          "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46",
+          "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124"
+        },
+        "first_call_seconds": 0.235557484,
+        "pv_buses": 14285,
+        "julia_version": "1.10.12",
+        "cpu": "znver3",
+        "buses": 100000,
+        "blas_threads": 1,
+        "scope": "Jacobian at a manufactured nonflat state with mixed PV/PQ and ZIP derivatives; no power-flow solve",
+        "dimension": 199998,
+        "input_sha256": "9aa0e44269bfe934cd3dca8231b90e5dd28696ba5f3d1d72ca8efdff1593a784",
+        "serialization_seconds": 0.073544872,
+        "julia_threads": 1,
+        "nnz": 1866711,
+        "samples": [
+          {
+            "gc_seconds": 0,
+            "seconds": 0.118316309,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000290162,
+            "seconds": 0.10424042,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000276385,
+            "seconds": 0.105883947,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000258782,
+            "seconds": 0.104995233,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000225628,
+            "seconds": 0.104184952,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000202432,
+            "seconds": 0.092188482,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000216119,
+            "seconds": 0.092101174,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000219625,
+            "seconds": 0.097516988,
+            "allocated_bytes": 140576176
+          },
+          {
+            "gc_seconds": 0.000282458,
+            "seconds": 0.101471209,
+            "allocated_bytes": 140576176
+          }
+        ],
+        "zip_demands": 8571,
+        "seed": "20261021"
+      },
+      "rust": {
+        "schema_version": 1,
+        "dimension": 199998,
+        "pattern_nnz": 1866711,
+        "input_bytes": 17112512,
+        "load_ns": 88161846,
+        "save_ns": 568197054,
+        "first_plan_ns": 94523120,
+        "first_update_ns": 8456906,
+        "plan_ns": [
+          95919526,
+          65099163,
+          44872067,
+          43887368,
+          44020256,
+          45885824,
+          57880326,
+          60390832,
+          59154747
+        ],
+        "update_ns": [
+          7922230,
+          6469432,
+          6971666,
+          7520104,
+          7146224,
+          9069313,
+          8560057,
+          10532652,
+          7332903
+        ],
+        "fresh_ns": [
+          103749778,
+          63504309,
+          53734268,
+          53201903,
+          50599943,
+          80667075,
+          64653258,
+          63446800,
+          60512095
+        ],
+        "container_peak_bytes": 215674880
+      },
+      "case": "mesh-100000",
+      "max_abs_error": 0.0,
+      "tolerance": 6.161455144292851E-11
+    }
+  ],
+  "schema_version": 1,
+  "rust_source_sha256": {
+    "numerics/Cargo.toml": "c7d79c3ef9e207fd626c6ea6b226a9fc9236a682248dd32cf209282410e24b4c",
+    "numerics/Cargo.lock": "96bf709c298e55bbde6bfe728645bee865c93d13dc7220255551a3ca69a1814b",
+    "numerics/benchmark.Dockerfile": "53f9bcbcc8d268e6cab67a16a9f1d86dd315211ddc4040b93ecc9d2904ac184b",
+    "tests/integration/Profile-RustJacobian.ps1": "d1e8165fda67264a43d779534dbaef0786535bfe00c59ce3716c93f908a72f1a",
+    "numerics/src/csr.rs": "311037d386338ff03f1a8f6c6d465351017495f50d5fc34ff1ce60f39e5d0f3a",
+    "numerics/src/jacobian.rs": "25a776dc6da7b23490e8204d708fc3bca0845293972af9ceaeeb6b77341eb463",
+    "numerics/src/lib.rs": "4a4f25a550bff7bd84845af23d1b6ef510068a99e5858618b2a62f3bb3bfacf7",
+    "numerics/src/pcg.rs": "5516028ca0a7681fd5a5ad5d9a6b61cc2a7e1be1a1ee553f7898cee06413cdd0",
+    "numerics/examples/jacobian_probe.rs": "cc6806250add1777131be205ac538fbcea160ce345822347e8bfaedf581d5a21"
+  },
+  "rust_image_id": "sha256:3f5648495bfa16918d76a4c7ef8ea8193ef3db31ca380c7b50fe3289f87da2dc",
+  "julia_runtime_image_id": "sha256:012f5f6f586fd7a38367d0024802f7cb3571c20ab426294b512d8bb049be0cbc",
+  "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)",
+  "container_wall_probes": [
+    {
+      "case": "radial-1000",
+      "rust_probe_container_seconds": 0.4902861
+    },
+    {
+      "case": "radial-10000",
+      "rust_probe_container_seconds": 0.5741479
+    },
+    {
+      "case": "radial-100000",
+      "rust_probe_container_seconds": 1.7475311
+    },
+    {
+      "case": "ring-1000",
+      "rust_probe_container_seconds": 0.6930053
+    },
+    {
+      "case": "ring-10000",
+      "rust_probe_container_seconds": 1.6711841
+    },
+    {
+      "case": "ring-100000",
+      "rust_probe_container_seconds": 1.5922166
+    },
+    {
+      "case": "mesh-1000",
+      "rust_probe_container_seconds": 0.7014761
+    },
+    {
+      "case": "mesh-10000",
+      "rust_probe_container_seconds": 0.7650584
+    },
+    {
+      "case": "mesh-100000",
+      "rust_probe_container_seconds": 2.4800422
+    }
+  ]
+}

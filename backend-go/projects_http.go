@@ -20,6 +20,12 @@ func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path != "/api/projects" {
+		if handler.passports(w, r) {
+			return
+		}
+		if handler.archives(w, r) {
+			return
+		}
 		if handler.drafts(w, r) {
 			return
 		}

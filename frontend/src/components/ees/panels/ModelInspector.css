@@ -1,0 +1,26 @@
+.model-inspector { padding: 8px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.model-inspector h3 { font-size: 14px; margin: 8px 0 12px; }
+.model-inspector h4 { font-size: 13px; margin: 12px 0; }
+.model-inspector p, .model-inspector li { color: var(--text-secondary); }
+.model-inspector ul { padding-left: 18px; }
+.model-diagram { display: block; width: 100%; height: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; }
+.model-diagram line, .model-diagram circle, .model-diagram rect { stroke: var(--text-primary); stroke-width: 1.5; }
+.model-diagram circle { fill: var(--accent-blue); }
+.model-diagram .model-element { fill: var(--bg-card); }
+.model-diagram .model-transformer-winding { fill: none; }
+.model-diagram .model-passive-symbol { stroke: var(--text-primary); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.model-diagram text { fill: var(--text-primary); font-size: 11px; }
+.model-equations { padding: 10px; background: var(--bg-toolbar); border-radius: 8px; }
+.model-equations p { margin: 6px 0; }
+.model-inspector small { display: block; font-size: 10px; }
+.model-inspector details { margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+.model-inspector summary { cursor: pointer; color: var(--accent-blue); }
+.model-inspector summary:focus-visible { outline: 2px solid var(--accent-blue); }
+.model-reference-note { font-size: 10px; }
+.model-parameters-scroll { overflow-x: auto; }
+.model-parameters table { border-collapse: collapse; width: 100%; font-size: 11px; }
+.model-parameters caption { text-align: left; color: var(--text-secondary); padding: 8px 0; }
+.model-parameters th, .model-parameters td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--border-color); padding: 9px 5px; overflow-wrap: anywhere; }
+.model-parameters th { width: 42%; }
+.model-parameters small { color: var(--text-secondary); font-weight: normal; margin-top: 5px; }
+.model-parameter-missing { background: var(--accent-blue-selected); }

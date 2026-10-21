@@ -1,14 +1,17 @@
 import * as catalog from '../../api/ees-api';
+import { listProjectPassports } from '../../api/project-passports-api';
 import { ComponentWriteError } from '../../api/component-revision';
 import * as commands from '../../api/project-scheme-api';
 import { readProjectScheme, SessionError } from '../../api/projects-api';
 import type { SchemeTransport, EditorScheme } from '../../components/ees/scheme-transport';
 import { parseProjectGraph, type ProjectGraph } from './project-graph';
+import { parseEditorDraftPayload, type EditorGraphIntent } from '../../api/editor-draft-payload';
 
-type Options = commands.ProjectSchemeScope & {
+export type ProjectEditorTransportOptions = commands.ProjectSchemeScope & {
   name: string; writable: boolean; signal: AbortSignal;
   onUnavailable?: () => void;
   onCalculation?: (source: commands.ProjectCalculation['source']) => void;
+  connectionAttempts?: readonly Extract<EditorGraphIntent, { kind: 'create-connection' }>[];
 };
 function rendererId(value: string): number {
   if (!/^[1-9][0-9]*$/.test(value) || value.length > 10 || Number(value) > 2147483647) throw new Error('ID графа не поддержан текущим renderer');
@@ -25,7 +28,7 @@ function structure(graph: Pick<ProjectGraph, 'components' | 'connections'>): str
 /** One scheme/account lifetime; caller owns cancellation and a fresh ComponentWrites.
  * This adapter never accesses legacy graph endpoints. Catalog metadata is shared.
  */
-export function createProjectEditorTransport(options: Options): SchemeTransport {
+export function createProjectEditorTransport(options: ProjectEditorTransportOptions): SchemeTransport {
   const { projectId, schemeId, signal, writable, onUnavailable, onCalculation } = options;
   const scope = Object.freeze({ projectId, schemeId });
   const sid = rendererId(schemeId);
@@ -34,6 +37,12 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
   let uncertain = false;
   // Retain original CAS/payload only for commands whose outcome still needs review.
   const attempts = new Map<string, { expected: string; input: commands.ProjectConnectionInput }>();
+  const restored = parseEditorDraftPayload({ formatVersion: 1, components: [], graph: (options.connectionAttempts ?? []).map(intent => ({ intent, reason: '' })) });
+  for (const { intent } of restored.graph) {
+    if (intent.kind !== 'create-connection') throw new Error('Некорректная попытка создания связи');
+    attempts.set(intent.commandId, { expected: intent.expectedTopologyRevision,
+      input: { from: intent.from, to: intent.to, fromPort: intent.fromPort, toPort: intent.toPort } });
+  }
   const checkScheme = (id: number) => { if (id !== sid) throw new Error('Схема не принадлежит открытому контексту'); };
   const graphId = (id: number): string => { if (!Number.isInteger(id) || id <= 0 || id > 2147483647) throw new Error('Некорректный ID графа'); return String(id); };
   const current = (): ProjectGraph => { if (!snapshot) throw new Error('Сначала загрузите исходную схему'); return snapshot; };
@@ -75,6 +84,7 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
   }
   const unsupported = async (): Promise<never> => { throw new Error('Создавайте схемы в навигаторе проекта. Удаление приватной схемы пока не подключено'); };
   return {
+    projectPassports: (requestSignal, after) => checked(() => listProjectPassports(projectId, AbortSignal.any([signal, requestSignal]), after)),
     getComponentTypes: catalog.getComponentTypes,
     getComponentParams: catalog.getComponentParams,
     getSchemes: async () => { signal.throwIfAborted(); return [{ id: sid, name: options.name }]; },
@@ -85,11 +95,16 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
     }),
     createScheme: unsupported, deleteScheme: unsupported,
     newConnectionCommandId: catalog.newConnectionCommandId,
-    addComponent: (id, typeId, x, y, rotation, name, equipmentModelId = null, params = {}) => structural(async () => {
+    addComponent: (id, typeId, x, y, rotation, name, equipmentModelId = null, params = {}, capture, projectPassportVersionId = null) => structural(async () => {
       checkScheme(id);
       const before = current();
+      const inputParams = { ...params };
+      await capture?.({ kind: 'create-component', typeId: graphId(typeId), x, y, rotation, name,
+        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
+        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: { ...inputParams } });
       const created = await commands.createProjectComponent(scope, { typeId: graphId(typeId), x, y, rotation, name,
-        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params }, signal);
+        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
+        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: inputParams }, signal);
       const cid = rendererId(created.id);
       await synchronize({ components: [...before.components, { id: cid, typeId, type: '', name, x, y, rotation, revision: created.revision, params: created.params }], connections: before.connections });
       return { ...created, id: cid, equipmentModelId: created.equipmentModelId === null ? null : rendererId(created.equipmentModelId) };
@@ -103,7 +118,7 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
     updateComponent: (id, x, y, rotation, name, revision) => checked(async () => { write(); return commands.updateProjectComponent(scope, component(id), { x, y, rotation, name }, revision, signal); }),
     patchComponent: (id, patch, revision) => checked(async () => { write(); return commands.patchProjectComponent(scope, component(id), patch, revision, signal); }),
     setComponentParam: (id, key, value, revision) => checked(async () => { write(); return commands.setProjectComponentParam(scope, component(id), key, value, revision, signal); }),
-    addConnection: async (id, from, to, fromPort, toPort, commandId) => {
+    addConnection: async (id, from, to, fromPort, toPort, commandId, capture) => {
       checkScheme(id);
       if (!commandId) return Promise.reject(new Error('Требуется UUID команды связи'));
       const input = { from: graphId(from), to: graphId(to), fromPort, toPort };
@@ -113,6 +128,7 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
       if (previous) return serialized(async () => {
         write();
         if (JSON.stringify(previous.input) !== JSON.stringify(input)) throw new Error('Данные повторной команды изменены');
+        await capture?.({ kind: 'create-connection', commandId, ...previous.input, expectedTopologyRevision: previous.expected });
         const acknowledgement = await commands.createProjectConnection(scope, previous.input, commandId, previous.expected, signal);
         return { success: true, id: rendererId(acknowledgement.id), commandId };
       });
@@ -120,6 +136,7 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
         component(from); component(to);
         const before = current();
         attempts.set(commandId, { input, expected: before.topologyRevision });
+        await capture?.({ kind: 'create-connection', commandId, ...input, expectedTopologyRevision: before.topologyRevision });
         const acknowledgement = await commands.createProjectConnection(scope, input, commandId, before.topologyRevision, signal);
         if (acknowledgement.deleted) throw new Error('Повторная команда относится к удалённой связи. Сверьте топологию');
         const cid = rendererId(acknowledgement.id);
@@ -128,9 +145,10 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
         return { success: true, id: cid, commandId };
       });
     },
-    deleteConnection: (id) => structural(async () => {
+    deleteConnection: (id, capture) => structural(async () => {
       const before = current();
       if (!before.connections.some(item => item.id === id)) throw new Error('Связь отсутствует в открытом снимке');
+      await capture?.({ kind: 'delete-connection', id: graphId(id), expectedTopologyRevision: before.topologyRevision });
       await commands.deleteProjectConnection(scope, graphId(id), before.topologyRevision, signal);
       await synchronize({ components: before.components, connections: before.connections.filter(item => item.id !== id) });
       return { success: true };
@@ -138,7 +156,7 @@ export function createProjectEditorTransport(options: Options): SchemeTransport 
     calculateScheme: (id, method = 'newton-raphson', group = 'three-phase') => serialized(async () => {
       write(); checkScheme(id);
       if (uncertain) throw new Error('Исходная топология не подтверждена. Сверьте схему');
-      const calculation = await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal);
+      const calculation = await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal, true);
       onCalculation?.(calculation.source);
       return calculation.result;
     }),

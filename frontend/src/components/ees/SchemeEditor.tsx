@@ -1,7 +1,10 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { ComponentSVG, ComponentLibraryItem } from './svg-components';
 import { EditorComponent, EditorConnection, getCompSize, getPorts, NATIVE_SIZES } from './editor-utils';
-import { connectionPoints } from './editor-geometry';
+import { createMoveGeometry,type Point } from './editor-geometry';
+import { StaticComponentLayer,StaticConnectionLayer } from './StaticGraphLayer';
+import {useVisibleBounds} from './hooks/useVisibleBounds';
+import {useConnectionGeometry} from './hooks/useConnectionGeometry';
 import { useSchemeData } from './hooks/useSchemeData';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
@@ -40,7 +43,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     library, schemes, currentSchemeId, setCurrentSchemeId,
     handleCreateScheme, handleDeleteScheme,
     addComponent, deleteSelectedComponent, deleteConnection,
-    handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, addConnection,
+    handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, saveComponentParams, addConnection,
     isCalculating, calculationError, loadedSchemeId, captureView, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
     failedGraph, reviewGraph, acceptGraphServer, retryGraphConnection,
   } = useSchemeData(schemeId, writeQueue, transport);
@@ -63,6 +66,8 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
 
   const [selectedComponent, setSelectedComponent] = useState<number | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<number | null>(null);
+  const [focusedComponent,setFocusedComponent]=useState<number|null>(null);
+  useEffect(()=>setFocusedComponent(null),[currentSchemeId]);
   const [lastResult, setLastResult] = useState<CalculationResult | null>(null);
   const [resultsVisible, setResultsVisible] = useState(false);
   const [calcMethod, setCalcMethod] = useState<string>('newton-raphson');
@@ -108,18 +113,33 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     setPendingDrop({ item, wx, wy });
   }, []);
 
+  const connectionPaths = useConnectionGeometry(components,connections,currentSchemeId);
+  const moveGeometry=useMemo(()=>createMoveGeometry(components,connections),[components,connections]);
+
   const {
-    dragMode, dragData, tempLine,
-    handleMouseDown, handleMouseMove, handleMouseUp, resetInteraction,
+    dragMode, dragData, tempLine, movePreview,
+    handleMouseDown, handleMouseMove, handleMouseUp, resetInteraction,queryVisible,
   } = useCanvasInteraction({
-    components, setComponents, connections, screenToWorld, getWorldUnitsPerPixel, setViewBox,
+    components, setComponents, connections, paths: connectionPaths, screenToWorld, getWorldUnitsPerPixel, setViewBox,
     viewBox, containerRef, currentSchemeId,
     onMoveEnd, onConnectEnd,
     onSelectComponent: setSelectedComponent,
     onSelectConnection: setSelectedConnection,
   });
 
-  const { handleLibDragStart, handleCanvasDrop, handleDragOver } = useDragDrop({ addComponent: handleAddComponent, screenToWorld });
+  const moving=useMemo(()=>moveGeometry(movePreview),[moveGeometry,movePreview]);
+  const visibleBounds=useVisibleBounds(containerRef,viewBox);
+  const movingId=moving?.component.id;
+  const visibleGraph=useMemo(()=>visibleBounds?queryVisible(visibleBounds,
+    [selectedComponent,focusedComponent,movingId].filter((id):id is number=>id!=null),
+    selectedConnection===null?[]:[selectedConnection]):{components,connections},
+    [visibleBounds,queryVisible,selectedComponent,focusedComponent,movingId,selectedConnection,components,connections]);
+
+  const { handleLibDragStart, handleCanvasDrop, handleDragOver } = useDragDrop({
+    addComponent: handleAddComponent, screenToWorld, library,
+    enabled: Boolean(currentSchemeId && loadedSchemeId === currentSchemeId),
+    onError: message => notify(message, 'error'),
+  });
 
   useEffect(() => {
     resetInteraction();
@@ -158,11 +178,16 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
 
   const closeModal = useCallback(() => setResultsVisible(false), []);
 
-  const onSaveParam = useCallback((k: string, v: string) => {
+  const onSaveParam = useCallback(async (k: string, v: string) => {
     if (selectedComponent) {
-      void saveComponentParam(selectedComponent, k, v);
+      await saveComponentParam(selectedComponent, k, v);
     }
   }, [selectedComponent, saveComponentParam]);
+
+  const onSaveParams = useCallback(async (values: Readonly<Record<string, string>>) => {
+    if (selectedComponent === null) throw new Error('Выберите оборудование');
+    await saveComponentParams(selectedComponent, values);
+  }, [selectedComponent, saveComponentParams]);
 
   // Keyboard
   useEffect(() => {
@@ -179,8 +204,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     return () => window.removeEventListener('keydown', handler);
   }, [selectedComponent, selectedConnection, deleteConnectionHandler, deleteSelectedComponentHandler]);
 
-  const renderConnection = useCallback((conn: EditorConnection) => {
-    const points = connectionPoints(conn, components);
+  const renderWire = useCallback((conn: EditorConnection,points:Point[]|null|undefined) => {
     if (!points) return null;
     const sel = selectedConnection === conn.id;
     const middle = points[Math.floor(points.length / 2)];
@@ -198,12 +222,13 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
         )}
       </g>
     );
-  }, [components, selectedConnection, deleteConnectionHandler]);
+  }, [selectedConnection, deleteConnectionHandler]);
+  const renderConnection=useCallback((conn:EditorConnection)=>renderWire(conn,connectionPaths.get(conn.id)),[renderWire,connectionPaths]);
 
-  const handleModelSelectConfirm = useCallback(async (equipmentModelId: number | null) => {
+  const handleModelSelectConfirm = useCallback(async (equipmentModelId: number | null, projectPassportVersionId?: string) => {
     if (!pendingDrop) return;
     const isCurrent = captureView();
-    await addComponent(pendingDrop.item, pendingDrop.wx, pendingDrop.wy, equipmentModelId);
+    await addComponent(pendingDrop.item, pendingDrop.wx, pendingDrop.wy, equipmentModelId, projectPassportVersionId);
     if (isCurrent()) setPendingDrop(null);
   }, [pendingDrop, addComponent, captureView]);
 
@@ -224,10 +249,11 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
         transform={`translate(${comp.x}, ${comp.y}) rotate(${rotation}, ${s.w / 2}, ${s.h / 2}) scale(${scaleX}, ${scaleY})`}
       >
         <g className="component-svg" pointerEvents="none">
-          <SVGComp />
+          <SVGComp params={comp.params} />
         </g>
         <rect x={0} y={0} width={nativeW} height={nativeH} fill="transparent"
           role="button" tabIndex={0} aria-label={`Выбрать ${comp.name}`}
+          onFocus={()=>setFocusedComponent(comp.id)} onBlur={()=>setFocusedComponent(null)}
           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedComponent(comp.id); setSelectedConnection(null); } }}
           style={{ pointerEvents: 'auto', cursor: dragMode === 'move' && dragData?.compId === comp.id ? 'grabbing' : 'grab' }}
         />
@@ -267,8 +293,10 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     handleMouseMove(e);
   }, [handleMouseMove]);
 
-  const selectedComp = components.find(c => c.id === selectedComponent);
-  const invalidConnections = connections.filter(c => c.validationErrors?.length);
+  const selectedComp = useMemo(()=>components.find(c => c.id === selectedComponent),[components,selectedComponent]);
+  const invalidConnections = useMemo(()=>connections.filter(c => c.validationErrors?.length),[connections]);
+  const inspectComponent=useCallback((id:number)=>{setSelectedComponent(id);setSelectedConnection(null);},[]);
+  const inspectConnection=useCallback((id:number)=>{setSelectedConnection(id);setSelectedComponent(null);},[]);
   const connectionReasons: Record<string, string> = { scheme_mismatch: 'Объекты принадлежат разным схемам', unknown_port: 'Неизвестный порт', domain_mismatch: 'Несовместимые физические порты', identical_port: 'Порт соединён сам с собой' };
   const zoomPercent = Math.round((1600 / viewBox.w) * 100);
   const schemeName = schemes.find(s => s.id === currentSchemeId)?.name || 'Новая рабочая схема';
@@ -338,11 +366,13 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
             </defs>
             <rect x={viewBox.x - viewBox.w} y={viewBox.y - viewBox.h} width={viewBox.w * 3} height={viewBox.h * 3} fill="url(#grid)" style={{ pointerEvents: 'none' }} />
             <g className="connections-layer">
-              {connections.map(renderConnection)}
+              <StaticConnectionLayer connections={visibleGraph.connections} hidden={moving?.connections} render={renderConnection} />
+              {moving?.connections.map(conn=>renderWire(conn,moving.paths.get(conn.id)))}
               {tempLine && <line x1={tempLine.x1} y1={tempLine.y1} x2={tempLine.x2} y2={tempLine.y2} className="connection-line-temp" />}
             </g>
             <g className="components-layer">
-              {components.map(renderComponent)}
+              <StaticComponentLayer components={visibleGraph.components} hiddenId={moving?.component.id} render={renderComponent} />
+              {moving && renderComponent(moving.component)}
             </g>
           </svg>
           {components.length === 0 && <div className="canvas-empty"><div className="empty-network"><Icon name="grid" width="32" height="32" /></div><p className="eyebrow">От идеи — к модели</p><h2>{currentSchemeId ? 'Добавьте первое оборудование' : 'Ваша энергосистема начинается здесь'}</h2><p>{currentSchemeId ? 'Откройте каталог, выберите элемент и соедините его терминалы с другими объектами.' : 'Создайте схему, добавьте оборудование и исследуйте установившийся режим сети.'}</p><button className="tool-btn primary" onClick={() => currentSchemeId ? setLibraryVisible(true) : setCreateDialog(true)}><Icon name={currentSchemeId ? 'box' : 'plus'} />{currentSchemeId ? 'Открыть каталог' : 'Создать схему'}</button><span>Симметричный AC-режим · экспериментальная модель</span></div>}
@@ -351,10 +381,15 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
       </main>
 
       {inspectorVisible && <PropertiesPanel
+        components={components}
+        connections={connections}
+        onSelectComponent={inspectComponent}
+        onSelectConnection={inspectConnection}
         selectedComponent={selectedComp}
         selectedConnection={selectedConnection}
         currentSchemeId={currentSchemeId}
         onSaveParam={onSaveParam}
+        onSaveParams={onSaveParams}
         parameterResets={selectedComp ? parameterResets[selectedComp.id] : undefined}
       />}
 
@@ -365,6 +400,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
       {pendingDrop && (
         <ModelSelectModal
           componentType={pendingDrop.item}
+          projectPassports={transport?.projectPassports}
           onConfirm={handleModelSelectConfirm}
           onCancel={() => setPendingDrop(null)}
         />

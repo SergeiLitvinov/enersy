@@ -13,7 +13,7 @@ for (const output of [generated, sources]) {
   await rm(output, { recursive: true, force: true });
   await mkdir(output, { recursive: true });
 }
-const languages = { '.ts': 'typescript', '.tsx': 'typescript', '.go': 'go', '.jl': 'julia', '.rs': 'rust', '.sql': 'sql' };
+const languages = { '.ts': 'typescript', '.tsx': 'typescript', '.go': 'go', '.jl': 'julia', '.rs': 'rust', '.sql': 'sql', '.h': 'c', '.c': 'c' };
 const exclude = new Set(['node_modules', 'dist', 'target', '.git', '__pycache__', 'pkg']);
 async function walk(relative) {
   const entries = await readdir(path.join(root, relative), { withFileTypes: true });
@@ -26,7 +26,7 @@ async function walk(relative) {
   }
   return files;
 }
-const groups = ['frontend/src', 'backend-go', 'backend-julia/src', 'backend-julia/test', 'backend-julia/benchmark', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'database'];
+const groups = ['frontend/src', 'backend-go', 'backend-julia/src', 'backend-julia/test', 'backend-julia/benchmark', 'backend-julia/experimental', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'numerics/examples', 'numerics/include', 'database'];
 const files = (await Promise.all(groups.map(walk))).flat().sort();
 // Publish only explicitly selected, project-owned measurement artifacts.
 const reports = path.join(site, 'public/reports');
@@ -59,6 +59,10 @@ for (const [input, output] of [['docs/CODING_RULES.md', 'rules'], ['docs/PROJECT
     if (relative === 'TODO.md') return `[${label}](/generated/todo)`;
     if (relative === 'docs/CODING_RULES.md') return `[${label}](/generated/rules)`;
     if (relative === 'docs/PROJECT_REVIEW.md') return `[${label}](/generated/review)`;
+    if (relative.startsWith('docs/site/') && relative.endsWith('.md')) {
+      const fragment = href.includes('#') ? '#' + href.split('#').slice(1).join('#') : '';
+      return `[${label}](/${relative.slice('docs/site/'.length, -3)}${fragment})`;
+    }
     if (files.includes(relative)) return `[${label}](/source/${relative}.txt)`;
     // Old line-oriented references remain readable without an invented remote URL.
     return `${label} (${href})`;

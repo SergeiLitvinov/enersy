@@ -1,0 +1,12 @@
+{
+  "formatVersion": 2,
+  "components": [{
+    "componentId": "7",
+    "base": { "id": "7", "typeId": "1", "type": "generator", "equipmentModelId": null, "projectPassportVersionId": "9007199254740993", "revision": "1", "name": "Source", "x": 0, "y": 0, "rotation": 0, "params": { "power_nom": "10.00" } },
+    "intents": [{ "kind": "parameter", "key": "power_nom", "value": "12.00" }], "reason": "Lost acknowledgement"
+  }],
+  "graph": [
+    { "phase": "prepared", "intent": { "kind": "create-component", "typeId": "1", "name": "Source", "x": 10, "y": 20, "rotation": 0, "equipmentModelId": null, "projectPassportVersionId": "9007199254740993", "params": {} }, "reason": "Lost creation acknowledgement" },
+    { "phase": "unprepared", "intent": { "kind": "create-component", "typeId": "1", "name": "Source", "x": 30, "y": 40, "rotation": 0, "equipmentModelId": null, "projectPassportVersionId": "9007199254740993", "params": {} }, "reason": "Before dispatch" }
+  ]
+}

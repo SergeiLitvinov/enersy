@@ -1,18 +1,20 @@
 import { ComponentWriteError, componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite } from './component-revision';
 import { calculationErrorMessage, parseCalculationResult, type ComponentPatch, type CalculationResult } from './ees-api';
+import { archiveId } from './calculation-archives-api';
 
 /** Wire IDs/revisions remain strings. Conversion belongs only to the renderer adapter. */
 export interface ProjectSchemeScope { projectId: string; schemeId: string }
 export interface ProjectComponentInput {
+  projectPassportVersionId?: string | null;
   typeId: string; equipmentModelId: string | null; x: number; y: number; rotation: number;
   name: string; params: Record<string, string>;
 }
-export interface ProjectCreatedComponent { success: true; id: string; revision: string; equipmentModelId: string | null; params: Record<string, string> }
+export interface ProjectCreatedComponent { success: true; id: string; revision: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> }
 export interface ProjectConnectionInput { from: string; to: string; fromPort: string; toPort: string }
 export interface ProjectConnectionAcknowledgement { success: true; id: string; commandId: string; deleted: boolean; topologyRevision: string }
 export interface ProjectCalculation {
   result: CalculationResult;
-  source: ProjectSchemeScope & { topologyRevision: string; inputSha256: string };
+  source: ProjectSchemeScope & { topologyRevision: string; inputSha256: string; archiveId?: string };
 }
 
 function id(value: string, graph = false): string {
@@ -59,14 +61,18 @@ async function json(response: Response, signal: AbortSignal): Promise<unknown> {
 export async function createProjectComponent(scope: ProjectSchemeScope, input: ProjectComponentInput, signal: AbortSignal): Promise<ProjectCreatedComponent> {
   const typeId = id(input.typeId, true);
   const equipmentModelId = input.equipmentModelId === null ? null : id(input.equipmentModelId, true);
+  const passportId = input.projectPassportVersionId == null ? null : id(input.projectPassportVersionId);
+  if (passportId !== null && equipmentModelId !== null) throw new Error('Выберите один источник паспорта');
   const response = await send(`${path(scope)}/components`, 'POST', signal, { 'Content-Type': 'application/json' }, { ...input, typeId, equipmentModelId });
   const data = record(await json(response, signal));
   const componentId = id(data.id as string, true);
   const modelId = data.equipmentModelId === null ? null : id(data.equipmentModelId as string, true);
+  const confirmedPassport = data.projectPassportVersionId == null ? null : archiveId(data.projectPassportVersionId);
+  if (confirmedPassport !== passportId) throw new Error('Сервер не подтвердил выбранную версию проектного паспорта');
   if (modelId !== equipmentModelId) throw new Error('Сервер не подтвердил выбранную паспортную модель');
   const parsed = parseCreatedComponent({ ...data, id: Number(componentId), equipmentModelId: modelId === null ? null : Number(modelId) });
   etag(response, parsed.revision);
-  return { ...parsed, id: componentId, equipmentModelId: modelId };
+  return { ...parsed, id: componentId, equipmentModelId: modelId, projectPassportVersionId: confirmedPassport };
 }
 
 async function componentWrite(scope: ProjectSchemeScope, componentId: string, method: string, revision: string, signal: AbortSignal, body?: unknown, suffix = '') {
@@ -110,10 +116,10 @@ export async function deleteProjectConnection(scope: ProjectSchemeScope, connect
   etag(response, topologyRevision);
   return { success: true, topologyRevision };
 }
-export async function calculateProjectScheme(scope: ProjectSchemeScope, expected: string, method: string, modelGroup: string, signal: AbortSignal): Promise<ProjectCalculation> {
+export async function calculateProjectScheme(scope: ProjectSchemeScope, expected: string, method: string, modelGroup: string, signal: AbortSignal, archive = false): Promise<ProjectCalculation> {
   if (!method || !modelGroup) throw new Error('Выберите модель и метод расчёта');
   const revision = topology(expected);
-  const response = await send(`${path(scope)}/calculate?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}`, 'POST', signal, { 'If-Match': `"${revision}"` });
+  const response = await send(`${path(scope)}/${archive ? 'archive-calculation' : 'calculate'}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}`, 'POST', signal, { 'If-Match': `"${revision}"` });
   const data = await json(response, signal);
   if (data && typeof data === 'object' && 'success' in data && data.success === false) throw new Error(calculationErrorMessage(data));
   const inputSha256 = response.headers.get('X-Enersy-Input-SHA256');
@@ -121,5 +127,6 @@ export async function calculateProjectScheme(scope: ProjectSchemeScope, expected
       response.headers.get('X-Enersy-Topology-Revision') !== revision || !inputSha256 || !/^[0-9a-f]{64}$/.test(inputSha256)) {
     throw new Error('Сервер не подтвердил происхождение расчётного результата');
   }
-  return { result: parseCalculationResult(data), source: { ...scope, topologyRevision: revision, inputSha256 } };
+  const saved = archive ? archiveId(response.headers.get('X-Enersy-Archive-Id')) : undefined;
+  return { result: parseCalculationResult(data), source: { ...scope, topologyRevision: revision, inputSha256, ...(saved ? { archiveId: saved } : {}) } };
 }

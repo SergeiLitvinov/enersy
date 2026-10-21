@@ -60,6 +60,78 @@ beforeEach(async () => {
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); });
 
+function graphWith(components: api.SchemeComponent[], id = 2): api.Scheme {
+  return {id,name:'Template fixture',description:'',created_at:'',updated_at:'',owner_id:1,components,connections:[]};
+}
+const voltageTemplate: api.ComponentParam[] = [{key:'voltage_nom',name:'Voltage',type:'number',unit:'kV',default:'999'}];
+
+test('a large graph reads each type once without filling instance values from template defaults',async()=>{
+  const components=Array.from({length:1000},(_,i)=>({...component,id:i+1,params:{voltage_nom:String(i)}}));
+  components.push({...component,id:2001,type:'load',params:{voltage_nom:''}});
+  vi.mocked(api.getScheme).mockResolvedValue(graphWith(components));
+  vi.mocked(api.getComponentParams).mockResolvedValue(voltageTemplate);
+  await select(2);
+  expect(api.getComponentParams).toHaveBeenCalledTimes(2);
+  expect(api.getComponentParams).toHaveBeenCalledWith('busbar');
+  expect(api.getComponentParams).toHaveBeenCalledWith('load');
+  expect(state.components).toHaveLength(1001);
+  expect(state.components.map(c=>c.params)).toEqual(components.map(c=>c.params));
+  expect(state.components.every(c=>c.paramTemplate===voltageTemplate)).toBe(true);
+  expect(api.patchComponent).not.toHaveBeenCalled();
+  expect(api.setComponentParam).not.toHaveBeenCalled();
+});
+
+test('template failures are shared for one read and retried on the next graph load',async()=>{
+  const components=Array.from({length:100},(_,i)=>({...component,id:i+1}));
+  vi.mocked(api.getScheme).mockImplementation(async id=>graphWith(components,id));
+  vi.mocked(api.getComponentParams).mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue(voltageTemplate);
+  await select(2);
+  expect(api.getComponentParams).toHaveBeenCalledOnce();
+  expect(state.loadedSchemeId).toBe(2);
+  expect(state.components.every(c=>c.paramTemplate?.length===0)).toBe(true);
+  await select(3);
+  expect(api.getComponentParams).toHaveBeenCalledTimes(2);
+  expect(state.components.every(c=>c.paramTemplate===voltageTemplate)).toBe(true);
+});
+
+test('a delayed template from A cannot enter B or a new visit to A',async()=>{
+  const old=deferred<api.ComponentParam[]>();
+  vi.mocked(api.getScheme).mockImplementation(async id=>graphWith([{...component},{...component,id:102}],id));
+  vi.mocked(api.getComponentParams).mockReturnValueOnce(old.promise).mockResolvedValue(voltageTemplate);
+  await select(2);
+  expect(state.loadedSchemeId).toBeUndefined();
+  await select(3);
+  await select(2);
+  await settle(()=>old.resolve([{...voltageTemplate[0],name:'Stale metadata'}]));
+  expect(state.loadedSchemeId).toBe(2);
+  expect(api.getComponentParams).toHaveBeenCalledTimes(3);
+  expect(state.components.every(c=>c.paramTemplate===voltageTemplate)).toBe(true);
+});
+
+test('new project editor scopes read their own templates even with reused object IDs',async()=>{
+  const shared={...api,getScheme:vi.fn().mockResolvedValue(graphWith([component],1))};
+  const scopeA={...shared,getComponentParams:vi.fn().mockResolvedValue([{...voltageTemplate[0],name:'Project A'}])};
+  const scopeB={...shared,getComponentParams:vi.fn().mockResolvedValue([{...voltageTemplate[0],name:'Project B'}])};
+  function Scoped({transport}:{transport:typeof scopeA}){state=useSchemeData(1,undefined,transport);return null;}
+  await act(async()=>root.render(<Scoped key="A" transport={scopeA}/>));
+  expect(state.components[0].paramTemplate?.[0].name).toBe('Project A');
+  await act(async()=>root.render(<Scoped key="B" transport={scopeB}/>));
+  expect(state.components[0].paramTemplate?.[0].name).toBe('Project B');
+  expect(scopeA.getComponentParams).toHaveBeenCalledOnce();
+  expect(scopeB.getComponentParams).toHaveBeenCalledOnce();
+});
+
+test('each recovery snapshot coalesces templates without reusing the previous review metadata',async()=>{
+  vi.mocked(api.addConnection).mockRejectedValue(new Error('lost acknowledgement'));
+  await act(async()=>{await state.addConnection(1,101,102,'right','left');});
+  vi.mocked(api.getScheme).mockResolvedValue(graphWith(Array.from({length:100},(_,i)=>({...component,id:i+1})),1));
+  vi.mocked(api.getComponentParams).mockResolvedValue(voltageTemplate);
+  await act(async()=>{await state.reviewGraph();});
+  expect(api.getComponentParams).toHaveBeenCalledOnce();
+  await act(async()=>{await state.reviewGraph();});
+  expect(api.getComponentParams).toHaveBeenCalledTimes(2);
+});
+
 test('retry keeps calculation waiting for the fresh topology and does not invent a deleted connection', async () => {
   vi.mocked(api.addConnection).mockRejectedValue(new Error('lost'));
   await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
@@ -173,7 +245,7 @@ test('component confirmation cannot enter another scheme, including A → B → 
   vi.mocked(api.addComponent).mockReturnValue(reply.promise);
   let operation!: Promise<void>;
   await act(async () => { operation = state.addComponent(item, 10, 20); });
-  expect(api.addComponent).toHaveBeenCalledWith(1, 1, 10, 20, 0, 'Шина', null);
+  expect(api.addComponent).toHaveBeenCalledWith(1, 1, 10, 20, 0, 'Шина', null, {}, expect.any(Function));
   await select(2);
   await select(1);
   await settle(() => reply.resolve({ id: 103, revision: '1', success: true, params: {}, equipmentModelId: null }));
@@ -435,6 +507,38 @@ test('parameters and delete use the same object queue', async () => {
   expect(api.setComponentParam).toHaveBeenNthCalledWith(2, 101, 'p', '20', '2');
   expect(api.deleteComponent).toHaveBeenCalledTimes(1);
   expect(state.components).toEqual([]);
+});
+
+test('atomic parameter groups use one revision and calculations wait for the whole acknowledgement', async () => {
+  const write = deferred<Awaited<ReturnType<typeof api.patchComponent>>>();
+  vi.mocked(api.patchComponent).mockReturnValue(write.promise);
+  vi.mocked(api.calculateScheme).mockResolvedValue(result('test'));
+  await act(async () => { state.setComponents([{ ...component, params: { unrelated: 'keep' } }]); });
+  const values = { zip_enabled: 'true', zip_p_z: '0.2', zip_p_i: '0.3', zip_p_p: '0.5' };
+  let save!: Promise<void>, calculation!: ReturnType<typeof state.handleCalculate>;
+  await act(async () => { save = state.saveComponentParams(101, values); calculation = state.handleCalculate(); });
+  expect(api.patchComponent).toHaveBeenCalledExactlyOnceWith(101, { params: values }, '1');
+  expect(api.setComponentParam).not.toHaveBeenCalled();
+  expect(api.calculateScheme).not.toHaveBeenCalled();
+  values.zip_p_z = '0.9';
+  await settle(() => write.resolve({ success: true, revision: '2' }));
+  await save; await calculation;
+  expect(state.components[0].params).toMatchObject({ unrelated: 'keep', zip_p_z: '0.2', zip_p_i: '0.3' });
+  expect(state.components[0].revision).toBe('2');
+  expect(state.failedDrafts).toHaveLength(0);
+  expect(api.calculateScheme).toHaveBeenCalledTimes(1);
+});
+
+test('failed parameter group retains every intent and blocks calculation without applying a partial group', async () => {
+  await act(async () => { state.setComponents([{ ...component, params: { p: '10' } }]); });
+  vi.mocked(api.patchComponent).mockRejectedValue(new ComponentWriteError('conflict', 412, 'component_revision_conflict'));
+  await act(async () => { await expect(state.saveComponentParams(101, { p: '12', zip_enabled: 'true', zip_p_z: '.2' })).rejects.toThrow('conflict'); });
+  expect(state.components[0].params).toEqual({ p: '10' });
+  expect(state.failedDrafts[0].intents).toEqual([
+    { kind: 'parameter', key: 'p', value: '12' }, { kind: 'parameter', key: 'zip_enabled', value: 'true' }, { kind: 'parameter', key: 'zip_p_z', value: '.2' },
+  ]);
+  await act(async () => { await state.handleCalculate(); });
+  expect(api.calculateScheme).not.toHaveBeenCalled();
 });
 
 test('calculation waits for acknowledged parameter writes', async () => {

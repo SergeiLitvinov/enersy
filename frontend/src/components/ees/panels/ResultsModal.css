@@ -4,6 +4,11 @@
 .results-table td { font-size: 12px; }
 .results-table tbody tr:hover { background: var(--bg-table-hover); }
 .result-source-node { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 11px; }
+.result-flow-table { min-width: 1050px; }
+.result-flow-table td:not(:first-child) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .result-source-note { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.result-topology-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary); }
+.result-topology summary { cursor: pointer; }
+.result-topology summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 4px; }
 .q-limit-state { display: inline-block; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 6px; white-space: nowrap; }
 .q-limit-state[data-state="clamped"] { font-weight: 600; border-color: currentColor; }

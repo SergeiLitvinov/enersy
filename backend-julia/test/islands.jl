@@ -20,6 +20,9 @@
         @test result["iterations"] == sum(i["iterations"] for i in result["island_results"])
         @test result["iterations"] <= options.max_iterations
         @test result["solver"]["equations"] == 2 * (result["node_count"] - 2)
+        @test result["solver"]["line_search_trials"] == sum(i["line_search_trials"] for i in result["island_results"])
+        @test result["solver"]["damped_steps"] == sum(i["damped_steps"] for i in result["island_results"])
+        @test result["solver"]["min_step_length"] == minimum(i["min_step_length"] for i in result["island_results"])
         @test length(unique(n["node_id"] for n in result["nodes"])) == result["node_count"]
         @test sort(vcat([i["bus_ids"] for i in result["island_results"]]...)) == collect(1:result["node_count"])
         for (k, case) in enumerate(cases)

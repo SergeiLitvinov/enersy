@@ -9,6 +9,7 @@ export function parseComponentRevision(value: unknown): string {
 
 export interface ComponentWriteResult { success: true; revision: string }
 export interface CreatedComponent extends ComponentWriteResult {
+  projectPassportVersionId?: string | null;
   id: number;
   params: Record<string, string>;
   equipmentModelId: number | null;

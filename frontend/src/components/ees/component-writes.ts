@@ -34,25 +34,26 @@ export class ComponentWrites {
   }
 
   run<T extends ComponentWriteResult>(component: SchemeComponent, isCurrent: () => boolean, action: (revision: string) => Promise<T>,
-    recovery?: { schemeId: number; intent: ComponentIntent }): Promise<T | undefined> {
+    recovery?: { schemeId: number; intent: ComponentIntent | ComponentIntent[] }): Promise<T | undefined> {
     const entry = this.entry(component);
-    const ticket = recovery ? this.drafts.record(recovery.schemeId, component, recovery.intent) : undefined;
+    const intents = recovery ? (Array.isArray(recovery.intent) ? recovery.intent : [recovery.intent]) : [];
+    const tickets = recovery ? intents.map(intent => this.drafts.record(recovery.schemeId, component, intent)) : [];
     this.activity++;
     const result = entry.tail.then(async () => {
-      if (!isCurrent()) { if (ticket) this.drafts.cancel(ticket); return undefined; }
+      if (!isCurrent()) { tickets.forEach(ticket => this.drafts.cancel(ticket)); return undefined; }
       try {
         if (entry.failed || entry.deleted || (recovery && this.drafts.hasFailed(recovery.schemeId, component.id))) {
           throw new Error('Состояние оборудования не подтверждено. Повторно загрузите схему и разрешите конфликт.');
         }
         const result = await action(entry.revision);
         entry.revision = parseComponentRevision(result.revision);
-        if (recovery?.intent.kind === 'delete') entry.deleted = true;
-        if (ticket) this.drafts.acknowledge(ticket, entry.revision);
+        if (intents.some(intent => intent.kind === 'delete')) entry.deleted = true;
+        tickets.forEach(ticket => this.drafts.acknowledge(ticket, entry.revision));
         return result;
       }
       catch (error) {
         entry.failed = true;
-        if (ticket) this.drafts.fail(ticket, error instanceof Error ? error.message : 'Сохранение не подтверждено');
+        tickets.forEach(ticket => this.drafts.fail(ticket, error instanceof Error ? error.message : 'Сохранение не подтверждено'));
         throw error;
       }
     });
@@ -123,7 +124,8 @@ export class ComponentWrites {
       if (!this.drafts.hasReviewedDeletion(draft)) throw new Error('В журнале нет неподтверждённого удаления');
       if (compared && compared.id !== draft.componentId) throw new Error('Сравнивается другое оборудование');
       if (compared && (compared.type !== draft.base.type || compared.typeId !== draft.base.typeId ||
-        (compared.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null))) {
+        (compared.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null) ||
+        (compared.projectPassportVersionId ?? null) !== (draft.base.projectPassportVersionId ?? null))) {
         throw new Error('Тип или паспорт изменился. Повторно сравните оборудование.');
       }
       if (mode === 'keep' && !compared) throw new Error('Объект отсутствует. Его восстановление требует отдельного решения.');

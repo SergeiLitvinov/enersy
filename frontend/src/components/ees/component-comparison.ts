@@ -33,7 +33,8 @@ export function compareComponentDraft(draft: ComponentDraft, server?: SchemeComp
 /** Build a reviewed partial write against exactly the compared server revision. */
 export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeComponent | undefined, selected: ReadonlySet<string>): { revision: string; patch?: ComponentPatch } {
   if (!server || server.id !== draft.componentId || server.typeId !== draft.base.typeId || server.type !== draft.base.type ||
-    (server.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null)) {
+    (server.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null) ||
+    (server.projectPassportVersionId ?? null) !== (draft.base.projectPassportVersionId ?? null)) {
     throw new Error('Объект отсутствует или его тип/паспорт изменился. Повторно сравните оборудование.');
   }
   const revision = parseComponentRevision(server.revision);

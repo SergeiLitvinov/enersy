@@ -14,7 +14,7 @@ import (
 
 func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bool {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/")
-	if len(parts) < 4 || parts[1] != "schemes" || parts[3] != "calculate" {
+	if len(parts) < 4 || parts[1] != "schemes" || (parts[3] != "calculate" && parts[3] != "archive-calculation") {
 		return false
 	}
 	if len(parts) != 4 {
@@ -60,7 +60,12 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		sendError(w, "Calculation body must be empty; options belong in query", 400)
 		return true
 	}
-	input, err := readCalculationInputScope(r.Context(), handler.auth.database, scheme, project, token)
+	archive := parts[3] == "archive-calculation"
+	input, err := readCalculationInputScope(r.Context(), handler.auth.database, scheme, project, token, archive)
+	if errors.Is(err, errCalculationProvenanceLimit) {
+		sendError(w, "Calculation provenance exceeds archive limit", 413)
+		return true
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		sendError(w, "Scheme unavailable", 404)
 		return true
@@ -97,9 +102,20 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 	if !allowed() {
 		return true
 	}
-	proxyCompute(w, r, handler.workerURL, "/calculate", payload, func() bool {
+	if archive && len(payload) > computeBodyLimit {
+		sendError(w, "Calculation snapshot exceeds archive limit", 413)
+		return true
+	}
+	proxyComputeResult(w, r, handler.workerURL, "/calculate", payload, func(status int, result []byte) bool {
 		if !allowed() {
 			return false
+		}
+		if archive && status >= 200 && status < 300 {
+			id, err := store.SaveCalculationArchive(r.Context(), token, project, scheme, input, group, method, payload, result)
+			if archiveHTTPError(w, err) {
+				return false
+			}
+			w.Header().Set("X-Enersy-Archive-Id", strconv.FormatInt(id, 10))
 		}
 		w.Header().Set("X-Enersy-Input-SHA256", hex.EncodeToString(digest[:]))
 		w.Header().Set("X-Enersy-Topology-Revision", strconv.FormatInt(input.TopologyRevision, 10))

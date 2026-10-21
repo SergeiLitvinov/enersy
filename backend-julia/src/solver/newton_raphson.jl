@@ -47,13 +47,15 @@ struct PowerFlowSetup
     p_pv::Vector{Float64}
     p_pq::Vector{Float64}
     q_pq::Vector{Float64}
+    voltage_demands::Vector{VoltageDemand}
 function PowerFlowSetup(nbus::Int, slack::Int, slack_v::Real, slack_theta::Real,
                          pv::Vector{Int}, pq::Vector{Int}, pv_v::Vector{Float64},
                          p_pv::Vector{Float64}, p_pq::Vector{Float64},
-                         q_pq::Vector{Float64})
+                         q_pq::Vector{Float64}; voltage_demands::Vector{VoltageDemand}=VoltageDemand[])
     validate_setup(nbus, slack, slack_v, slack_theta, pv, pq, pv_v, p_pv, p_pq, q_pq)
+    validate_voltage_demands(voltage_demands, pq)
     return new(nbus, slack, Float64(slack_v), Float64(slack_theta),
-               copy(pv), copy(pq), copy(pv_v), copy(p_pv), copy(p_pq), copy(q_pq))
+               copy(pv), copy(pq), copy(pv_v), copy(p_pv), copy(p_pq), copy(q_pq), copy(voltage_demands))
 end
 end
 
@@ -80,8 +82,16 @@ function validate_setup(nbus, slack, slack_v, slack_theta, pv, pq, pv_v, p_pv, p
     return nothing
 end
 
-validate_setup(s::PowerFlowSetup) = validate_setup(s.nbus, s.slack, s.slack_v,
-    s.slack_theta, s.pv, s.pq, s.pv_v, s.p_pv, s.p_pq, s.q_pq)
+function validate_voltage_demands(demands, pq)
+    allowed = Set(pq)
+    all(d -> d.bus in allowed && all(isfinite, (d.p_i, d.p_z, d.q_i, d.q_z)), demands) ||
+        throw(contract_error("inconsistent_setup", "Voltage-dependent loads must have finite coefficients and belong to PQ buses"))
+end
+
+function validate_setup(s::PowerFlowSetup)
+    validate_setup(s.nbus, s.slack, s.slack_v, s.slack_theta, s.pv, s.pq, s.pv_v, s.p_pv, s.p_pq, s.q_pq)
+    validate_voltage_demands(s.voltage_demands, s.pq)
+end
 
 """Результат расчёта режима: модули и углы узлов, вычисленные инъекции, статистика."""
 struct PowerFlowResult
@@ -92,6 +102,46 @@ struct PowerFlowResult
     q::Vector{Float64}
     iterations::Int
     max_mismatch::Float64
+    line_search_trials::Int
+    damped_steps::Int
+    min_step_length::Float64
+end
+
+PowerFlowResult(v, theta, voltages, p, q, iterations, mismatch) =
+    PowerFlowResult(v, theta, voltages, p, q, iterations, mismatch, 0, 0, 1.0)
+
+const NEWTON_ARMIJO = 1e-4
+const NEWTON_MAX_BACKTRACKS = 24
+
+"""Bounded Armijo search on the actual infinity-norm mismatch. No voltage
+clipping or changed equations: all trial states are derived from the original
+iterate. Positive finite voltage is a solver-domain condition, not an operating
+limit or a guarantee of a unique/stable physical root.
+"""
+function backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, mismatch, iteration)
+    isfinite(mismatch) && mismatch > 0 ||
+        throw(solver_error("non_finite_mismatch", "Cannot search a Newton step from invalid mismatch"))
+    trial_v, trial_theta = similar(v), similar(theta)
+    alpha = 1.0
+    for backtrack in 0:NEWTON_MAX_BACKTRACKS
+        copyto!(trial_v, v); copyto!(trial_theta, theta)
+        for (i, c) in col_theta; trial_theta[i] += alpha * dx[c]; end
+        for (i, c) in col_v; trial_v[i] += alpha * dx[c]; end
+        if all(x -> isfinite(x) && x > 0, trial_v) && all(isfinite, trial_theta)
+            trial_mismatch = try
+                maximum(abs, mismatch_vector(bus_powers(Y, trial_v, trial_theta), setup))
+            catch err
+                err isa EnersyError && err.kind == SOLVER && err.code == "non_finite_power" || rethrow()
+                Inf
+            end
+            if isfinite(trial_mismatch) && trial_mismatch <= (1 - NEWTON_ARMIJO * alpha) * mismatch
+                return trial_v, trial_theta, alpha, backtrack + 1
+            end
+        end
+        alpha *= 0.5
+    end
+    throw(solver_error("line_search_failed", "Не найден допустимый шаг Ньютона, уменьшающий невязку",
+        detail="iteration=$(iteration) mismatch_pu=$(mismatch) trials=$(NEWTON_MAX_BACKTRACKS + 1)"))
 end
 
 number_of_equations(setup::PowerFlowSetup) = 2 * (length(setup.pv) + length(setup.pq))
@@ -147,10 +197,20 @@ end
 соответствуют одному и тому же узлу.
 """
 function mismatch_vector(powers, setup::PowerFlowSetup)
-    return vcat([setup.p_pv[k] - powers.P[i] for (k, i) in enumerate(setup.pv)],
+    mismatch = vcat([setup.p_pv[k] - powers.P[i] for (k, i) in enumerate(setup.pv)],
                 [setup.p_pq[k] - powers.P[i] for (k, i) in enumerate(setup.pq)],
                 [setup.q_pq[k] - powers.Q[i] for (k, i) in enumerate(setup.pq)],
                 [setup.pv_v[k]^2 - abs2(powers.V[i]) for (k, i) in enumerate(setup.pv)])
+    isempty(setup.voltage_demands) && return mismatch
+    rows = Dict(bus => k for (k, bus) in enumerate(setup.pq))
+    npv, npq = length(setup.pv), length(setup.pq)
+    for d in setup.voltage_demands
+        v = abs(powers.V[d.bus])
+        k = rows[d.bus]
+        mismatch[npv + k] -= d.p_i * v + d.p_z * v^2
+        mismatch[npv + npq + k] -= d.q_i * v + d.q_z * v^2
+    end
+    return mismatch
 end
 
 """
@@ -215,6 +275,10 @@ function jacobian(Y::AbstractMatrix{ComplexF64}, v::Vector{Float64}, theta::Vect
             J[row_v[i], col_v[i]] = 2.0 * v[i]
         end
     end
+    for d in setup.voltage_demands
+        J[row_p[d.bus], col_v[d.bus]] += d.p_i + 2 * d.p_z * v[d.bus]
+        J[row_q[d.bus], col_v[d.bus]] += d.q_i + 2 * d.q_z * v[d.bus]
+    end
     return J, col_theta, col_v
 end
 
@@ -267,7 +331,9 @@ end
 заданным `|V|`), `θ = θ_slack`; выбор плоского пуска фиксируется вызывающим
 кодом в `assumptions`. Метод возвращает `PowerFlowResult` либо бросает
 `solver_error` (`no_convergence`, `singular_jacobian`, `non_finite_correction`,
-`non_positive_voltage`).
+`non_positive_voltage`, `line_search_failed`). Каждый шаг проходит ограниченный
+поиск Armijo с положительными конечными модулями напряжений. Счётчики пробных и
+уменьшенных шагов возвращаются в результате. Это не выбор устойчивого корня.
 """
 function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
                         options::SolverOptions; initial_v::Union{Nothing,Vector{Float64}}=nothing,
@@ -303,29 +369,27 @@ function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
         return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q, 0, 0.0)
     end
 
+    trials, damped, min_step = 0, 0, 1.0
     for iteration in 1:options.max_iterations
         powers = bus_powers(Y, v, theta)
         F = mismatch_vector(powers, setup)
         m = maximum(abs, F)
         if m < options.tolerance
             return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q,
-                                   iteration - 1, m)
+                                   iteration - 1, m, trials, damped, min_step)
         end
         J, col_theta, col_v = jacobian(Y, v, theta, powers.P, powers.Q, setup)
         dx = solve_jacobian(J, F, iteration)
-        for (i, c) in col_theta
-            theta[i] += dx[c]
-        end
-        for (i, c) in col_v
-            v[i] += dx[c]
-        end
-        check_state(v, theta, iteration)
+        v, theta, alpha, attempts = backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, m, iteration)
+        trials += attempts
+        damped += alpha < 1.0
+        min_step = min(min_step, alpha)
     end
 
     powers = bus_powers(Y, v, theta)
     m = maximum(abs, mismatch_vector(powers, setup))
     if m < options.tolerance
-        return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q, options.max_iterations, m)
+        return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q, options.max_iterations, m, trials, damped, min_step)
     end
     throw(solver_error("no_convergence",
         "Метод Ньютона–Рафсона не сошёлся за $(options.max_iterations) итераций",
