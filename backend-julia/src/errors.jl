@@ -10,8 +10,9 @@
   уровни напряжения в одном узле, остров без балансирующего узла).
 * `SOLVER` — численный метод не сошёлся или матрица вырождена.
 * `INTERNAL` — неожиданная ошибка; в отчёт попадает только тип и текст.
+* `EXECUTION` — управляемая остановка: отмена 409, исчерпанный бюджет времени 504.
 """
-@enum ErrorKind CONTRACT UNSUPPORTED NETWORK SOLVER INTERNAL
+@enum ErrorKind CONTRACT UNSUPPORTED NETWORK SOLVER INTERNAL EXECUTION
 
 const HTTP_STATUS_FOR_KIND = Dict{ErrorKind,Int}(
     CONTRACT => 400,
@@ -19,6 +20,7 @@ const HTTP_STATUS_FOR_KIND = Dict{ErrorKind,Int}(
     NETWORK => 422,
     SOLVER => 500,
     INTERNAL => 500,
+    EXECUTION => 409,
 )
 
 """
@@ -87,7 +89,8 @@ function error_response(e::EnersyError)
     )
 end
 
-http_status(e::EnersyError) = e.code == "body_too_large" ? 413 : get(HTTP_STATUS_FOR_KIND, e.kind, 500)
+http_status(e::EnersyError) = e.code == "body_too_large" ? 413 :
+    e.kind == EXECUTION && e.code == "calculation_deadline_exceeded" ? 504 : get(HTTP_STATUS_FOR_KIND, e.kind, 500)
 
 # --- конструкторы категорий -----------------------------------------------------
 

@@ -15,8 +15,10 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
                    method::AbstractString="newton-raphson",
                    base::Union{Nothing,BaseSystem}=nothing,
                    options::SolverOptions=SolverOptions(),
-                   default_s_base_mva::Real=100.0)
+                   default_s_base_mva::Real=100.0,
+                   backend::ComputeBackend=julia_backend(), control=nothing)
     started_ns = time_ns()
+    execution_checkpoint(control, :calculation_start)
 
     # 1. Реестр возможностей: неподдерживаемый режим отклоняется до расчёта (A09).
     entry = require_supported(model_group, method)
@@ -26,8 +28,11 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
 
     # 3. Топология → модели элементов → типы узлов.
     net = compile_network(components, connections; default_s_base_mva=default_s_base_mva)
+    execution_checkpoint(control, :network_compiled)
     sys = assemble_system(net, sys_base)
-    response = calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns)
+    execution_checkpoint(control, :models_assembled)
+    response = calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns; backend, control)
+    response["solver"]["compute_backend"] = Dict(pairs(backend.metadata))
     response["topology"] = Dict(
         "schema_version" => 1,
         "node_numbering" => "min-component-terminal",
@@ -37,12 +42,14 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
             for t in net.terminal_buses],
         "internal_nodes" => [Dict("bus_id" => source.bus,
             "component_id" => source.component_id, "role" => "source_emf") for source in sys.sources])
+    execution_checkpoint(control, :publication)
+    control === nothing || (response["solver"]["execution"] = execution_metadata(control))
     return response
 end
 
 """Solve one connected, locally indexed system; orchestration owns global IDs."""
 function calculate_connected(sys::AcSystem, sys_base::BaseSystem, options::SolverOptions,
-                             entry::CapabilityEntry, model_group, method)
+                             entry::CapabilityEntry, model_group, method; backend::ComputeBackend=julia_backend(), control=nothing)
     started_ns = time_ns()
     cls = classify_buses(sys, sys_base)
     setup = power_flow_setup(sys, cls, sys_base)
@@ -57,7 +64,7 @@ function calculate_connected(sys::AcSystem, sys_base::BaseSystem, options::Solve
         "корень AC-уравнений зависит от начального состояния; численная сходимость не подтверждает единственность или устойчивость режима, " *
         "а номинальное напряжение не является автоматически заданной режимной границей")
     initial_v = [b.v_nom_kv > 0 ? kv_to_pu(b.v_nom_kv, sys_base) : 1.0 for b in sys.buses]
-    result, effective, fixed, events, passes = solve_with_q_limits(Y, setup, options, q_limits; initial_v)
+    result, effective, fixed, events, passes = backend.solve(Y, setup, options, q_limits; initial_v, control)
     cls = BusClassification(cls.slack, cls.slack_component, cls.slack_v_pu, cls.slack_theta_rad,
                             effective.pv, effective.pq, effective.pv_v,
                             [s.component_id for bus in effective.pv for s in sys.sources if s.bus == bus])

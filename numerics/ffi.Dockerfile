@@ -14,4 +14,6 @@ COPY --from=native /build/target/release/libenersy_numerics.so /opt/enersy/liben
 COPY --from=native /build/libwrong_abi.so /opt/enersy/libwrong_abi.so
 COPY backend-julia/experimental ./experimental
 COPY backend-julia/test/rust_ffi.jl ./test/rust_ffi.jl
+COPY backend-julia/test/native_http.jl ./test/native_http.jl
+COPY backend-julia/test/native_execution.jl ./test/native_execution.jl
 CMD ["julia", "--project=.", "--startup-file=no", "test/rust_ffi.jl"]

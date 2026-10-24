@@ -4,6 +4,22 @@ const input = { components: [{ id: 1, type: 'load', x: 0, y: 0, rotation: 0, par
 const result = { success: true, node_count: 1, iterations: 1, computation_time_ms: 1, method_used: 'three-phase/newton-raphson', nodes: [{ node_id: 1, node_type: 'pq', voltage: 10, angle: 0, phase: 10, quadrature: 0 }] };
 const inputText = JSON.stringify(input), resultText = JSON.stringify(result);
 const metadata = { id: '9007199254740993', schemeId: '7', schemeName: 'Исходная схема', authorAccountId: '9007199254740994', topologyRevision: '0', modelGroup: input.modelGroup, method: input.method, createdAt: '2026-10-19T12:00:00Z', inputSha256: 'a'.repeat(64), resultSha256: 'b'.repeat(64), inputBytes: new TextEncoder().encode(inputText).length, resultBytes: new TextEncoder().encode(resultText).length };
+
+test('archive retains explicit backend and rejects an unconfirmed implementation', async () => {
+  const selected = { ...input, computeBackend: 'julia-rust-jacobian' };
+  expect(parseArchiveInput(selected, metadata).computeBackend).toBe('julia-rust-jacobian');
+  expect(() => parseArchiveInput({ ...selected, computeBackend: 'other' }, metadata)).toThrow();
+  const text = JSON.stringify(selected);
+  const updated = { ...metadata, inputBytes: new TextEncoder().encode(text).length };
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.endsWith('/input') || url.endsWith('/result')) {
+      const kind = url.endsWith('/input') ? 'input' : 'result';
+      return new Response(kind === 'input' ? text : resultText, { headers: { ETag: `"${kind === 'input' ? metadata.inputSha256 : metadata.resultSha256}"`, 'X-Enersy-Archive-Id': metadata.id } });
+    }
+    return new Response(JSON.stringify(updated));
+  }));
+  await expect(readCalculationArchive('8', metadata.id, new AbortController().signal)).rejects.toThrow('не подтвердил');
+});
 afterEach(() => vi.unstubAllGlobals());
 test('loads optional audit evidence by its own exact size, archive identity and digest', async () => {
   const provenance = { formatVersion: 1, components: [{ id:'1', revision:'2', name:'Нагрузка', source:'instance' }] };
@@ -17,13 +33,22 @@ test('loads optional audit evidence by its own exact size, archive identity and 
   expect(() => parseArchiveMetadata({ ...metadata, provenanceSha256:'c'.repeat(64) })).toThrow();
   expect(() => parseArchiveMetadata({ ...updated, provenanceBytes:0 })).toThrow();
 });
-function responses(patch: { headers?: Record<string, string>; input?: string; result?: string } = {}) {
+function responses(patch: { headers?: Record<string, string>; input?: string; result?: string; metadata?: typeof metadata } = {}) {
   const fetcher = vi.fn(async (url: string) => {
     if (url.endsWith('/input') || url.endsWith('/result')) { const kind = url.endsWith('/input') ? 'input' : 'result';
       return new Response(patch[kind] ?? (kind === 'input' ? inputText : resultText), { headers: { ETag: `"${kind === 'input' ? metadata.inputSha256 : metadata.resultSha256}"`, 'X-Enersy-Archive-Id': metadata.id, ...patch.headers } }); }
-    return new Response(JSON.stringify(metadata));
+    return new Response(JSON.stringify(patch.metadata ?? metadata));
   }); vi.stubGlobal('fetch', fetcher); return fetcher;
 }
+
+test('archive execution budget is validated and must match its saved result', async () => {
+  const captured = { ...input, executionOptions: { max_time_ms: 5000 } };
+  expect(parseArchiveInput(captured, metadata).executionOptions?.max_time_ms).toBe(5000);
+  expect(() => parseArchiveInput({ ...input, executionOptions: { max_time_ms: 0 } }, metadata)).toThrow();
+  const text = JSON.stringify(captured);
+  responses({ input: text, metadata: { ...metadata, inputBytes: new TextEncoder().encode(text).length } });
+  await expect(readCalculationArchive('8', metadata.id, new AbortController().signal)).rejects.toThrow('не подтвердил');
+});
 test('loads exact scoped archive bodies with cancellation, cache isolation and bigint IDs', async () => {
   const f = responses(), signal = new AbortController().signal;
   const value = await readCalculationArchive('8', metadata.id, signal);

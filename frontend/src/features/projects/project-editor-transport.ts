@@ -153,10 +153,14 @@ export function createProjectEditorTransport(options: ProjectEditorTransportOpti
       await synchronize({ components: before.components, connections: before.connections.filter(item => item.id !== id) });
       return { success: true };
     }),
-    calculateScheme: (id, method = 'newton-raphson', group = 'three-phase') => serialized(async () => {
+    calculateScheme: (id, method = 'newton-raphson', group = 'three-phase', backend, maxTimeMs) => serialized(async () => {
       write(); checkScheme(id);
       if (uncertain) throw new Error('Исходная топология не подтверждена. Сверьте схему');
-      const calculation = await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal, true);
+      const calculation = maxTimeMs !== undefined
+        ? await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal, true, backend, maxTimeMs)
+        : backend
+        ? await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal, true, backend)
+        : await commands.calculateProjectScheme(scope, current().topologyRevision, method, group, signal, true);
       onCalculation?.(calculation.source);
       return calculation.result;
     }),

@@ -100,11 +100,13 @@ end
 
 # --- маршруты вычислений ---------------------------------------------------------
 
-function handle_calculate(json)
+function handle_calculate(json; backends=(julia_backend(),))
+    control = request_execution_control(json)
     components, connections, model_group, method, base, options, default_s =
         parse_calculate_request(json; default_s_base_mva=default_s_base_mva())
+    backend = select_backend(json, backends)
     return calculate(components, connections; model_group=model_group, method=method,
-                     base=base, options=options, default_s_base_mva=default_s)
+                     base=base, options=options, default_s_base_mva=default_s, backend, control)
 end
 
 function handle_solve(json)
@@ -128,21 +130,25 @@ end
 структурированные ошибки. Не бросает исключений наружу — любой сбой
 превращается в ответ с корректным статусом.
 """
-function handle_request(req::HTTP.Request; max_body_bytes::Int=MAX_BODY_BYTES)
+function handle_request(req::HTTP.Request; max_body_bytes::Int=MAX_BODY_BYTES,
+                        backends=(julia_backend(),))
     path = normalize_path(req.target)
     method = uppercase(String(req.method))
     try
         if method == "GET" || method == "HEAD"
             handler = get(GET_ROUTES, path, nothing)
             handler === nothing && return method_or_not_found(path, method, false)
-            result = json_response(200, handler())
+            payload = handler()
+            path == "/ready" && (payload["compute_backends"] = [b.id for b in backends])
+            result = json_response(200, payload)
             method == "HEAD" && (result.body = UInt8[])
             return result
         elseif method == "POST"
             handler = get(POST_ROUTES, path, nothing)
             handler === nothing && return method_or_not_found(path, method, true)
-            return json_response(200, handler(read_json_body(req;
-                                                             max_body_bytes=max_body_bytes)))
+            json = read_json_body(req; max_body_bytes=max_body_bytes)
+            return json_response(200, path == "/calculate" ?
+                handle_calculate(json; backends) : handler(json))
         else
             return method_or_not_found(path, method, true)
         end
@@ -184,8 +190,8 @@ end
 фиксированный порт.
 """
 function start_server(; host::AbstractString="0.0.0.0", port::Integer=8001,
-                      max_body_bytes::Int=MAX_BODY_BYTES)
-    handler = req -> handle_request(req; max_body_bytes=max_body_bytes)
+                      max_body_bytes::Int=MAX_BODY_BYTES, backends=(julia_backend(),))
+    handler = req -> handle_request(req; max_body_bytes=max_body_bytes, backends)
     return HTTP.serve!(handler, host, port;
                        read_timeout_ns=REQUEST_TIMEOUT_NS,
                        write_timeout_ns=REQUEST_TIMEOUT_NS,

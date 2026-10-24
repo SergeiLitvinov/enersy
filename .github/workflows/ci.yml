@@ -70,6 +70,7 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - run: npm audit --audit-level=moderate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
@@ -140,6 +141,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose build julia-compute
       - run: docker compose --profile numerics-ffi-check run --rm --build numerics-ffi-check
+      - name: Prepare Go modules for isolated native acceptance
+        run: |
+          mkdir -p .cache/go-mod .cache/go-build
+          docker run --rm -v "$PWD:/workspace:ro" -v "$PWD/.cache/go-mod:/go/pkg/mod" -w /workspace/backend-go -e GOTOOLCHAIN=local golang:1.24-alpine go mod download
+      - name: Private archive with real native worker and PostgreSQL
+        run: docker compose -f tests/integration/native-compose.yml run --rm archive-check
+      - name: Remove disposable native acceptance services
+        if: always()
+        run: docker compose -f tests/integration/native-compose.yml down
 
   documentation:
     name: Documentation and generated reference
@@ -154,6 +164,7 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=moderate
       - run: pnpm docs:build
       - uses: actions/upload-artifact@v4
         with:

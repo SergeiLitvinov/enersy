@@ -1,6 +1,8 @@
 import { SessionError } from './projects-api';
 import { parseCalculationResult, type CalculationResult } from './ees-api';
 import { parseCalculationProvenance, type CalculationProvenance } from './calculation-provenance';
+import { isComputeBackendId, requireSelectedBackend, type ComputeBackendId } from './compute-backends';
+import { isCalculationBudget, requireExecutionBudget } from './calculation-execution';
 
 export interface CalculationArchive {
   provenanceSha256?: string; provenanceBytes?: number;
@@ -9,6 +11,8 @@ export interface CalculationArchive {
   inputBytes: number; resultBytes: number;
 }
 export interface ArchiveInput {
+  computeBackend?: ComputeBackendId;
+  executionOptions?: { max_time_ms: number };
   modelGroup: string; method: string;
   components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string> }[];
   connections: { from: number; to: number; fromPort: string; toPort: string }[];
@@ -39,6 +43,11 @@ export function parseArchiveMetadata(raw: unknown): CalculationArchive {
 }
 export function parseArchiveInput(raw: unknown, metadata: CalculationArchive): ArchiveInput {
   const v = record(raw);
+  if (v.computeBackend !== undefined && !isComputeBackendId(v.computeBackend)) return fail();
+  if (v.executionOptions !== undefined) {
+    const execution = record(v.executionOptions);
+    if (!isCalculationBudget(execution.max_time_ms) || Object.keys(execution).some(key => key !== 'max_time_ms')) return fail();
+  }
   if (v.modelGroup !== metadata.modelGroup || v.method !== metadata.method || !Array.isArray(v.components) || !Array.isArray(v.connections)) return fail();
   const ids = new Set<number>();
   for (const value of v.components) {
@@ -97,6 +106,8 @@ export async function readCalculationArchive(project: string, id: string, signal
   const values = await Promise.all([body(project, metadata, 'input', signal), body(project, metadata, 'result', signal)]);
   signal.throwIfAborted();
   const input = parseArchiveInput(values[0], metadata), result = parseCalculationResult(values[1]);
+  requireSelectedBackend(result.solver, input.computeBackend);
+  requireExecutionBudget(result.solver, input.executionOptions?.max_time_ms);
   const provenance = metadata.provenanceSha256 ? parseCalculationProvenance(await body(project, metadata, 'provenance', signal), input) : undefined;
   signal.throwIfAborted();
   if (result.method_used !== `${metadata.modelGroup}/${metadata.method}`) return fail();

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-24",
+  "scope": "Frontend npm and documentation pnpm dependency audits; not OS, Go, Rust or Julia security audits",
+  "frontend": {
+    "counter_unit": "npm affected package entries",
+    "before": {
+      "info": 0,
+      "low": 0,
+      "moderate": 3,
+      "high": 2,
+      "critical": 0,
+      "total": 5
+    },
+    "after": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "documentation": {
+    "counter_unit": "pnpm advisory entries",
+    "before": {
+      "info": 0,
+      "low": 2,
+      "moderate": 3,
+      "high": 3,
+      "critical": 0
+    },
+    "after": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "versions": {
+    "vite": "6.4.5",
+    "vitest": "4.1.12",
+    "coverage_v8": "4.1.12",
+    "source_map_js": "1.2.2",
+    "markdown_it": "14.3.3",
+    "pnpm": "11.19.0",
+    "vitepress": "1.6.4"
+  },
+  "checks": {
+    "frontend_tests_passed": 465,
+    "frontend_http_scenario_skipped": 1,
+    "frontend_typecheck": "passed",
+    "frontend_lint": "passed",
+    "frontend_build": "passed",
+    "docs_tests_passed": 4,
+    "docs_build": "passed in updated dependency check image",
+    "ci_remote_run": false
+  },
+  "source_sha256": {
+    "frontend/package.json": "225952211411ab752b91d47a74f15afac245f9bcf20195436488ab235580e4e1",
+    "frontend/package-lock.json": "df6d00df6c559a25f589fb0c2af99f8b99a66ab32dcab2e9701daa8a188f09e8",
+    "package.json": "021b02527d05b7f41294f69a13845bf8d2e90df112f96f2690a2119012ced06a",
+    "pnpm-workspace.yaml": "ad8bd6ada750f34bafacd3bb976b0a807355d4e8cbde9609a1e93a04987aa467",
+    "pnpm-lock.yaml": "47ace4729fc9b872ed40ceea5f9bf87e632f264ab36309ab0c00f3ce1e0d74c2"
+  }
+}

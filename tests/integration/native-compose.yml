@@ -1,0 +1,51 @@
+# Disposable native-backend acceptance. No host ports or application volumes.
+name: enersy-native-acceptance
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: native_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acceptance -d native_acceptance"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  worker:
+    image: enersy-numerics-ffi-check
+    volumes:
+      - ../../backend-julia:/app:ro
+    command: ["julia", "--project=.", "--startup-file=no", "experimental/native_server.jl"]
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD", "julia", "--project=.", "--startup-file=no", "-e", "using HTTP; @assert HTTP.get(\"http://127.0.0.1:8001/ready\"; proxy=HTTP.ProxyConfig()).status == 200"]
+      interval: 5s
+      timeout: 15s
+      retries: 12
+      start_period: 15s
+  archive-check:
+    image: golang:1.24-alpine
+    working_dir: /workspace/backend-go
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      GOMAXPROCS: 2
+      TEST_DATABASE_URL: host=postgres port=5432 user=acceptance password=disposable_acceptance dbname=native_acceptance sslmode=disable
+      TEST_JULIA_URL: http://worker:8001
+      TEST_COMPUTE_BACKEND: julia-rust-jacobian
+      TEST_MAX_TIME_MS: "20000"
+    command: ["go", "test", "-run", "^TestCalculationArchiveWorkerPostgres$$", "-v", "-count=1", "./..."]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+networks:
+  default:
+    internal: true

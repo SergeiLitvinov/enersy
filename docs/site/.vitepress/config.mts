@@ -34,6 +34,7 @@ export default defineConfig({
         { text: 'Обновление базы', link: '/development/database' },
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
         { text: 'Граница Julia↔Rust', link: '/development/native-jacobian' },
+        { text: 'Управление расчётом', link: '/development/execution-control' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },
         { text: 'Документация и CI', link: '/development/documentation' },
         { text: 'Правила кодирования', link: '/generated/rules' },

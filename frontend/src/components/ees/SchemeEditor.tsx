@@ -6,6 +6,9 @@ import { StaticComponentLayer,StaticConnectionLayer } from './StaticGraphLayer';
 import {useVisibleBounds} from './hooks/useVisibleBounds';
 import {useConnectionGeometry} from './hooks/useConnectionGeometry';
 import { useSchemeData } from './hooks/useSchemeData';
+import { useComputeBackends } from './hooks/useComputeBackends';
+import type { ComputeBackendId } from '../../api/compute-backends';
+import { isCalculationBudget } from '../../api/calculation-execution';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useDragDrop } from './hooks/useDragDrop';
@@ -72,6 +75,9 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const [resultsVisible, setResultsVisible] = useState(false);
   const [calcMethod, setCalcMethod] = useState<string>('newton-raphson');
   const [modelGroup, setModelGroup] = useState<string>('three-phase');
+  const [computeBackend, setComputeBackend] = useState<ComputeBackendId>('julia');
+  const [maxTimeMs, setMaxTimeMs] = useState(20000);
+  const backendChoices = useComputeBackends();
   const [pendingDrop, setPendingDrop] = useState<{ item: ComponentLibraryItem; wx: number; wy: number } | null>(null);
   const [createDialog, setCreateDialog] = useState(false);
   const [libraryVisible, setLibraryVisible] = useState(() => window.innerWidth > 1000);
@@ -165,8 +171,10 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   }, [selectedConnection, deleteConnection, captureView]);
 
   const handleCalculateClick = useCallback(async () => {
+    if (!isCalculationBudget(maxTimeMs)) { notify('Задайте бюджет времени от 1 до 20000 мс', 'error'); return; }
+    if (!backendChoices.ids.includes(computeBackend)) { notify('Выберите доступный вычислительный движок', 'error'); return; }
     const calculatedSchemeId = currentSchemeId;
-    const result = await handleCalculate(modelGroup, calcMethod);
+    const result = await handleCalculate(modelGroup, calcMethod, computeBackend, maxTimeMs);
     if (!result || activeSchemeRef.current !== calculatedSchemeId) return;
     if (result.success) {
       setLastResult(result);
@@ -174,7 +182,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     } else {
       notify('Ошибка: ' + (result.error || '?'), 'error');
     }
-  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, notify]);
+  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, computeBackend, maxTimeMs, backendChoices.ids, notify]);
 
   const closeModal = useCallback(() => setResultsVisible(false), []);
 
@@ -326,6 +334,13 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           zoomPercent={zoomPercent}
           calcMethod={calcMethod}
           modelGroup={modelGroup}
+          computeBackend={computeBackend}
+          maxTimeMs={maxTimeMs}
+          onMaxTimeChange={setMaxTimeMs}
+          computeBackends={backendChoices.ids}
+          backendMessage={backendChoices.message}
+          onBackendChange={setComputeBackend}
+          onBackendReload={backendChoices.reload}
           isCalculating={isCalculating}
           hasResult={Boolean(lastResult)}
           onShowResult={() => setResultsVisible(true)}

@@ -4,6 +4,10 @@ export type { CalculationTopology, CalculationTerminal, CalculationInternalNode 
 import { parseCalculationFlows, type CalculationBranch, type CalculationShunt } from './calculation-flows';
 import { parseCalculationLoads, type CalculationLoad } from './calculation-loads';
 import { validateSourceTerminalPowers } from './calculation-source-power';
+import { parseCalculationBackend, requireSelectedBackend, type CalculationBackend, type ComputeBackendId } from './compute-backends';
+export type { CalculationBackend, ComputeBackendId } from './compute-backends';
+import { isCalculationBudget, parseCalculationExecution, requireExecutionBudget, type CalculationExecution } from './calculation-execution';
+export type { CalculationExecution } from './calculation-execution';
 export type { CalculationLoad } from './calculation-loads';
 export type { CalculationBranch, CalculationShunt } from './calculation-flows';
 // frontend/src/api/ees-api.ts
@@ -136,6 +140,7 @@ export interface CalculationIsland {
 }
 
 export interface CalculationResult {
+  solver?: { compute_backend?: CalculationBackend; execution?: CalculationExecution; [key: string]: unknown };
   loads?: CalculationLoad[];
   branches?: CalculationBranch[];
   shunts?: CalculationShunt[];
@@ -259,6 +264,8 @@ export function parseCalculationResult(data: unknown): CalculationResult {
     otherIds: [...(result.sources as CalculationSource[] ?? []), ...(result.branches as CalculationBranch[] ?? []), ...(result.shunts as CalculationShunt[] ?? [])].map(row => row.component_id),
   });
   validateSourceTerminalPowers(result.sources as CalculationSource[] | undefined, result.branches as CalculationBranch[] | undefined);
+  parseCalculationBackend(result.solver);
+  parseCalculationExecution(result.solver);
   return data as CalculationResult;
 }
 
@@ -423,8 +430,9 @@ export async function deleteConnection(id: number): Promise<{ success: boolean }
 }
 
 // Calculation
-export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase'): Promise<CalculationResult> {
-  const response = await fetch(`${API_BASE}/calculate/${schemeId}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}`, {
+export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase', backend?: ComputeBackendId, maxTimeMs?: number): Promise<CalculationResult> {
+  if (maxTimeMs !== undefined && !isCalculationBudget(maxTimeMs)) throw new Error('Бюджет времени должен быть целым числом от 1 до 20000 мс');
+  const response = await fetch(`${API_BASE}/calculate/${schemeId}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -432,5 +440,8 @@ export async function calculateScheme(schemeId: number, method: string = 'newton
   if (!response.ok || (data && typeof data === 'object' && 'success' in data && data.success === false)) {
     throw new Error(calculationErrorMessage(data));
   }
-  return parseCalculationResult(data);
+  const result = parseCalculationResult(data);
+  requireSelectedBackend(result.solver, backend);
+  requireExecutionBudget(result.solver, maxTimeMs);
+  return result;
 }

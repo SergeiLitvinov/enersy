@@ -113,6 +113,7 @@ func main() {
 	mux.HandleFunc("/api/ees/connections/", enableCORS(handleConnectionByID))
 	mux.HandleFunc("/api/ees/calculate/", enableCORS(handleCalculate))
 	mux.HandleFunc("/api/ees/capabilities", enableCORS(handleCapabilities))
+	mux.HandleFunc("/api/ees/compute-backends", enableCORS(handleComputeBackends))
 	mux.HandleFunc("/api/ees/model-definitions", enableCORS(handleModelDefinitions))
 
 	// Julia compute route
@@ -707,12 +708,29 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 		method = "newton-raphson"
 	}
 
-	calcReq, err := json.Marshal(map[string]interface{}{
+	backend, backendErr := calculationBackendOption(r.URL.Query())
+	if backendErr != nil {
+		sendError(w, "Invalid compute backend", 400)
+		return
+	}
+	workerInput := map[string]interface{}{
 		"components":  input.Components,
 		"connections": input.Connections,
 		"modelGroup":  modelGroup,
 		"method":      method,
-	})
+	}
+	if backend != "" {
+		workerInput["computeBackend"] = backend
+	}
+	budget, budgetErr := calculationExecutionOption(r.URL.Query())
+	if budgetErr != nil {
+		sendError(w, "Invalid calculation time budget", 400)
+		return
+	}
+	if budget != 0 {
+		workerInput["executionOptions"] = map[string]int64{"max_time_ms": budget}
+	}
+	calcReq, err := json.Marshal(workerInput)
 	if err != nil {
 		sendError(w, "Failed to serialize request: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -823,6 +841,13 @@ func handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	proxyJulia(w, r, "/capabilities", nil)
+}
+
+func handleComputeBackends(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	proxyJulia(w, r, "/ready", nil)
 }
 
 // ============================================================================

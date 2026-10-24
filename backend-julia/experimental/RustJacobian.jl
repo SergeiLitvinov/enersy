@@ -1,5 +1,5 @@
 module RustJacobianAdapter
-using Libdl, SparseArrays, EnersyCompute
+using Libdl, SparseArrays, EnersyCompute, SHA
 const EC = EnersyCompute
 const ABI_VERSION = UInt32(1)
 
@@ -146,6 +146,69 @@ function assemble(plan::Plan, Y::SparseMatrixCSC{ComplexF64,Int}, v::Vector{Floa
         check(status)
         SparseMatrixCSC(plan.dimension, plan.dimension, copy(plan.columns), copy(plan.rows), values)
     end
+end
+
+"""Experimental complete Newton solve. Only Jacobian assembly uses Rust;
+linear factorization, line search and physics remain the production Julia code.
+The native plan is scoped to one immutable PV/PQ classification and is closed
+on both successful and failed solves. No implicit fallback or HTTP selection.
+"""
+function solve_newton(library::NativeLibrary, Y::SparseMatrixCSC{ComplexF64,Int},
+                      setup::EC.PowerFlowSetup, options::EC.SolverOptions; control=nothing, kwargs...)
+    EC.execution_checkpoint(control, :native_plan)
+    with_plan(library, Y, setup) do plan
+        col_theta, col_v = EC.unknown_columns(setup)
+        builder = (matrix, v, theta, p, q, current) ->
+            (assemble(plan, matrix, v, theta, p, q, current), col_theta, col_v)
+        EC.newton_raphson(Y, setup, options; jacobian_builder=builder, control, kwargs...)
+    end
+end
+
+"""Each Q active-set pass opens a fresh plan, including PV→PQ and PQ→PV.
+The library stays inside its caller-owned synchronous scope across passes.
+"""
+function solve_q_limits(library::NativeLibrary, Y::SparseMatrixCSC{ComplexF64,Int},
+                        setup::EC.PowerFlowSetup, options::EC.SolverOptions, limits; kwargs...)
+    solver = (matrix, current, opts; initial_v=nothing, initial_theta=nothing, control=nothing) ->
+        solve_newton(library, matrix, current, opts; initial_v, initial_theta, control)
+    EC.solve_with_q_limits(Y, setup, options, limits; newton_solver=solver, kwargs...)
+end
+
+"""Create an operator-selected backend, never from request data. Each solve
+opens the library inside the current request Task and closes it in finally.
+Deployment files must remain immutable; reject changed library bytes rather
+than silently describing a different implementation with the old fingerprint.
+"""
+function native_backend(path::AbstractString)
+    library_path = abspath(path)
+    fingerprint = bytes2hex(sha256(read(library_path)))
+    with_library(_ -> nothing, library_path) # Fail startup on incompatible ABI.
+    source_root = joinpath(dirname(@__DIR__),"src")
+    source_files = sort([joinpath(dir,name) for (dir,_,names) in walkdir(source_root)
+                         for name in names if endswith(name,".jl")])
+    source_bytes = IOBuffer()
+    for file in source_files
+        write(source_bytes, replace(relpath(file,source_root),'\\'=>'/'), '\n', read(file), '\0')
+    end
+    metadata = (id="julia-rust-jacobian", version="c-abi-v1", julia_version=string(Base.VERSION),
+        julia_core_version=EC.VERSION, julia_core_sha256=bytes2hex(sha256(take!(source_bytes))),
+        library_sha256=fingerprint, adapter_sha256=bytes2hex(sha256(read(@__FILE__))),
+        jacobian="rust", linear_solver="umfpack")
+    solver = function (Y, setup, options, limits; initial_v=nothing, control=nothing)
+        EC.execution_checkpoint(control, :native_library)
+        bytes2hex(sha256(read(library_path))) == fingerprint ||
+            throw(EC.solver_error("native_backend_changed", "Native library changed after worker startup"))
+        try
+            with_library(library_path) do library
+                solve_q_limits(library,Y,setup,options,limits; initial_v, control)
+            end
+        catch err
+            err isa NativeError || rethrow()
+            throw(EC.solver_error("native_backend_failure", "Rust backend rejected the calculation";
+                detail="code=$(err.code) status=$(err.status)"))
+        end
+    end
+    EC.ComputeBackend("julia-rust-jacobian", solver, metadata)
 end
 
 function live_plans(library::NativeLibrary)

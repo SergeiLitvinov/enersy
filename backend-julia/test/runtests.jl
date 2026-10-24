@@ -2,6 +2,7 @@ using Test, LinearAlgebra, JSON3, HTTP, EnersyCompute
 # Import the executable entrypoint too; it must parse without starting a listener.
 include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
+include("execution_control.jl")
 include("base_scaling.jl")
 include("own_base_scaling.jl")
 include("model_definitions.jl")

@@ -1,8 +1,64 @@
-using Test, EnersyCompute, SparseArrays, Libdl
+using Test, EnersyCompute, SparseArrays, Libdl, JSON3, HTTP
 include(joinpath(@__DIR__, "..", "experimental", "RustJacobian.jl"))
 const RJ = RustJacobianAdapter
 const EC = EnersyCompute
 const LIBRARY = get(ENV, "ENERSY_NUMERICS_LIBRARY", "/opt/enersy/libenersy_numerics.so")
+include("native_http.jl")
+include("native_execution.jl")
+
+@testset "Complete native-Jacobian Newton and failure cleanup" begin
+    Y = sparse(ComplexF64[1 -1; -1 1])
+    setup = EC.PowerFlowSetup(2,1,1.0,0.0,Int[],[2],Float64[],Float64[],[-0.2],[0.0])
+    RJ.with_library(LIBRARY) do library
+        result = RJ.solve_newton(library,Y,setup,EC.SolverOptions(1e-12,50))
+        # Independent resistive balance: v(v-1)=-0.2, flat start reaches high root.
+        @test result.v[2] ≈ (1+sqrt(0.2))/2 atol=1e-11
+        @test abs(result.theta[2]) < 1e-12
+        @test result.max_mismatch < 1e-12
+        @test RJ.live_plans(library) == 0
+        @test_throws EC.EnersyError RJ.solve_newton(library,Y,setup,EC.SolverOptions(1e-12,1))
+        @test RJ.live_plans(library) == 0
+        again = RJ.solve_newton(library,Y,setup,EC.SolverOptions(1e-12,50))
+        @test again.v == result.v
+    end
+end
+
+@testset "Complete native solves against independent PYPOWER references" begin
+    references = JSON3.read(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String))
+    RJ.with_library(LIBRARY) do library
+        for case in vcat(collect(references.compiled_networks),collect(references.q_limit_networks),[references.q_release_network])
+            cs, es, _, _, base, options, _ = EC.parse_calculate_request(case.scheme)
+            sys = EC.assemble_system(EC.compile_network(cs,es),base)
+            setup = EC.power_flow_setup(sys,EC.classify_buses(sys,base),base)
+            Y = EC.build_admittance(sys)
+            limits = EC.source_q_limits(sys,base)
+            initial_v = [b.v_nom_kv > 0 ? EC.kv_to_pu(b.v_nom_kv,base) : 1.0 for b in sys.buses]
+            result, effective, fixed, events, passes = RJ.solve_q_limits(library,Y,setup,options,limits; initial_v,control=EC.CalculationControl())
+            julia_result, julia_effective, julia_fixed, julia_events, julia_passes =
+                EC.solve_with_q_limits(Y,setup,options,limits; initial_v)
+            internal = Set(s.bus for s in sys.sources)
+            order = [only(b.index for b in sys.buses if member.component_id in b.members &&
+                (b.index in internal) == member.internal) for member in case.bus_equipment]
+            @test maximum(abs,result.v[order]-case.expected.v_pu) < 1e-8
+            @test maximum(abs,result.theta[order]-case.expected.theta_rad) < 1e-8
+            @test maximum(abs,result.p[order]-case.expected.p_pu) < 1e-8
+            @test maximum(abs,result.q[order]-case.expected.q_pu) < 1e-8
+            @test maximum(abs,result.v-julia_result.v) < 1e-10
+            @test effective.pv == julia_effective.pv && effective.pq == julia_effective.pq
+            @test fixed == julia_fixed
+            @test passes == julia_passes
+            @test [(e["bus"],e["from"],e["to"]) for e in events] ==
+                  [(e["bus"],e["from"],e["to"]) for e in julia_events]
+            @test result.max_mismatch < options.tolerance
+            @test RJ.live_plans(library) == 0
+        end
+        Y = sparse(ComplexF64[im -im; -im im])
+        setup = EC.PowerFlowSetup(2,1,1.0,0.0,[2],Int[],[1.1],[0.0],Float64[],Float64[])
+        err = try RJ.solve_q_limits(library,Y,setup,EC.SolverOptions(1e-10,20),Dict(2=>(-0.1,0.0))) catch e; e end
+        @test err isa EC.EnersyError && err.code == "q_limit_active_set_cycle"
+        @test RJ.live_plans(library) == 0
+    end
+end
 
 @testset "Julia/Rust ABI, scope ownership and invalid inputs" begin
     @test sizeof(RJ.Input{UInt64}) == 16

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -45,12 +46,22 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 	}
 	query := r.URL.Query()
 	for key, values := range query {
-		if (key != "modelGroup" && key != "method") || len(values) != 1 {
+		if (key != "modelGroup" && key != "method" && key != "computeBackend" && key != "maxTimeMs") || len(values) != 1 {
 			sendError(w, "Invalid calculation options", 400)
 			return true
 		}
 	}
 	group, method := query.Get("modelGroup"), query.Get("method")
+	backend, backendErr := calculationBackendOption(query)
+	if backendErr != nil {
+		sendError(w, "Invalid compute backend", 400)
+		return true
+	}
+	budget, budgetErr := calculationExecutionOption(query)
+	if budgetErr != nil {
+		sendError(w, "Invalid calculation time budget", 400)
+		return true
+	}
 	if len(group) == 0 || len(group) > 64 || len(method) == 0 || len(method) > 64 {
 		sendError(w, "Explicit modelGroup and method required", 400)
 		return true
@@ -78,7 +89,14 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		componentWriteError(w, 412, "topology_revision_conflict", "Топология изменена. Перечитайте схему перед расчётом")
 		return true
 	}
-	payload, err := json.Marshal(map[string]any{"components": input.Components, "connections": input.Connections, "modelGroup": group, "method": method})
+	workerInput := map[string]any{"components": input.Components, "connections": input.Connections, "modelGroup": group, "method": method}
+	if backend != "" {
+		workerInput["computeBackend"] = backend
+	}
+	if budget != 0 {
+		workerInput["executionOptions"] = map[string]int64{"max_time_ms": budget}
+	}
+	payload, err := json.Marshal(workerInput)
 	if err != nil {
 		sendError(w, "Could not serialize calculation snapshot", 500)
 		return true
@@ -124,4 +142,34 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		return true
 	})
 	return true
+}
+
+// Omission retains the worker's Julia default and existing snapshot bytes.
+// Availability is checked by the selected worker, never by loading user code.
+func calculationBackendOption(query url.Values) (string, error) {
+	values, present := query["computeBackend"]
+	if !present {
+		return "", nil
+	}
+	if len(values) != 1 || (values[0] != "julia" && values[0] != "julia-rust-jacobian") {
+		return "", errors.New("unsupported compute backend")
+	}
+	return values[0], nil
+}
+
+// A request can shorten the worker's default budget, never extend it beyond
+// the 20-second cooperative ceiling (the proxy waits at most 25 seconds).
+func calculationExecutionOption(query url.Values) (int64, error) {
+	values, present := query["maxTimeMs"]
+	if !present {
+		return 0, nil
+	}
+	if len(values) != 1 {
+		return 0, errors.New("ambiguous calculation budget")
+	}
+	budget, err := strconv.ParseInt(values[0], 10, 64)
+	if err != nil || budget < 1 || budget > 20000 || strconv.FormatInt(budget, 10) != values[0] {
+		return 0, errors.New("calculation budget must be an integer in 1..20000 milliseconds")
+	}
+	return budget, nil
 }

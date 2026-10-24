@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "image_id": "sha256:b2ef0c4c5f657b1af7eb04d0123688bc6c93c60c2a0f40350f63c8de3ab2b4b1",
+  "rust_source_sha256": {
+    "numerics/Cargo.toml": "13555ee944cc1bf9106907ea6a30ce91caebd87443b5817b18e60560bcae1080",
+    "numerics/Cargo.lock": "96bf709c298e55bbde6bfe728645bee865c93d13dc7220255551a3ca69a1814b",
+    "numerics/ffi.Dockerfile": "2e6ef19d2720b286a198ce85f12e2a472668cdeacb3e68eed6b424042a186841",
+    "tests/integration/Profile-RustNewton.ps1": "a32697b809d504d27de6657d36dbbde6e873ffe2fdee8aba13f7c7064a8acafc",
+    "numerics/src/csr.rs": "311037d386338ff03f1a8f6c6d465351017495f50d5fc34ff1ce60f39e5d0f3a",
+    "numerics/src/ffi.rs": "93bfc33c8fc940fbef7a52112da350ddf3ba128cb993e1e4d26d3766d915af58",
+    "numerics/src/jacobian.rs": "25a776dc6da7b23490e8204d708fc3bca0845293972af9ceaeeb6b77341eb463",
+    "numerics/src/lib.rs": "5ecd3197202379f2c995a319ec07ce2cd2836ef396db75cf6ccfddd6089ce9b7",
+    "numerics/src/pcg.rs": "5516028ca0a7681fd5a5ad5d9a6b61cc2a7e1be1a1ee553f7898cee06413cdd0",
+    "numerics/include/enersy_numerics.h": "c2b7fed87b80b970332754561f965faec3a634c1ab6b882144565d3626b550a7"
+  },
+  "records": [
+    {
+      "family": "ring",
+      "container_peak_bytes": 290725888,
+      "max_backend_difference_pu": 0.0,
+      "julia_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.072220674,
+          "seconds": 0.127192795,
+          "allocated_bytes": 114634032
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000626652,
+          "seconds": 0.054135435,
+          "allocated_bytes": 114634032
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000560554,
+          "seconds": 0.051933378,
+          "allocated_bytes": 114634032
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000600923,
+          "seconds": 0.051845717,
+          "allocated_bytes": 114634032
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000593958,
+          "seconds": 0.055922199,
+          "allocated_bytes": 114634032
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "cd96a1fa805536de04957ce9846259b135dd2e07d0c249c821421925e502a2eb",
+        "src/solver/q_limits.jl": "d66b2035911b1568c732aae1095ab753fb76f0edcf4cc7b75417e0869d99346f",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "benchmark/rust_newton.jl": "0c23fd6ff4e9a19465e316e7c185c91f38c6d8365761e52b9846730cebc9d8ff",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "99b691dcac588ed796da5fec56b215830f7969f2152e7addccdd23214d77ccd8",
+        "experimental/RustJacobian.jl": "1b583a743293ac2054a7e6ce5fe404b31d0259b66c8c4c79b7d81e6c588e05cd",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "abi_version": 1,
+      "first_native": {
+        "iterations": 3,
+        "gc_seconds": 0.000564852,
+        "seconds": 0.049965432,
+        "allocated_bytes": 99014752
+      },
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 10000,
+      "blas_threads": 1,
+      "native_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000590251,
+          "seconds": 0.049658218,
+          "allocated_bytes": 99014752
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000582476,
+          "seconds": 0.049246202,
+          "allocated_bytes": 99014752
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000538602,
+          "seconds": 0.048507604,
+          "allocated_bytes": 99014752
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000575182,
+          "seconds": 0.049665819,
+          "allocated_bytes": 99014752
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000573018,
+          "seconds": 0.051153651,
+          "allocated_bytes": 99014752
+        }
+      ],
+      "scope": "Complete flat-start Newton; native plan creation/destruction included; library load excluded; Julia UMFPACK unchanged; no HTTP or Q switching",
+      "reference_root_matched": true,
+      "edge_power_residual_pu": 1.1097462698443589E-14,
+      "julia_threads": 1,
+      "max_reference_voltage_error_pu": 7.012386346149253E-11,
+      "seed": "20261021",
+      "first_julia": {
+        "iterations": 3,
+        "gc_seconds": 0.001397361,
+        "seconds": 0.138336865,
+        "allocated_bytes": 114771248
+      },
+      "schema_version": 1
+    },
+    {
+      "family": "ring",
+      "container_peak_bytes": 758616064,
+      "max_backend_difference_pu": 0.0,
+      "julia_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.143535359,
+          "seconds": 0.775007994,
+          "allocated_bytes": 1159999296
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.147929666,
+          "seconds": 0.798876868,
+          "allocated_bytes": 1159999296
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.147816331,
+          "seconds": 0.791539437,
+          "allocated_bytes": 1159999296
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.141521034,
+          "seconds": 0.788053763,
+          "allocated_bytes": 1159999296
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.148647765,
+          "seconds": 0.797547989,
+          "allocated_bytes": 1159999296
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "cd96a1fa805536de04957ce9846259b135dd2e07d0c249c821421925e502a2eb",
+        "src/solver/q_limits.jl": "d66b2035911b1568c732aae1095ab753fb76f0edcf4cc7b75417e0869d99346f",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "benchmark/rust_newton.jl": "0c23fd6ff4e9a19465e316e7c185c91f38c6d8365761e52b9846730cebc9d8ff",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "99b691dcac588ed796da5fec56b215830f7969f2152e7addccdd23214d77ccd8",
+        "experimental/RustJacobian.jl": "1b583a743293ac2054a7e6ce5fe404b31d0259b66c8c4c79b7d81e6c588e05cd",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "abi_version": 1,
+      "first_native": {
+        "iterations": 3,
+        "gc_seconds": 0.082639795,
+        "seconds": 0.768348679,
+        "allocated_bytes": 998463568
+      },
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 100000,
+      "blas_threads": 1,
+      "native_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.071372489,
+          "seconds": 0.682437491,
+          "allocated_bytes": 998463536
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.075897544,
+          "seconds": 0.626829401,
+          "allocated_bytes": 998463536
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.074638628,
+          "seconds": 0.624842751,
+          "allocated_bytes": 998463536
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.073694154,
+          "seconds": 0.621058775,
+          "allocated_bytes": 998463536
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.075577103,
+          "seconds": 0.645123225,
+          "allocated_bytes": 998463536
+        }
+      ],
+      "scope": "Complete flat-start Newton; native plan creation/destruction included; library load excluded; Julia UMFPACK unchanged; no HTTP or Q switching",
+      "reference_root_matched": true,
+      "edge_power_residual_pu": 1.137761351177586E-14,
+      "julia_threads": 1,
+      "max_reference_voltage_error_pu": 6.032446432915774E-10,
+      "seed": "20261021",
+      "first_julia": {
+        "iterations": 3,
+        "gc_seconds": 0.155262439,
+        "seconds": 1.236257742,
+        "allocated_bytes": 1160130096
+      },
+      "schema_version": 1
+    },
+    {
+      "family": "mesh",
+      "container_peak_bytes": 385601536,
+      "max_backend_difference_pu": 0.0,
+      "julia_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000980145,
+          "seconds": 0.156108449,
+          "allocated_bytes": 184678192
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.063215114,
+          "seconds": 0.218181762,
+          "allocated_bytes": 184678192
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.056923814,
+          "seconds": 0.214606589,
+          "allocated_bytes": 184678192
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.061792161,
+          "seconds": 0.222654051,
+          "allocated_bytes": 184678192
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.057472418,
+          "seconds": 0.218243364,
+          "allocated_bytes": 184678192
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "cd96a1fa805536de04957ce9846259b135dd2e07d0c249c821421925e502a2eb",
+        "src/solver/q_limits.jl": "d66b2035911b1568c732aae1095ab753fb76f0edcf4cc7b75417e0869d99346f",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "benchmark/rust_newton.jl": "0c23fd6ff4e9a19465e316e7c185c91f38c6d8365761e52b9846730cebc9d8ff",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "99b691dcac588ed796da5fec56b215830f7969f2152e7addccdd23214d77ccd8",
+        "experimental/RustJacobian.jl": "1b583a743293ac2054a7e6ce5fe404b31d0259b66c8c4c79b7d81e6c588e05cd",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "abi_version": 1,
+      "first_native": {
+        "iterations": 3,
+        "gc_seconds": 0.060745596,
+        "seconds": 0.236177826,
+        "allocated_bytes": 162160080
+      },
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 10000,
+      "blas_threads": 1,
+      "native_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.00105991,
+          "seconds": 0.146425182,
+          "allocated_bytes": 162160080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.000994625,
+          "seconds": 0.150862203,
+          "allocated_bytes": 162160080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001046142,
+          "seconds": 0.152832453,
+          "allocated_bytes": 162160080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001087774,
+          "seconds": 0.15665757,
+          "allocated_bytes": 162160080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001066943,
+          "seconds": 0.157785478,
+          "allocated_bytes": 162160080
+        }
+      ],
+      "scope": "Complete flat-start Newton; native plan creation/destruction included; library load excluded; Julia UMFPACK unchanged; no HTTP or Q switching",
+      "reference_root_matched": true,
+      "edge_power_residual_pu": 2.884818507143551E-14,
+      "julia_threads": 1,
+      "max_reference_voltage_error_pu": 1.2059996299309506E-13,
+      "seed": "20261021",
+      "first_julia": {
+        "iterations": 3,
+        "gc_seconds": 0.015251343,
+        "seconds": 0.25681761,
+        "allocated_bytes": 184815408
+      },
+      "schema_version": 1
+    },
+    {
+      "family": "mesh",
+      "container_peak_bytes": 1792069632,
+      "max_backend_difference_pu": 0.0,
+      "julia_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.074390583,
+          "seconds": 4.862943218,
+          "allocated_bytes": 2062873128
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.074803837,
+          "seconds": 3.136213059,
+          "allocated_bytes": 2062873128
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.059311906,
+          "seconds": 2.982839437,
+          "allocated_bytes": 2062873128
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.06398536,
+          "seconds": 2.905022432,
+          "allocated_bytes": 2062873128
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.062719072,
+          "seconds": 3.009419902,
+          "allocated_bytes": 2062873128
+        }
+      ],
+      "source_sha256": {
+        "test/fixtures/network_families.jl": "dc3fbf561e5c947b5534957d9f8f4814888720ebf4a7da585b056c6debdc7a4a",
+        "src/dto.jl": "9136005dac75dc6cae744203d81291d5258d0bdd96cfdcd71cc0c16dcf9f1c46",
+        "src/linear_solve.jl": "fdb604300fbc7d14cc22dc399a675168a24eeba1844bb952a4d3a36019038e30",
+        "src/models.jl": "0609f99567ea966ce0a654a2c1b941ff6452f580608bc5f5b3818df886c3625e",
+        "src/model_definitions.jl": "cd96a1fa805536de04957ce9846259b135dd2e07d0c249c821421925e502a2eb",
+        "src/solver/q_limits.jl": "d66b2035911b1568c732aae1095ab753fb76f0edcf4cc7b75417e0869d99346f",
+        "src/EnersyCompute.jl": "492f946e97d311bbe75ecffb0e261dd610c5bcb339d1e7fcfdad7b2d75e5a384",
+        "src/load_profiles.jl": "99bc8d991345cb68a79948d24eaca272fd8670fa05ecfe7d309f347b9123eea5",
+        "src/units.jl": "902cd672461c7bb4273b8afa2b00d4aa83fbaffd0ffdebac4c1b0caee4bb305f",
+        "src/solver/sparse_jacobian.jl": "2caf7e611296a67094486ecdaf5fb150be3715286e014b62f2a73bf0bce33f75",
+        "benchmark/rust_newton.jl": "0c23fd6ff4e9a19465e316e7c185c91f38c6d8365761e52b9846730cebc9d8ff",
+        "src/capabilities.jl": "d761bcf7f453cfb8fe628bd37f545e870e2b5ac4cbda1ce42c6068ce1ff12124",
+        "Project.toml": "a9daa9f6701448a06aa956f3f52b74b3c1e604442ec7c8149beee816711d59a3",
+        "src/http_api.jl": "627197ae98263035d8882503d91a4831dc2d0b185d51055c4639abb52b3e4db9",
+        "src/solver/newton_raphson.jl": "99b691dcac588ed796da5fec56b215830f7969f2152e7addccdd23214d77ccd8",
+        "experimental/RustJacobian.jl": "1b583a743293ac2054a7e6ce5fe404b31d0259b66c8c4c79b7d81e6c588e05cd",
+        "src/calculate.jl": "a24c6cbd4e76687c2389c908cfb199d131269ece0ca7f5fafd456c0d02613efa",
+        "src/island_calculation.jl": "c38577b47a145bafa3c1a74f92d39d319e61ec37151e3c485d08db66c0a5f255",
+        "Manifest.toml": "4c8d4f592f3077e39c6815a9e3f0076a47ef44fe882a188389b3d5f8cf8c7824",
+        "src/topology.jl": "cf0d1dd75db09fbcabe6970ccda79b50a807ff15968786fc8fafe8f565bc2130",
+        "src/errors.jl": "b3696bacf99f53512e1e3549a28c2efbc99358a229e139c4ed9a8e0df199aab4",
+        "src/model_parameters.jl": "7ed5894c0e1e91e54d5ba5ac10610b45b5af500beff985d5bbb7afeae4c93e46"
+      },
+      "library_sha256": "7681b12d9f613a2681ae085c03e2b0e0c95088979cdd5cbea6ba55eafc36f690",
+      "abi_version": 1,
+      "first_native": {
+        "iterations": 3,
+        "gc_seconds": 0.001147459,
+        "seconds": 2.991955254,
+        "allocated_bytes": 1831383176
+      },
+      "julia_version": "1.10.12",
+      "cpu": "znver3",
+      "buses": 100000,
+      "blas_threads": 1,
+      "native_samples": [
+        {
+          "iterations": 3,
+          "gc_seconds": 0.002116365,
+          "seconds": 3.102400749,
+          "allocated_bytes": 1831383080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001699349,
+          "seconds": 2.942254967,
+          "allocated_bytes": 1831383080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001645074,
+          "seconds": 2.909220989,
+          "allocated_bytes": 1831383080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001767808,
+          "seconds": 2.828444357,
+          "allocated_bytes": 1831383080
+        },
+        {
+          "iterations": 3,
+          "gc_seconds": 0.001614032,
+          "seconds": 2.96461901,
+          "allocated_bytes": 1831383080
+        }
+      ],
+      "scope": "Complete flat-start Newton; native plan creation/destruction included; library load excluded; Julia UMFPACK unchanged; no HTTP or Q switching",
+      "reference_root_matched": true,
+      "edge_power_residual_pu": 2.743539982988896E-14,
+      "julia_threads": 1,
+      "max_reference_voltage_error_pu": 1.9504456874695837E-12,
+      "seed": "20261021",
+      "first_julia": {
+        "iterations": 3,
+        "gc_seconds": 0.164840967,
+        "seconds": 3.668145283,
+        "allocated_bytes": 2063010296
+      },
+      "schema_version": 1
+    }
+  ]
+}

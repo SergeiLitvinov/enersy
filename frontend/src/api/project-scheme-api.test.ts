@@ -114,6 +114,29 @@ test('aborted scope and invalid identifiers never dispatch; abortion during deco
 const result = { success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
 const provenance = { 'X-Enersy-Project-Id': scope.projectId, 'X-Enersy-Scheme-Id': scope.schemeId,
   'X-Enersy-Topology-Revision': revision, 'X-Enersy-Input-SHA256': 'a'.repeat(64) };
+
+test('time budget is carried in query, checked in reply and invalid values never dispatch', async () => {
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+  for (const invalid of [0, NaN, 20001, 1.5]) await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, undefined, invalid)).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+  fetcher.mockResolvedValue(reply(result, revision, provenance));
+  await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, undefined, 5000)).rejects.toThrow('не подтвердил');
+  const confirmed = { ...result, solver: { execution: { policy: 'cooperative-checkpoints-v1', max_time_ms: 5000, native_calls_interruptible: false, disconnect_cancels: false } } };
+  fetcher.mockResolvedValue(reply(confirmed, revision, provenance));
+  expect((await calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, undefined, 5000)).result).toEqual(confirmed);
+  expect(fetcher.mock.calls[1][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&maxTimeMs=5000`);
+});
+
+test('explicit backend reaches the project query and cannot silently fall back', async () => {
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+  fetcher.mockResolvedValue(reply(result, revision, provenance));
+  await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, 'julia-rust-jacobian')).rejects.toThrow('не подтвердил');
+  const actual = { ...result, solver: { compute_backend: { id: 'julia', version: '0.1.0', julia_version: '1.10.12', jacobian: 'julia', linear_solver: 'umfpack' } } };
+  fetcher.mockResolvedValue(reply(actual, revision, provenance));
+  await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, 'julia-rust-jacobian')).rejects.toThrow('не подтвердил');
+  expect(fetcher.mock.calls[0][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&computeBackend=julia-rust-jacobian`);
+  expect(fetcher.mock.calls).toHaveLength(2);
+});
 test('calculation requires exact snapshot provenance and explicit query; request body is empty', async () => {
   const fetcher = vi.fn().mockResolvedValue(reply(result, revision, provenance)); vi.stubGlobal('fetch', fetcher);
   expect(await calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal)).toEqual({ result,

@@ -30,6 +30,7 @@ using SHA
 include("errors.jl")
 include("units.jl")
 include("dto.jl")
+include("execution_control.jl")
 include("capabilities.jl")
 include("topology.jl")
 include("load_profiles.jl")
@@ -37,6 +38,7 @@ include("models.jl")
 include("solver/newton_raphson.jl")
 include("solver/sparse_jacobian.jl")
 include("solver/q_limits.jl")
+include("compute_backends.jl")
 include("calculate.jl")
 include("island_calculation.jl")
 include("linear_solve.jl")
@@ -45,6 +47,7 @@ include("model_definitions.jl")
 include("http_api.jl")
 
 export VERSION,
+       CalculationControl, cancel_calculation!, EXECUTION,
        BaseSystem, SolverOptions, CalculateRequest, LinearRequest,
        RawComponent, RawConnection,
        EnersyError, ErrorKind, CONTRACT, UNSUPPORTED, NETWORK, SOLVER, INTERNAL,

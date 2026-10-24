@@ -94,6 +94,22 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	auth := newAuthHTTP(database, "http://localhost:4174", false)
 	handler := projectsHTTP{auth: auth, workerURL: worker}
 	path := fmt.Sprintf("/api/projects/%d/schemes/%d/archive-calculation?modelGroup=three-phase&method=newton-raphson", project, scheme)
+	backend := os.Getenv("TEST_COMPUTE_BACKEND")
+	if backend != "" {
+		if backend != "julia" && backend != "julia-rust-jacobian" {
+			t.Fatal("unsupported test backend")
+		}
+		path += "&computeBackend=" + backend
+	}
+	budgetText := os.Getenv("TEST_MAX_TIME_MS")
+	var expectedBudget int64
+	if budgetText != "" {
+		expectedBudget, err = strconv.ParseInt(budgetText, 10, 64)
+		if err != nil || expectedBudget < 1 || expectedBudget > 20000 {
+			t.Fatal("invalid test budget")
+		}
+		path += "&maxTimeMs=" + budgetText
+	}
 	request := httptest.NewRequest("POST", path, nil)
 	request.Header.Set("Origin", auth.origin)
 	request.Header.Set("If-Match", `"`+strconv.FormatInt(revision, 10)+`"`)
@@ -108,7 +124,16 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 		t.Fatal("missing archive", err)
 	}
 	var result struct {
-		Success  bool              `json:"success"`
+		Success bool `json:"success"`
+		Solver  struct {
+			Execution struct {
+				MaxTimeMS int64 `json:"max_time_ms"`
+			} `json:"execution"`
+			Backend struct {
+				ID            string `json:"id"`
+				LibrarySHA256 string `json:"library_sha256"`
+			} `json:"compute_backend"`
+		} `json:"solver"`
 		Branches []json.RawMessage `json:"branches"`
 		Balance  struct {
 			P float64 `json:"residual_p_mw"`
@@ -129,9 +154,41 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	}
 	var snapshot struct {
 		Components []calculationComponent `json:"components"`
+		Backend    string                 `json:"computeBackend"`
+		Execution  *struct {
+			MaxTimeMS int64 `json:"max_time_ms"`
+		} `json:"executionOptions"`
 	}
 	if err := json.Unmarshal(input, &snapshot); err != nil || len(snapshot.Components) != 3 || snapshot.Components[2].Params["p"] != "10" {
 		t.Fatal("missing captured parameters", err)
+	}
+	if snapshot.Backend != backend || (backend != "" && result.Solver.Backend.ID != backend) {
+		t.Fatal("explicit backend was lost between query, snapshot and worker result")
+	}
+	if backend == "julia-rust-jacobian" && len(result.Solver.Backend.LibrarySHA256) != 64 {
+		t.Fatal("native archive lacks library fingerprint")
+	}
+	if expectedBudget != 0 && (snapshot.Execution == nil || snapshot.Execution.MaxTimeMS != expectedBudget || result.Solver.Execution.MaxTimeMS != expectedBudget) {
+		t.Fatal("time budget was lost between query, snapshot and worker result")
+	}
+	// Explicit failure fixture verifies the gateway/store boundary. It does not
+	// stand in for the independent native deadline and physical tests.
+	failedWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusGatewayTimeout)
+		_, _ = w.Write([]byte(`{"success":false,"error":"Time budget exceeded","error_detail":{"kind":"EXECUTION","code":"calculation_deadline_exceeded","message":"Time budget exceeded"}}`))
+	}))
+	defer failedWorker.Close()
+	failedHandler := handler
+	failedHandler.workerURL = failedWorker.URL
+	failedResponse := httptest.NewRecorder()
+	failedHandler.ServeHTTP(failedResponse, request.Clone(request.Context()))
+	if failedResponse.Code != 504 || failedResponse.Header().Get("X-Enersy-Archive-Id") != "" {
+		t.Fatalf("execution failure became an archived success: %d", failedResponse.Code)
+	}
+	var archivedCount int
+	if err := database.QueryRowContext(ctx, `SELECT count(*) FROM project_calculation_archives WHERE project_id=$1`, project).Scan(&archivedCount); err != nil || archivedCount != 1 {
+		t.Fatal("worker execution failure created an archive", err)
 	}
 	if _, err := database.ExecContext(ctx, `UPDATE scheme_component_params SET param_value='999' WHERE scheme_component_id=$1 AND param_key='p'`, ids[2]); err != nil {
 		t.Fatal(err)

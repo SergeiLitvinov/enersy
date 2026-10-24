@@ -69,22 +69,25 @@ Singleton slack fields remain only for a single island; the general contract
 uses slack_buses/slack_components and island_results.
 """
 function calculate_islands(sys::AcSystem, base::BaseSystem, options::SolverOptions,
-                          entry::CapabilityEntry, model_group, method, started_ns)
+                          entry::CapabilityEntry, model_group, method, started_ns;
+                          backend::ComputeBackend=julia_backend(), control=nothing)
     parts = split_ac_islands(sys)
     responses = Dict{String,Any}[]
     summaries = Dict{String,Any}[]
     total = 0
     for (id, map, local_sys) in parts
+        execution_checkpoint(control, :island_start, id)
         remaining = options.max_iterations - total
         remaining > 0 || throw(solver_error("island_iteration_budget",
             "Общий бюджет итераций исчерпан до расчёта следующего острова", detail="island=$id"))
         response = try
-            calculate_connected(local_sys, base, SolverOptions(options.tolerance, remaining), entry, model_group, method)
+            calculate_connected(local_sys, base, SolverOptions(options.tolerance, remaining), entry, model_group, method; backend, control)
         catch err
             err isa EnersyError || rethrow()
             throw(EnersyError(err.kind, err.code, err.message;
                 detail="island=$id global_nodes=$(join(map, ',')); " * err.detail))
         end
+        execution_checkpoint(control, :island_finished, id)
         restore_bus_ids!(response, map, id)
         total += response["iterations"]
         solver = response["solver"]

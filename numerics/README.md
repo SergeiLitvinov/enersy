@@ -25,8 +25,11 @@ docker compose --profile numerics-check run --rm --build numerics-check
 docker compose build julia-compute
 docker compose --profile numerics-ffi-check run --rm --build numerics-ffi-check
 ./tests/integration/Profile-RustFfi.ps1 -OutputDirectory '.cache/rust-ffi-new'
+./tests/integration/Profile-RustNewton.ps1 -Sizes 10000,100000 -Families ring,mesh -OutputDirectory '.cache/rust-newton-new'
 docker build -f numerics/benchmark.Dockerfile -t enersy-rust-jacobian-profile numerics
 ./tests/integration/Profile-RustJacobian.ps1 -OutputDirectory '.cache/rust-jacobian-new'
 ```
 
 Аналитическая двухузловая цепь проверяется с абсолютным допуском 10⁻¹²; центральные разности для PV/PQ, ZIP, несимметричной Y и отсутствующей диагонали — с h=10⁻⁶ и допуском 5·10⁻⁷. Файловый стенд сравнивает все значения Rust/Julia на больших матрицах и измеряет планирование, повторное обновление и полную пересборку. Его двоичный формат `ENJAC001`/`ENJOUT01` служит только локальной проверке, не является публичным протоколом моделей. Отдельный FFI-стенд измеряет реальный C-вызов и полный Julia-адаптер с проверками и копиями; это ещё не время полного решения Newton.
+
+Обновление 2026-10-23: экспериментальные `solve_newton` и `solve_q_limits` используют Rust-Якобиан внутри обычного алгоритма Julia. План закрывается после каждого Newton-прохода; изменение активного PV/PQ-состава получает новый план. Линейная факторизация и поиск шага остаются Julia. Отдельный `rust_newton.jl` измеряет всё решение с созданием/закрытием плана; библиотека загружается вне таймера, первый вызов записывается отдельно. Стенд проверяет напряжения между backend, независимый баланс токов ветвей и совпадение с заданным корнем. Другой алгебраический корень явно отмечается `reference_root_matched=false`. Обычный HTTP-worker пока не подключён; версию/хеш native-библиотеки сохраняет экспериментальный отчёт, а не пользовательский снимок расчёта.

@@ -118,12 +118,13 @@ clipping or changed equations: all trial states are derived from the original
 iterate. Positive finite voltage is a solver-domain condition, not an operating
 limit or a guarantee of a unique/stable physical root.
 """
-function backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, mismatch, iteration)
+function backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, mismatch, iteration; control=nothing)
     isfinite(mismatch) && mismatch > 0 ||
         throw(solver_error("non_finite_mismatch", "Cannot search a Newton step from invalid mismatch"))
     trial_v, trial_theta = similar(v), similar(theta)
     alpha = 1.0
     for backtrack in 0:NEWTON_MAX_BACKTRACKS
+        execution_checkpoint(control, :backtracking, iteration)
         copyto!(trial_v, v); copyto!(trial_theta, theta)
         for (i, c) in col_theta; trial_theta[i] += alpha * dx[c]; end
         for (i, c) in col_v; trial_v[i] += alpha * dx[c]; end
@@ -135,6 +136,7 @@ function backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, mismatch, it
                 Inf
             end
             if isfinite(trial_mismatch) && trial_mismatch <= (1 - NEWTON_ARMIJO * alpha) * mismatch
+                execution_checkpoint(control, :accepted_step, iteration)
                 return trial_v, trial_theta, alpha, backtrack + 1
             end
         end
@@ -334,10 +336,16 @@ end
 `non_positive_voltage`, `line_search_failed`). Каждый шаг проходит ограниченный
 поиск Armijo с положительными конечными модулями напряжений. Счётчики пробных и
 уменьшенных шагов возвращаются в результате. Это не выбор устойчивого корня.
+
+`jacobian_builder` — внутренний явный адаптер сборки с тем же контрактом
+`(J, col_theta, col_v)`, что у `jacobian`. Владение и освобождение нативного
+плана обеспечивает вызывающий код; метод не выбирает backend автоматически.
 """
 function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
                         options::SolverOptions; initial_v::Union{Nothing,Vector{Float64}}=nothing,
-                        initial_theta::Union{Nothing,Vector{Float64}}=nothing)
+                        initial_theta::Union{Nothing,Vector{Float64}}=nothing,
+                        jacobian_builder=jacobian, control=nothing)
+    execution_checkpoint(control, :newton_start)
     n = setup.nbus
     # Public arrays remain mutable: validate again before touching matrix indices.
     validate_setup(setup)
@@ -366,21 +374,26 @@ function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
 
     if number_of_equations(setup) == 0
         powers = bus_powers(Y, v, theta)
+        execution_checkpoint(control, :newton_finished)
         return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q, 0, 0.0)
     end
 
     trials, damped, min_step = 0, 0, 1.0
     for iteration in 1:options.max_iterations
+        execution_checkpoint(control, :newton_iteration, iteration)
         powers = bus_powers(Y, v, theta)
         F = mismatch_vector(powers, setup)
         m = maximum(abs, F)
+        execution_checkpoint(control, :power_assembly, iteration)
         if m < options.tolerance
             return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q,
                                    iteration - 1, m, trials, damped, min_step)
         end
-        J, col_theta, col_v = jacobian(Y, v, theta, powers.P, powers.Q, setup)
+        J, col_theta, col_v = jacobian_builder(Y, v, theta, powers.P, powers.Q, setup)
+        execution_checkpoint(control, :jacobian_assembly, iteration)
         dx = solve_jacobian(J, F, iteration)
-        v, theta, alpha, attempts = backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, m, iteration)
+        execution_checkpoint(control, :linear_solve, iteration)
+        v, theta, alpha, attempts = backtracked_step(Y, setup, v, theta, dx, col_theta, col_v, m, iteration; control)
         trials += attempts
         damped += alpha < 1.0
         min_step = min(min_step, alpha)
@@ -388,6 +401,7 @@ function newton_raphson(Y::AbstractMatrix{ComplexF64}, setup::PowerFlowSetup,
 
     powers = bus_powers(Y, v, theta)
     m = maximum(abs, mismatch_vector(powers, setup))
+    execution_checkpoint(control, :newton_finished, options.max_iterations)
     if m < options.tolerance
         return PowerFlowResult(v, theta, powers.V, powers.P, powers.Q, options.max_iterations, m, trials, damped, min_step)
     end

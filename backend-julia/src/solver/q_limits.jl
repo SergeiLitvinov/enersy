@@ -27,9 +27,11 @@ Violation releases the source back to PV. Equal bounds specify fixed Q.
 The same numerical tolerance is used for Q (p.u.) and voltage (p.u.).
 Newton steps and active-set passes have bounded budgets; repeated active
 sets fail explicitly. No machine capability curve is claimed.
+The internal `newton_solver` callback owns any backend resources for one pass;
+it receives the current classification and must not reuse stale PV/PQ plans.
 """
 function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, limits;
-                             initial_v=nothing)
+                             initial_v=nothing, newton_solver=newton_raphson, control=nothing)
     current = setup
     fixed = Dict{Int,Float64}()
     events = Dict{String,Any}[]
@@ -38,13 +40,15 @@ function solve_with_q_limits(Y, setup::PowerFlowSetup, options::SolverOptions, l
     visited = Set{Tuple}()
     v, theta = initial_v, nothing
     for pass in 1:options.max_iterations
+        execution_checkpoint(control, :q_limit_pass, pass)
         state = Tuple(sort!(collect(fixed); by=first))
         state in visited && throw(solver_error("q_limit_active_set_cycle", "Q-limit active set repeated; voltage regulation did not stabilize"))
         push!(visited, state)
         remaining = options.max_iterations - total
         remaining > 0 || throw(solver_error("q_limit_iteration_budget", "Newton iteration budget exhausted during Q enforcement"))
-        result = newton_raphson(Y, current, SolverOptions(options.tolerance, remaining);
-                               initial_v=v, initial_theta=theta)
+        result = newton_solver(Y, current, SolverOptions(options.tolerance, remaining);
+                               initial_v=v, initial_theta=theta, control)
+        execution_checkpoint(control, :q_limit_result, pass)
         total += result.iterations
         trials += result.line_search_trials
         damped += result.damped_steps

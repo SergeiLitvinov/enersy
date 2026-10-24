@@ -1,5 +1,33 @@
 # Документация и CI
 
+<a id="dependency-audit"></a>
+
+## Проверка зависимостей 2026-10-24
+
+Согласованно обновлены frontend и инструменты документации: Vite 6.4.5, Vitest и coverage-v8 4.1.12, source-map-js 1.2.2; для документации — markdown-it 14.3.3. Vitepress остаётся 1.6.4, pnpm — 11.19.0. Версии Vite/Vitest/coverage-v8 закреплены в frontend/package.json и package-lock.json. В pnpm-workspace.yaml закреплены совместимые транзитивные версии, pnpm-lock.yaml пересобран штатным менеджером. Scripts при обновлении lock-файлов не запускались; затем выполнены обычные установки npm ci и pnpm install --frozen-lockfile в Docker.
+
+Обновления устраняют опубликованные замечания для [Vite](https://github.com/advisories/GHSA-9jrq-w75r-8gcw), [Vitest mocker](https://github.com/advisories/GHSA-qxg6-89mg-rqv8), [source-map-js](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) и [markdown-it](https://github.com/advisories/GHSA-gfr2-rv44-r23c). Их применимость различается: часть относится к dev-серверу и тестовому mocker, часть — к обработке специально сформированного Markdown или source map. Production поставляет собранные статические файлы через nginx; перечисление зависимостей не доказывает эксплуатацию уязвимости работающего приложения.
+
+| Проверка | До обновления | После |
+| --- | --- | --- |
+| Frontend · npm audit, затронутые записи пакетов | 2 high + 3 moderate | 0 |
+| Документация · pnpm audit, записи advisory | 3 high + 3 moderate + 2 low | 0 |
+
+Счётчики npm и pnpm имеют разную единицу подсчёта; их нельзя складывать как число независимых уязвимостей. Это снимок ответов реестра на дату проверки. Нулевой результат не является полным аудитом безопасности приложения, контейнерной ОС или зависимостей Go/Rust/Julia.
+
+После обновления прошли 465 frontend-тестов, typecheck, lint и production build; один отдельный HTTP-сценарий пропущен без стенда. Прошли четыре проверки генератора документации и сборка Vitepress/TypeDoc с запретом предупреждений TypeDoc. В двух React-тестах настроена среда act; повторные проверки прошли без прежних предупреждений. Численное ядро в этом обновлении не менялось, его эталоны повторно не запускались.
+
+[Машинный отчёт и SHA-256 манифестов/lock-файлов](/benchmarks/dependency-audit-20261024.json). BASE-07 остаётся открытой: другие среды, плавающие образы/инструменты и остальные наборы зависимостей проверяются отдельно.
+
+CI выполняет после установки `npm audit --audit-level=moderate` и `pnpm audit --audit-level=moderate`. Эти команды требуют доступного реестра и завершаются ошибкой также при сбое аудита; ошибки сети не трактуются как отсутствие замечаний. Конфигурация CI проверена локально; удалённый запуск этим отчётом не подтверждается.
+
+```powershell
+docker build -f frontend/Dockerfile --target builder -t enersy-ui-check .
+docker run --rm enersy-ui-check npm audit --audit-level=moderate
+docker build --target build -f docs/Dockerfile -t enersy-docs-check .
+docker run --rm enersy-docs-check pnpm audit --audit-level=moderate
+```
+
 ## Единый процесс
 
 Руководство находится в `docs/site/guide`, пояснения разработчикам — в `docs/site/development`. Основные правила, анализ и план сохраняются в `docs/CODING_RULES.md`, `docs/PROJECT_REVIEW.md` и `TODO.md`: сайт копирует их автоматически, вручную дублировать не нужно.
