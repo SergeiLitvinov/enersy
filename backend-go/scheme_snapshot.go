@@ -9,9 +9,10 @@ import (
 
 // Authorization and the complete graph use one repeatable-read snapshot.
 func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, project int64, token string) {
-	var name, description string
-	var createdAt, updatedAt string
-	var ownerID int
+	var name string
+	var description sql.NullString
+	var createdAt, updatedAt *string
+	var ownerID *int
 	var topologyRevision int64
 	// Metadata, equipment revisions/parameters and connectivity must describe
 	// one committed state, even when another client commits between queries.
@@ -149,7 +150,7 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 	w.Header().Set("Content-Type", "application/json")
 	result := map[string]interface{}{
 		"topologyRevision": strconv.FormatInt(topologyRevision, 10),
-		"id":               id, "name": name, "description": description,
+		"id":               id, "name": name, "description": description.String,
 		"created_at": createdAt, "updated_at": updatedAt, "owner_id": ownerID,
 		"components": components, "connections": connections,
 	}

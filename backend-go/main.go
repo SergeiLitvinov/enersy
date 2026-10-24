@@ -484,15 +484,16 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 		schemes := []map[string]interface{}{}
 		for rows.Next() {
 			var id int
-			var name, description string
-			var createdAt, updatedAt string
-			var ownerID int
+			var name string
+			var description sql.NullString
+			var createdAt, updatedAt *string
+			var ownerID *int
 			if err := rows.Scan(&id, &name, &description, &createdAt, &updatedAt, &ownerID); err != nil {
 				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 			schemes = append(schemes, map[string]interface{}{
-				"id": id, "name": name, "description": description,
+				"id": id, "name": name, "description": description.String,
 				"created_at": createdAt, "updated_at": updatedAt, "owner_id": ownerID,
 			})
 		}
@@ -730,13 +731,30 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 	if budget != 0 {
 		workerInput["executionOptions"] = map[string]int64{"max_time_ms": budget}
 	}
+	limits, ok := readCalculationLimits(w, r)
+	if !ok {
+		return
+	}
+	if !limitTargetsBelongToInput(limits, input) {
+		sendError(w, "Operating limit equipment is absent from this scheme", 400)
+		return
+	}
+	if limits != nil {
+		workerInput["operatingLimits"] = limits
+	}
 	calcReq, err := json.Marshal(workerInput)
 	if err != nil {
 		sendError(w, "Failed to serialize request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	proxyJulia(w, r, "/calculate", calcReq)
+	proxyComputeResult(w, r, juliaBaseURL, "/calculate", calcReq, func(status int, result []byte) bool {
+		if status >= 200 && status < 300 && !confirmsCalculationLimits(result, limits) {
+			sendError(w, "Worker did not confirm requested operating limits", 502)
+			return false
+		}
+		return true
+	})
 }
 
 const computeBodyLimit = 8 << 20

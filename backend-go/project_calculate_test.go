@@ -113,6 +113,7 @@ func TestProjectCalculationPostgres(t *testing.T) {
 		{tokens[0].Token, strings.Split(path, "?")[0], `"1"`, "", 400},
 		{tokens[0].Token, path + "&method=other", `"1"`, "", 400},
 		{tokens[0].Token, path, `"1"`, "{}", 400},
+		{tokens[0].Token, path, `"1"`, `{"operatingLimits":[{"component_id":2147483647,"terminal":1,"min_kv":9,"max_kv":11}]}`, 400},
 	} {
 		if w := request(tc.token, tc.path, tc.tag, tc.body); w.Code != tc.status {
 			t.Fatalf("status %d want %d: %s", w.Code, tc.status, w.Body.String())

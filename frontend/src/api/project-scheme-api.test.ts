@@ -115,6 +115,18 @@ const result = { success: true, nodes: [], node_count: 0, iterations: 0, computa
 const provenance = { 'X-Enersy-Project-Id': scope.projectId, 'X-Enersy-Scheme-Id': scope.schemeId,
   'X-Enersy-Topology-Revision': revision, 'X-Enersy-Input-SHA256': 'a'.repeat(64) };
 
+test('explicit operating limits use a body and must be confirmed before returning a project result',async()=>{
+  const limits=[{component_id:2,terminal:1,min_kv:9.5,max_kv:10.5}];
+  const fetcher=vi.fn().mockResolvedValue(reply(result,revision,provenance));vi.stubGlobal('fetch',fetcher);
+  await expect(calculateProjectScheme(scope,revision,'newton-raphson','three-phase',signal,false,undefined,undefined,limits)).rejects.toThrow('не подтвердил');
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({operatingLimits:limits});
+  expect(fetcher.mock.calls[0][1].headers['If-Match']).toBe(`"${revision}"`);
+  const assessment={schema_version:1,policy:'explicit-terminal-voltage-v1',stability_assessed:false,status:'violated',checks:[{component_id:2,terminal:1,bus_id:1,min:9.5,max:10.5,measured:9,status:'below_min',unit:'kV',quantity:'line_to_line_rms_voltage'}]};
+  const confirmed={...result,node_count:1,nodes:[{node_id:1,node_type:'pq',voltage:9,angle:0,phase:9,quadrature:0}],operating_assessment:assessment};
+  fetcher.mockResolvedValue(reply(confirmed,revision,provenance));
+  expect((await calculateProjectScheme(scope,revision,'newton-raphson','three-phase',signal,false,undefined,undefined,limits)).result).toEqual(confirmed);
+});
+
 test('time budget is carried in query, checked in reply and invalid values never dispatch', async () => {
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
   for (const invalid of [0, NaN, 20001, 1.5]) await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, undefined, invalid)).rejects.toThrow();

@@ -1,0 +1,7 @@
+.voltage-limit-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 0; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; min-width: 0; }
+.voltage-limit-row legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
+.voltage-limit-row label:first-of-type { grid-column: 1 / -1; }
+.voltage-limit-row select { width: 100%; padding: 11px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); }
+.voltage-limit-row button { justify-self: start; }
+.operating-limits-form .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 540px) { .voltage-limit-row { grid-template-columns: 1fr; } }

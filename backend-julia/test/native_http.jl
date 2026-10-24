@@ -12,6 +12,19 @@
             JSON3.write(body);status_exception=false,proxy=HTTP.ProxyConfig())
         baseline = JSON3.read(post(scheme).body)
         @test baseline.solver.compute_backend.id == "julia"
+        target = first(t for t in baseline.topology.terminals if t.bus_id !== nothing)
+        voltage = only(n.voltage for n in baseline.nodes if n.node_id == target.bus_id)
+        study_limit = Dict("component_id"=>target.component_id,"terminal"=>target.terminal,
+            "min_kv"=>voltage*1.1,"max_kv"=>voltage*1.2)
+        assessments = []
+        for selection in ("julia","julia-rust-jacobian")
+            assessed = post(merge(scheme,Dict("computeBackend"=>selection,"operatingLimits"=>[study_limit])))
+            @test assessed.status == 200
+            assessment = JSON3.read(assessed.body).operating_assessment
+            @test assessment.status == "violated" && only(assessment.checks).status == "below_min"
+            push!(assessments,assessment)
+        end
+        @test assessments[1] == assessments[2]
         for selection in ("julia-rust-jacobian","julia")
             response = post(merge(scheme,Dict("computeBackend"=>selection)))
             @test response.status == 200

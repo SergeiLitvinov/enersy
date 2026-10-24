@@ -33,6 +33,7 @@ include("dto.jl")
 include("execution_control.jl")
 include("capabilities.jl")
 include("topology.jl")
+include("operating_limits.jl")
 include("load_profiles.jl")
 include("models.jl")
 include("solver/newton_raphson.jl")
@@ -48,6 +49,7 @@ include("http_api.jl")
 
 export VERSION,
        CalculationControl, cancel_calculation!, EXECUTION,
+       TerminalVoltageLimit,
        BaseSystem, SolverOptions, CalculateRequest, LinearRequest,
        RawComponent, RawConnection,
        EnersyError, ErrorKind, CONTRACT, UNSUPPORTED, NETWORK, SOLVER, INTERNAL,

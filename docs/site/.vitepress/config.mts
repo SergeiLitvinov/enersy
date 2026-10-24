@@ -35,6 +35,8 @@ export default defineConfig({
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
         { text: 'Граница Julia↔Rust', link: '/development/native-jacobian' },
         { text: 'Управление расчётом', link: '/development/execution-control' },
+          { text: 'Режимные ограничения', link: '/development/operating-limits' },
+          { text: 'Версии исследования', link: '/development/studies' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },
         { text: 'Документация и CI', link: '/development/documentation' },
         { text: 'Правила кодирования', link: '/generated/rules' },

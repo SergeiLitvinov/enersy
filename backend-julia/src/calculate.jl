@@ -16,7 +16,8 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
                    base::Union{Nothing,BaseSystem}=nothing,
                    options::SolverOptions=SolverOptions(),
                    default_s_base_mva::Real=100.0,
-                   backend::ComputeBackend=julia_backend(), control=nothing)
+                   backend::ComputeBackend=julia_backend(), control=nothing,
+                   operating_limits::AbstractVector{TerminalVoltageLimit}=TerminalVoltageLimit[])
     started_ns = time_ns()
     execution_checkpoint(control, :calculation_start)
 
@@ -28,6 +29,7 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
 
     # 3. Топология → модели элементов → типы узлов.
     net = compile_network(components, connections; default_s_base_mva=default_s_base_mva)
+    bound_limits = bind_operating_limits(operating_limits, net)
     execution_checkpoint(control, :network_compiled)
     sys = assemble_system(net, sys_base)
     execution_checkpoint(control, :models_assembled)
@@ -42,6 +44,7 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
             for t in net.terminal_buses],
         "internal_nodes" => [Dict("bus_id" => source.bus,
             "component_id" => source.component_id, "role" => "source_emf") for source in sys.sources])
+    response["operating_assessment"] = assess_operating_limits(bound_limits, response)
     execution_checkpoint(control, :publication)
     control === nothing || (response["solver"]["execution"] = execution_metadata(control))
     return response

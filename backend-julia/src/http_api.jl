@@ -105,8 +105,9 @@ function handle_calculate(json; backends=(julia_backend(),))
     components, connections, model_group, method, base, options, default_s =
         parse_calculate_request(json; default_s_base_mva=default_s_base_mva())
     backend = select_backend(json, backends)
+    operating_limits = request_operating_limits(json)
     return calculate(components, connections; model_group=model_group, method=method,
-                     base=base, options=options, default_s_base_mva=default_s, backend, control)
+                     base=base, options=options, default_s_base_mva=default_s, backend, control, operating_limits)
 end
 
 function handle_solve(json)

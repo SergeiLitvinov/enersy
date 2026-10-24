@@ -3,6 +3,7 @@ using Test, LinearAlgebra, JSON3, HTTP, EnersyCompute
 include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
 include("execution_control.jl")
+include("operating_limits.jl")
 include("base_scaling.jl")
 include("own_base_scaling.jl")
 include("model_definitions.jl")

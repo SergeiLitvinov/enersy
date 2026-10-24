@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -110,7 +111,12 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 		}
 		path += "&maxTimeMs=" + budgetText
 	}
-	request := httptest.NewRequest("POST", path, nil)
+	requestedLimits := []terminalVoltageLimit{{int(ids[2]), 1, 9.8, 10.2}}
+	limitBody, err := json.Marshal(map[string]any{"operatingLimits": requestedLimits})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("POST", path, bytes.NewReader(limitBody))
 	request.Header.Set("Origin", auth.origin)
 	request.Header.Set("If-Match", `"`+strconv.FormatInt(revision, 10)+`"`)
 	request.AddCookie(&http.Cookie{Name: auth.cookieName(), Value: token.Token})
@@ -124,6 +130,10 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 		t.Fatal("missing archive", err)
 	}
 	var result struct {
+		Assessment struct {
+			Status string            `json:"status"`
+			Checks []json.RawMessage `json:"checks"`
+		} `json:"operating_assessment"`
 		Success bool `json:"success"`
 		Solver  struct {
 			Execution struct {
@@ -153,6 +163,7 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 		t.Fatal("real calculation lost passport evidence")
 	}
 	var snapshot struct {
+		Limits     []terminalVoltageLimit `json:"operatingLimits"`
 		Components []calculationComponent `json:"components"`
 		Backend    string                 `json:"computeBackend"`
 		Execution  *struct {
@@ -171,6 +182,30 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	if expectedBudget != 0 && (snapshot.Execution == nil || snapshot.Execution.MaxTimeMS != expectedBudget || result.Solver.Execution.MaxTimeMS != expectedBudget) {
 		t.Fatal("time budget was lost between query, snapshot and worker result")
 	}
+	if len(snapshot.Limits) != 1 || snapshot.Limits[0] != requestedLimits[0] || result.Assessment.Status != "violated" || len(result.Assessment.Checks) != 1 {
+		t.Fatal("limits were changed or not assessed in real archived calculation")
+	}
+	// A nominal success from an incompatible worker must not create an archive.
+	var ignored map[string]any
+	if err := json.Unmarshal(saved, &ignored); err != nil {
+		t.Fatal(err)
+	}
+	delete(ignored, "operating_assessment")
+	ignoredBody, _ := json.Marshal(ignored)
+	ignoringWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(ignoredBody)
+	}))
+	defer ignoringWorker.Close()
+	ignoringHandler := handler
+	ignoringHandler.workerURL = ignoringWorker.URL
+	ignoredRequest := request.Clone(ctx)
+	ignoredRequest.Body = io.NopCloser(bytes.NewReader(limitBody))
+	ignoredResponse := httptest.NewRecorder()
+	ignoringHandler.ServeHTTP(ignoredResponse, ignoredRequest)
+	if ignoredResponse.Code != 502 || ignoredResponse.Header().Get("X-Enersy-Archive-Id") != "" {
+		t.Fatalf("unconfirmed limits became success: %d", ignoredResponse.Code)
+	}
 	// Explicit failure fixture verifies the gateway/store boundary. It does not
 	// stand in for the independent native deadline and physical tests.
 	failedWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +217,9 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	failedHandler := handler
 	failedHandler.workerURL = failedWorker.URL
 	failedResponse := httptest.NewRecorder()
-	failedHandler.ServeHTTP(failedResponse, request.Clone(request.Context()))
+	failedRequest := request.Clone(ctx)
+	failedRequest.Body = io.NopCloser(bytes.NewReader(limitBody))
+	failedHandler.ServeHTTP(failedResponse, failedRequest)
 	if failedResponse.Code != 504 || failedResponse.Header().Get("X-Enersy-Archive-Id") != "" {
 		t.Fatalf("execution failure became an archived success: %d", failedResponse.Code)
 	}

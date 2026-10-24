@@ -7,6 +7,7 @@ import { ResultFlows } from './ResultFlows';
 import { ResultLoads } from './ResultLoads';
 import { ResultSources } from './ResultSources';
 import { ResultBackend } from './ResultBackend';
+import { ResultOperatingAssessment } from './ResultOperatingAssessment';
 import './ResultsModal.css';
 const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 4 });
 export const ResultsModal = ({ result, schemeName, onClose, context }: { result: CalculationResult; schemeName: string; onClose: () => void; context?: ReactNode }) => {
@@ -17,6 +18,7 @@ export const ResultsModal = ({ result, schemeName, onClose, context }: { result:
   <div className="results-heading"><div><p className="eyebrow">Установившийся режим</p><h3>{schemeName}</h3></div><span className="capability-badge">{result.capability?.status === 'validated' ? 'Проверенный режим' : 'Экспериментальный результат'}</span></div>
   <div className="result-metrics"><div><span>Узлов</span><strong>{result.node_count}</strong></div><div><span>Итераций</span><strong>{result.iterations}</strong></div><div><span>Вычисление</span><strong>{number.format(result.computation_time_ms)} <small>мс</small></strong></div></div>
   <ResultBackend backend={result.solver?.compute_backend} execution={result.solver?.execution} />
+  <ResultOperatingAssessment assessment={result.operating_assessment} />
   {result.capability?.reasons?.length ? <div className="result-notice"><Icon name="alert" /><div><strong>Границы применимости</strong><ul>{result.capability.reasons.map((reason, i) => <li key={i}>{reason}</li>)}</ul></div></div> : null}
   {result.island_results && result.island_results.length > 1 && <section aria-label="Питаемые острова">
     <div className="results-table-wrap" role="region" aria-label="Таблица островов" tabIndex={0}><table className="results-table"><caption>Независимые питаемые острова</caption>

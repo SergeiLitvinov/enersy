@@ -9,6 +9,7 @@ import type { ComponentDraft } from '../component-drafts';
 import type { GraphReview, GraphSnapshot } from '../graph-writes';
 import type { SchemeTransport } from '../scheme-transport';
 import type { ComputeBackendId } from '../../../api/compute-backends';
+import type { TerminalVoltageLimit } from '../../../api/operating-assessment';
 
 /** Share template reads only within this graph read, never across editor scopes
  * or reloads. Instance parameters and passport bindings remain independent.
@@ -181,7 +182,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     } catch { if (isCurrent()) { refreshRecovery(version => version + 1); notify('Удаление соединения не подтверждено. Требуется сверка топологии; расчёт заблокирован.', 'error'); } }
   }, [currentSchemeId, captureView, notify]);
 
-  const handleCalculate = useCallback(async (modelGroup?: string, method?: string, backend?: ComputeBackendId, maxTimeMs?: number) => {
+  const handleCalculate = useCallback(async (modelGroup?: string, method?: string, backend?: ComputeBackendId, maxTimeMs?: number, operatingLimits?: readonly TerminalVoltageLimit[]) => {
     if (!currentSchemeId) { notify('Создайте или выберите схему', 'info'); return null; }
     if (calculationRequest.current) return null;
     const isCurrent = captureView();
@@ -193,7 +194,8 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
       await writes.current.settleForCalculation(currentSchemeId);
       if (!isCurrent()) return null;
       writes.current.assertConfirmed(currentSchemeId);
-      const result = maxTimeMs !== undefined ? await dataAPI.calculateScheme(currentSchemeId, method, modelGroup, backend, maxTimeMs)
+      const result = operatingLimits !== undefined ? await dataAPI.calculateScheme(currentSchemeId, method, modelGroup, backend, maxTimeMs, operatingLimits)
+        : maxTimeMs !== undefined ? await dataAPI.calculateScheme(currentSchemeId, method, modelGroup, backend, maxTimeMs)
         : backend ? await dataAPI.calculateScheme(currentSchemeId, method, modelGroup, backend)
         : await dataAPI.calculateScheme(currentSchemeId, method, modelGroup);
       return isCurrent() ? result : null;

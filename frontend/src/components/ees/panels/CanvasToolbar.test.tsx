@@ -43,3 +43,12 @@ test('invalid or empty time budget blocks calculation and input uses explicit mi
   expect(input.value).toBe('5000');
   expect(host.querySelector<HTMLButtonElement>('.calculate-button')!.disabled).toBe(false);
 });
+
+test('changed physical context blocks calculation and exposes a review action',async()=>{
+  const review=vi.fn();
+  await act(async()=>root.render(<CanvasToolbar {...baseProps} limitsStale limitCount={1} onShowLimits={review}/>));
+  expect(host.querySelector<HTMLButtonElement>('.calculate-button')!.disabled).toBe(true);
+  expect(host.querySelector('[role="alert"]')!.textContent).toContain('Схема изменена');
+  await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Границы напряжения"]')!.click());
+  expect(review).toHaveBeenCalledOnce();
+});

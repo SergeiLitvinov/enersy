@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -66,9 +65,8 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		sendError(w, "Explicit modelGroup and method required", 400)
 		return true
 	}
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1))
-	if err != nil || len(body) != 0 {
-		sendError(w, "Calculation body must be empty; options belong in query", 400)
+	limits, ok := readCalculationLimits(w, r)
+	if !ok {
 		return true
 	}
 	archive := parts[3] == "archive-calculation"
@@ -89,12 +87,19 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		componentWriteError(w, 412, "topology_revision_conflict", "Топология изменена. Перечитайте схему перед расчётом")
 		return true
 	}
+	if !limitTargetsBelongToInput(limits, input) {
+		sendError(w, "Operating limit equipment is absent from this scheme", 400)
+		return true
+	}
 	workerInput := map[string]any{"components": input.Components, "connections": input.Connections, "modelGroup": group, "method": method}
 	if backend != "" {
 		workerInput["computeBackend"] = backend
 	}
 	if budget != 0 {
 		workerInput["executionOptions"] = map[string]int64{"max_time_ms": budget}
+	}
+	if limits != nil {
+		workerInput["operatingLimits"] = limits
 	}
 	payload, err := json.Marshal(workerInput)
 	if err != nil {
@@ -126,6 +131,10 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 	}
 	proxyComputeResult(w, r, handler.workerURL, "/calculate", payload, func(status int, result []byte) bool {
 		if !allowed() {
+			return false
+		}
+		if status >= 200 && status < 300 && !confirmsCalculationLimits(result, limits) {
+			sendError(w, "Worker did not confirm requested operating limits", 502)
 			return false
 		}
 		if archive && status >= 200 && status < 300 {

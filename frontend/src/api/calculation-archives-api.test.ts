@@ -41,6 +41,18 @@ function responses(patch: { headers?: Record<string, string>; input?: string; re
   }); vi.stubGlobal('fetch', fetcher); return fetcher;
 }
 
+test('archive assessment binds to the saved bounds and never to a currently edited scheme',async()=>{
+  const limits=[{component_id:1,terminal:1,min_kv:9,max_kv:11}];
+  const captured={...input,operatingLimits:limits};const inputBody=JSON.stringify(captured);
+  const assessed={...result,operating_assessment:{schema_version:1,policy:'explicit-terminal-voltage-v1',stability_assessed:false,status:'within_declared_bounds',checks:[{component_id:1,terminal:1,bus_id:1,min:9,max:11,measured:10,status:'within_bounds',unit:'kV',quantity:'line_to_line_rms_voltage'}]}};
+  const assessedBody=JSON.stringify(assessed);const savedMetadata={...metadata,inputBytes:new TextEncoder().encode(inputBody).length,resultBytes:new TextEncoder().encode(assessedBody).length};
+  responses({input:inputBody,result:assessedBody,metadata:savedMetadata});
+  expect((await readCalculationArchive('8',metadata.id,new AbortController().signal)).input.operatingLimits).toEqual(limits);
+  const altered=JSON.stringify({...captured,operatingLimits:[{...limits[0],min_kv:8}]});
+  responses({input:altered,result:assessedBody,metadata:{...savedMetadata,inputBytes:new TextEncoder().encode(altered).length}});
+  await expect(readCalculationArchive('8',metadata.id,new AbortController().signal)).rejects.toThrow('не подтвердил');
+});
+
 test('archive execution budget is validated and must match its saved result', async () => {
   const captured = { ...input, executionOptions: { max_time_ms: 5000 } };
   expect(parseArchiveInput(captured, metadata).executionOptions?.max_time_ms).toBe(5000);

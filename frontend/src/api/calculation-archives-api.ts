@@ -3,6 +3,7 @@ import { parseCalculationResult, type CalculationResult } from './ees-api';
 import { parseCalculationProvenance, type CalculationProvenance } from './calculation-provenance';
 import { isComputeBackendId, requireSelectedBackend, type ComputeBackendId } from './compute-backends';
 import { isCalculationBudget, requireExecutionBudget } from './calculation-execution';
+import { parseTerminalVoltageLimits, requireOperatingLimits, type TerminalVoltageLimit } from './operating-assessment';
 
 export interface CalculationArchive {
   provenanceSha256?: string; provenanceBytes?: number;
@@ -11,6 +12,7 @@ export interface CalculationArchive {
   inputBytes: number; resultBytes: number;
 }
 export interface ArchiveInput {
+  operatingLimits?: TerminalVoltageLimit[];
   computeBackend?: ComputeBackendId;
   executionOptions?: { max_time_ms: number };
   modelGroup: string; method: string;
@@ -41,7 +43,7 @@ export function parseArchiveMetadata(raw: unknown): CalculationArchive {
       !hash(v.inputSha256) || !hash(v.resultSha256) || !bytes(v.inputBytes) || !bytes(v.resultBytes)) return fail();
   return v as unknown as CalculationArchive;
 }
-export function parseArchiveInput(raw: unknown, metadata: CalculationArchive): ArchiveInput {
+export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>): ArchiveInput {
   const v = record(raw);
   if (v.computeBackend !== undefined && !isComputeBackendId(v.computeBackend)) return fail();
   if (v.executionOptions !== undefined) {
@@ -61,6 +63,7 @@ export function parseArchiveInput(raw: unknown, metadata: CalculationArchive): A
     const c = record(value);
     if (!graphId(c.from) || !graphId(c.to) || !ids.has(c.from) || !ids.has(c.to) || c.from === c.to || !code(c.fromPort) || !code(c.toPort)) return fail();
   }
+  if (v.operatingLimits !== undefined && parseTerminalVoltageLimits(v.operatingLimits).some(limit => !ids.has(limit.component_id))) return fail();
   return v as unknown as ArchiveInput;
 }
 const base = (project: string) => `/api/projects/${archiveId(project)}/calculation-archives`;
@@ -108,6 +111,7 @@ export async function readCalculationArchive(project: string, id: string, signal
   const input = parseArchiveInput(values[0], metadata), result = parseCalculationResult(values[1]);
   requireSelectedBackend(result.solver, input.computeBackend);
   requireExecutionBudget(result.solver, input.executionOptions?.max_time_ms);
+  requireOperatingLimits(result.operating_assessment, input.operatingLimits);
   const provenance = metadata.provenanceSha256 ? parseCalculationProvenance(await body(project, metadata, 'provenance', signal), input) : undefined;
   signal.throwIfAborted();
   if (result.method_used !== `${metadata.modelGroup}/${metadata.method}`) return fail();

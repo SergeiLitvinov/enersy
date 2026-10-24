@@ -1,4 +1,8 @@
 import { readEquipmentModels, readEquipmentModelParams, readParameterTemplate } from './catalog-api';
+export {createStudy,appendStudyVersion,readStudy,listStudies,listStudyVersions,readStudyArtifact,parseStudyDocument,parseStudyVersion,StudyWriteError} from './studies-api';
+export type {StudyDocument,StudyVersion} from './studies-api';
+import { parseOperatingAssessment, parseTerminalVoltageLimits, requireOperatingLimits, type OperatingAssessment, type TerminalVoltageLimit } from './operating-assessment';
+export type { OperatingAssessment, VoltageLimitCheck, TerminalVoltageLimit } from './operating-assessment';
 import { parseCalculationTopology, type CalculationTopology } from './calculation-topology';
 export type { CalculationTopology, CalculationTerminal, CalculationInternalNode } from './calculation-topology';
 import { parseCalculationFlows, type CalculationBranch, type CalculationShunt } from './calculation-flows';
@@ -104,9 +108,9 @@ export interface Scheme {
   id: number;
   name: string;
   description: string;
-  created_at: string;
-  updated_at: string;
-  owner_id: number;
+  created_at: string | null;
+  updated_at: string | null;
+  owner_id: number | null;
   components?: SchemeComponent[];
   connections?: SchemeConnection[];
 }
@@ -140,6 +144,7 @@ export interface CalculationIsland {
 }
 
 export interface CalculationResult {
+  operating_assessment?: OperatingAssessment;
   solver?: { compute_backend?: CalculationBackend; execution?: CalculationExecution; [key: string]: unknown };
   loads?: CalculationLoad[];
   branches?: CalculationBranch[];
@@ -259,6 +264,7 @@ export function parseCalculationResult(data: unknown): CalculationResult {
     nodes: result.nodes as CalculationResult['nodes'], sources: result.sources as CalculationSource[] | undefined,
     topology: result.topology as CalculationTopology | undefined,
   });
+  parseOperatingAssessment(result.operating_assessment, result.nodes as CalculationResult['nodes'], result.topology as CalculationTopology | undefined);
   parseCalculationLoads(result.loads, {
     nodes: result.nodes as CalculationResult['nodes'], topology: result.topology as CalculationTopology | undefined,
     otherIds: [...(result.sources as CalculationSource[] ?? []), ...(result.branches as CalculationBranch[] ?? []), ...(result.shunts as CalculationShunt[] ?? [])].map(row => row.component_id),
@@ -430,11 +436,13 @@ export async function deleteConnection(id: number): Promise<{ success: boolean }
 }
 
 // Calculation
-export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase', backend?: ComputeBackendId, maxTimeMs?: number): Promise<CalculationResult> {
+export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase', backend?: ComputeBackendId, maxTimeMs?: number, operatingLimits?: readonly TerminalVoltageLimit[]): Promise<CalculationResult> {
+  const limits = operatingLimits === undefined ? undefined : parseTerminalVoltageLimits(operatingLimits);
   if (maxTimeMs !== undefined && !isCalculationBudget(maxTimeMs)) throw new Error('Бюджет времени должен быть целым числом от 1 до 20000 мс');
   const response = await fetch(`${API_BASE}/calculate/${schemeId}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(limits === undefined ? {} : {body:JSON.stringify({operatingLimits:limits})}),
   });
   const data: unknown = await response.json();
   if (!response.ok || (data && typeof data === 'object' && 'success' in data && data.success === false)) {
@@ -443,5 +451,6 @@ export async function calculateScheme(schemeId: number, method: string = 'newton
   const result = parseCalculationResult(data);
   requireSelectedBackend(result.solver, backend);
   requireExecutionBudget(result.solver, maxTimeMs);
+  requireOperatingLimits(result.operating_assessment, limits);
   return result;
 }

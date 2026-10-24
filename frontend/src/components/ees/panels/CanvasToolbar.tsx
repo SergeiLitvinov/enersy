@@ -6,6 +6,7 @@ import { backendLabel, isComputeBackendId, type ComputeBackendId } from '../../.
 import { isCalculationBudget } from '../../../api/calculation-execution';
 import './CanvasToolbar.css';
 interface CanvasToolbarProps {
+  onShowLimits?:()=>void; limitCount?:number; limitsStale?:boolean;
   maxTimeMs: number; onMaxTimeChange: (value: number) => void;
   computeBackend: ComputeBackendId; computeBackends: ComputeBackendId[]; backendMessage: string;
   onBackendChange: (backend: ComputeBackendId) => void; onBackendReload: () => void;
@@ -16,7 +17,7 @@ interface CanvasToolbarProps {
 }
 const GROUP_LABELS: Record<string, string> = { 'three-phase': 'Симметричный AC-режим', 'phase-coordinates': 'Фазные координаты', 'symmetrical-components': 'Симметричные составляющие' };
 const METHOD_LABELS: Record<string, string> = { 'newton-raphson': 'Ньютон–Рафсон', direct: 'Прямой метод' };
-export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
   const [capabilities, setCapabilities] = useState<ComputeCapability[]>([]);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [message, setMessage] = useState('Проверка возможностей…'); const [retry, setRetry] = useState(0);
@@ -25,10 +26,12 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ maxTimeMs, onMaxTi
     return () => controller.abort();
   }, [retry]);
   const selected = capabilities.find(c => c.model_group === modelGroup && c.method === calcMethod);
-  const available = Boolean(selected && selected.status !== 'unsupported' && computeBackends.includes(computeBackend) && isCalculationBudget(maxTimeMs));
+  const available = Boolean(selected && selected.status !== 'unsupported' && computeBackends.includes(computeBackend) && isCalculationBudget(maxTimeMs) && !limitsStale);
   const groups = [...new Set(capabilities.map(c => c.model_group))]; const methods = capabilities.filter(c => c.model_group === modelGroup);
   return <div className="toolbar" aria-label="Управление схемой и расчётом">
     <div className="toolbar-calculation">
+      {onShowLimits && <button className="tool-btn" onClick={onShowLimits} aria-label="Границы напряжения" disabled={!currentSchemeId||isCalculating}>Границы · {limitCount}</button>}
+      {limitsStale && <span role="alert">Схема изменена: пересмотрите границы напряжения.</span>}
       <select aria-label="Вычислительный движок" className="method-select" value={computeBackend} disabled={isCalculating || !computeBackends.length} onChange={e => { if (isComputeBackendId(e.target.value)) onBackendChange(e.target.value); }}>
         {!computeBackends.includes(computeBackend) && <option value={computeBackend} disabled>{backendLabel(computeBackend)} · недоступен</option>}
         {computeBackends.map(id => <option key={id} value={id}>{backendLabel(id)}</option>)}
