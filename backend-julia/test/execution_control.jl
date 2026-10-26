@@ -47,7 +47,7 @@ using SparseArrays
 end
 
 @testset "Expired completed island is never published as a partial success" begin
-    case = first(JSON3.read(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String)).compiled_networks)
+    case = first(JSON.parse(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String)).compiled_networks)
     cs, es, _, _, base, options, _ = EC.parse_calculate_request(case.scheme)
     now = Ref(UInt64(0))
     control = CalculationControl(;max_time_ms=1,clock=()->now[])
@@ -66,8 +66,8 @@ end
 end
 
 @testset "HTTP execution budgets reject invalid input and recover after expiry" begin
-    case = first(JSON3.read(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String)).compiled_networks)
-    body = JSON3.read(JSON3.write(case.scheme),Dict{String,Any})
+    case = first(JSON.parse(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String)).compiled_networks)
+    body = JSON.parse(JSON.json(case.scheme),Dict{String,Any})
     original = EC.julia_backend()
     delayed = EC.ComputeBackend("julia", function (Y,setup,opts,limits;kwargs...)
         sleep(0.02) # Test-only latency; the production physical solver is unchanged.
@@ -76,7 +76,7 @@ end
     server = EC.start_server(;host="127.0.0.1",port=0,backends=(delayed,))
     try
         url = "http://127.0.0.1:$(HTTP.port(server))/calculate"
-        post(options) = HTTP.post(url,["Content-Type"=>"application/json"],JSON3.write(merge(body,Dict("executionOptions"=>options)));
+        post(options) = HTTP.post(url,["Content-Type"=>"application/json"],JSON.json(merge(body,Dict("executionOptions"=>options)));
             proxy=HTTP.ProxyConfig(),status_exception=false)
         for invalid in (0,-1,true,nothing,"10",20_001)
             @test post(Dict("max_time_ms"=>invalid)).status == 400
@@ -85,11 +85,11 @@ end
         @test post([]).status == 400
         expired = post(Dict("max_time_ms"=>1))
         @test expired.status == 504
-        @test JSON3.read(expired.body).error_detail.kind == "EXECUTION"
-        @test JSON3.read(expired.body).error_detail.code == "calculation_deadline_exceeded"
+        @test JSON.parse(expired.body).error_detail.kind == "EXECUTION"
+        @test JSON.parse(expired.body).error_detail.code == "calculation_deadline_exceeded"
         recovered = post(Dict("max_time_ms"=>20_000))
         @test recovered.status == 200
-        execution = JSON3.read(recovered.body).solver.execution
+        execution = JSON.parse(recovered.body).solver.execution
         @test execution.max_time_ms == 20_000
         @test execution.native_calls_interruptible === false
         @test execution.disconnect_cancels === false

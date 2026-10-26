@@ -36,7 +36,7 @@ func (store projectStore) CreateComponent(ctx context.Context, token string, pro
 	if err != nil {
 		return 0, nil, 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, req.SchemeID); err != nil {
 		return 0, nil, 0, err
 	}
@@ -68,7 +68,7 @@ func (store projectStore) MutateComponent(ctx context.Context, token string, pro
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, scheme); err != nil {
 		return 0, err
 	}

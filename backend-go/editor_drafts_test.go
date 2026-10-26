@@ -126,7 +126,7 @@ func TestEditorDraftsPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkEditorDraftPhaseMigration(t, ctx, database, accounts[2], scheme)
+	checkEditorDraftPhaseMigration(ctx, t, database, accounts[2], scheme)
 	for _, invalid := range []string{`{}`, `{"formatVersion":"1"}`, `[]`} {
 		if _, err := database.ExecContext(ctx, `INSERT INTO project_editor_drafts(account_id,scheme_id,workspace_id,revision,payload)
  VALUES($1,$2,'00000000-0000-0000-0000-000000000001',1,$3::jsonb)`, accounts[2], scheme, invalid); err == nil {

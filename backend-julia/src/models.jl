@@ -243,7 +243,9 @@ function generator_model(inj::Injection, terminal::Bus, base::BaseSystem,
     x = param_number(p, "x"; unit="Ohm", owner=owner)
     r >= 0 || throw(contract_error("invalid_parameter", "generator series resistance must be non-negative",
                                   detail="$(owner).r=$(r)"))
-    (r^2 + x^2) > 0.0 ||
+    # Test the components directly: squaring a nonzero finite impedance can
+    # underflow to zero before it is converted to the calculation base.
+    !(iszero(r) && iszero(x)) ||
         throw(contract_error("zero_impedance",
                              "generator series impedance must not be zero",
                              detail="$(owner) r=$(r) x=$(x)"))
@@ -288,8 +290,12 @@ function shunt_model(inj::Injection, bus::Bus, base::BaseSystem, assumptions::Ve
         u_nom = bus.v_nom_kv
         push!(assumptions, "шунт $(owner): voltage_nom не задан; принят номинал узла $(u_nom) кВ")
     end
-    b_pu = (q_nom / base.s_base_mva) * (base.v_base_kv / u_nom)^2
-    y_pu = inj.code == "capacitor" ? complex(0.0, b_pu) : complex(0.0, -b_pu)
+    # At the device base (Q_nom MVA, U_nom kV), |B| is exactly 1 p.u.
+    # Combine binary exponents before restoring Float64 range: Q/S and
+    # (U_base/U_nom)^2 need not be representable separately. A nonzero shunt
+    # must never silently disappear through underflow.
+    y_own = inj.code == "capacitor" ? complex(0.0, 1.0) : complex(0.0, -1.0)
+    y_pu = admittance_from_own_base(y_own, q_nom, u_nom, base; owner)
     return ShuntModel(inj.component_id, inj.code, inj.bus, y_pu, q_nom, owner)
 end
 

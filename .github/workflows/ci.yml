@@ -9,54 +9,67 @@ on:
 jobs:
   go:
     name: Go API Gateway
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-          POSTGRES_DB: enersy_test
-        ports: ['5432:5432']
-        options: --health-cmd="pg_isready -U test_user -d enersy_test" --health-interval=5s --health-timeout=5s --health-retries=10
-    env:
-      TEST_DATABASE_URL: host=localhost port=5432 user=test_user password=test_pass dbname=enersy_test sslmode=disable
-    defaults:
-      run:
-        working-directory: ./backend-go
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Prepare locked Go dependencies
+        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps dependencies
+      - name: Go notice collector checks
+        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps go-license-check
+      - name: Build API with binary-linked module notices
+        run: docker compose build go-api
+      - name: Export Go module notice inventory
+        run: |
+          mkdir -p .cache
+          docker compose run --rm --no-deps --entrypoint cat go-api /usr/share/licenses/enersy/go-modules.json > .cache/go-module-notices.json
+      - uses: actions/upload-artifact@v4
         with:
-          go-version: '1.24'
-          cache-dependency-path: ./backend-go/go.sum
-      - uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: ./backend-go
-      - run: go vet ./...
-      - run: go build ./...
-      - run: go test -race -v ./...
+          name: go-module-notices
+          path: .cache/go-module-notices.json
+          if-no-files-found: error
+      - name: Start isolated PostgreSQL
+        run: docker compose -f tests/integration/go-compose.yml up -d --wait postgres
+      - name: Go vet, build and PostgreSQL race tests
+        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps go-check
+      - name: Pinned Go lint and formatting
+        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps lint
+      - name: Go reachable vulnerability audit
+        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps audit
       - name: Isolated database backup and restore
         shell: pwsh
-        run: ../scripts/database/Test-DatabaseBackup.ps1
+        run: ./scripts/database/Test-DatabaseBackup.ps1
+      - name: Previous PostgreSQL minor upgrade and restore
+        shell: pwsh
+        run: >-
+          ./scripts/database/Test-DatabaseBackup.ps1
+          -Image 'postgres:15@sha256:c2ca90969ca293925ab474466e837689cc712321afdd9e4640bd0cf942fdca3a'
+          -UpgradeImage 'postgres:15.19@sha256:baa22e6286bf832cb147b8bb5aa9d8bc999846d69c21d11bf63f58fbeed1fa48'
+      - name: Remove isolated Go environment
+        if: always()
+        run: docker compose -f tests/integration/go-compose.yml down
 
   rust:
     name: Rust/WASM
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./rust-wasm
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Native numerical kernel tests and lint
+        run: docker compose --profile numerics-check run --rm --no-deps --build numerics-check
+      - name: Locked WASM build, host tests and lint
+        run: docker compose --profile rust-wasm-check run --rm --no-deps --build rust-wasm-check
+      - name: Export Rust WASM notice inventory
+        run: |
+          mkdir -p .cache
+          docker compose --profile rust-wasm-check run --rm --no-deps --entrypoint cat rust-wasm-check /usr/share/licenses/enersy/rust-wasm.json > .cache/rust-wasm-notices.json
+      - uses: actions/upload-artifact@v4
         with:
-          target: wasm32-unknown-unknown
-          toolchain: stable
-      - run: cargo check --target wasm32-unknown-unknown
-      - run: cargo test
-      - run: cargo test --manifest-path ../numerics/Cargo.toml --all-features --locked --offline
-      - run: cargo clippy --manifest-path ../numerics/Cargo.toml --all-features --locked --offline --all-targets -- -D warnings
+          name: rust-wasm-notices
+          path: .cache/rust-wasm-notices.json
+          if-no-files-found: error
+      - name: Exact Rust 1.85.0 minimum, native tests and WASM release
+        run: docker compose --profile rust-msrv-check run --rm --no-deps --build rust-msrv-check
+      - name: RustSec audit of both locked dependency sets
+        run: docker compose --profile rust-audit run --rm --no-deps --build rust-audit
 
   frontend:
     name: Frontend
@@ -68,13 +81,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .node-version
       - run: npm ci
       - run: npm audit --audit-level=moderate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Validate license inventory collection
+        run: node --test ../scripts/security/collect-node-licenses.test.mjs ../scripts/security/collect-rust-licenses.test.mjs
+      - name: Inventory installed frontend licenses and notices
+        run: node ../scripts/security/collect-node-licenses.mjs . package-lock.json dist/licenses/npm-frontend.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enersy-frontend-license-inventory
+          path: frontend/dist/licenses/npm-frontend.json
+          if-no-files-found: error
       - name: Verify released geometry snapshots and profile index construction
         run: node --expose-gc benchmark/picking.mjs /tmp/enersy-editor-index-build.json index-build.ts
       - uses: actions/upload-artifact@v4
@@ -89,6 +111,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
+      - name: Frontend container types, lint and cross-language contract tests
+        run: docker build -f frontend/Dockerfile --target check -t enersy-ui-check .
       - name: Build disposable command acceptance API
         run: docker compose -f tests/integration/revision-compose.yml build go-api
       - name: Verify lost TCP acknowledgement after commit
@@ -125,14 +149,44 @@ jobs:
 
   julia:
     name: Julia numerical and HTTP regression
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
+      - name: Locked Julia package and HTTP tests
+        run: docker compose --profile julia-check run --rm --no-deps --build julia-check
+      - name: Verify catalogue units through PostgreSQL and real Julia worker
+        run: |
+          mkdir -p .cache
+          docker compose -f tests/integration/go-compose.yml run --rm dependencies
+          docker compose -f tests/integration/go-compose.yml --profile parameter-units-check run --rm parameter-units-check 2>&1 | tee .cache/parameter-units-worker.log
+      - name: Remove disposable parameter-unit environment
+        if: always()
+        run: docker compose -f tests/integration/go-compose.yml --profile parameter-units-check down
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          version: '1.10'
-      - uses: julia-actions/cache@v2
-      - run: julia --project=backend-julia -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+          name: parameter-units-worker
+          path: .cache/parameter-units-worker.log
+          if-no-files-found: warn
+      - name: Julia notice collector source and checksum checks
+        run: docker compose --profile julia-check run --rm --no-deps julia-check julia --project=. --startup-file=no /notice-tools/test_collect_julia_licenses.jl
+      - name: Notice maintenance archive and path checks
+        run: docker compose --profile notice-maintenance-check run --rm --no-deps notice-maintenance-check
+      - name: Export Julia and SDK notice inventory
+        run: |
+          mkdir -p .cache
+          docker compose --profile julia-check run --rm --no-deps --entrypoint cat julia-check /usr/share/licenses/enersy/julia-modules.json > .cache/julia-notices.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: julia-notices
+          path: .cache/julia-notices.json
+          if-no-files-found: error
+      - name: Julia audit response validation and positive OSV control
+        run: >-
+          docker compose --profile julia-audit run --rm --no-deps --build julia-audit
+          julia --project=. --startup-file=no /audit/test_audit_julia.jl --live
+      - name: Audit locked Julia packages and verify actual runtime
+        run: docker compose --profile julia-audit run --rm --no-deps --build julia-audit
 
   julia-native-ffi:
     name: Julia and Rust native ABI
@@ -141,15 +195,40 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose build julia-compute
       - run: docker compose --profile numerics-ffi-check run --rm --build numerics-ffi-check
+      - name: Export Rust native notice inventory
+        run: |
+          mkdir -p .cache
+          docker compose --profile numerics-ffi-check run --rm --no-deps --entrypoint cat numerics-ffi-check /usr/share/licenses/enersy/rust-native.json > .cache/rust-native-notices.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-native-notices
+          path: .cache/rust-native-notices.json
+          if-no-files-found: error
       - name: Prepare Go modules for isolated native acceptance
         run: |
           mkdir -p .cache/go-mod .cache/go-build
-          docker run --rm -v "$PWD:/workspace:ro" -v "$PWD/.cache/go-mod:/go/pkg/mod" -w /workspace/backend-go -e GOTOOLCHAIN=local golang:1.24-alpine go mod download
+          docker run --rm -v "$PWD:/workspace:ro" -v "$PWD/.cache/go-mod:/go/pkg/mod" -w /workspace/backend-go -e GOTOOLCHAIN=local golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba go mod download
       - name: Private archive with real native worker and PostgreSQL
         run: docker compose -f tests/integration/native-compose.yml run --rm archive-check
       - name: Remove disposable native acceptance services
         if: always()
         run: docker compose -f tests/integration/native-compose.yml down
+
+  clean-release:
+    name: Clean Docker release and independent physical reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build without instruction cache, start isolated stack and verify
+        shell: pwsh
+        run: ./scripts/build/Test-CleanRelease.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clean-release-acceptance
+          path: .cache/release-check/
+          if-no-files-found: error
 
   documentation:
     name: Documentation and generated reference
@@ -161,11 +240,13 @@ jobs:
           version: '11.19.0'
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --audit-level=moderate
       - run: pnpm docs:build
+      - name: Inventory installed documentation licenses and notices
+        run: node scripts/security/collect-node-licenses.mjs . pnpm-lock.yaml docs/site/.vitepress/dist/licenses/npm-documentation.json
       - uses: actions/upload-artifact@v4
         with:
           name: enersy-documentation

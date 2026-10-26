@@ -18,15 +18,23 @@ import (
 // The shipped directory is resolved relative to the binary, never its working
 // directory. Developers and test fixtures may select an explicit source URL.
 func runMigrations(database *sql.DB) error {
+	url, err := configuredMigrationSource()
+	if err != nil {
+		return err
+	}
+	return runMigrationsFromSource(database, url)
+}
+
+func configuredMigrationSource() (string, error) {
 	url := os.Getenv("MIGRATIONS_SOURCE")
 	if url == "" {
 		executable, err := os.Executable()
 		if err != nil {
-			return fmt.Errorf("migration executable path: %w", err)
+			return "", fmt.Errorf("migration executable path: %w", err)
 		}
 		url = "file://" + filepath.ToSlash(filepath.Join(filepath.Dir(executable), "database", "migrations"))
 	}
-	return runMigrationsFromSource(database, url)
+	return url, nil
 }
 
 func runMigrationsFromSource(database *sql.DB, url string) error {

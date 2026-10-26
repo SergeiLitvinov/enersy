@@ -37,6 +37,6 @@
     end
     response = EC.handle_request(HTTP.Request("GET", "/model-definitions"))
     @test response.status == 200
-    @test JSON3.read(String(response.body)).source_revision == payload["source_revision"]
+    @test JSON.parse(String(response.body)).source_revision == payload["source_revision"]
     @test EC.handle_request(HTTP.Request("POST", "/model-definitions", [], "{}")).status == 405
 end

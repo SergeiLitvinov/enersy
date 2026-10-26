@@ -9,15 +9,56 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestComputeRedirectIsRejected(t *testing.T) {
+	for _, status := range []int{301, 302, 303, 307, 308} {
+		for _, relative := range []bool{false, true} {
+			t.Run(fmt.Sprintf("status=%d/relative=%t", status, relative), func(t *testing.T) {
+				var forwarded atomic.Int32
+				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					forwarded.Add(1)
+					io.WriteString(w, `{"success":true}`)
+				}))
+				defer target.Close()
+				worker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/calculate" {
+						forwarded.Add(1)
+						io.WriteString(w, `{"success":true}`)
+						return
+					}
+					location := target.URL
+					if relative {
+						location = "/redirected"
+					}
+					w.Header().Set("Location", location)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(status)
+					io.WriteString(w, `{"success":true}`)
+				}))
+				defer worker.Close()
+				committed := false
+				rec := httptest.NewRecorder()
+				proxyComputeResult(rec, httptest.NewRequest("POST", "/", nil), worker.URL, "/calculate", []byte(`{"privateInput":true}`), func(int, []byte) bool {
+					committed = true
+					return true
+				})
+				if rec.Code != 502 || !strings.Contains(rec.Body.String(), "Unexpected compute redirect") || !json.Valid(rec.Body.Bytes()) || rec.Header().Get("Location") != "" || forwarded.Load() != 0 || committed {
+					t.Fatalf("redirect leaked or committed: status=%d forwarded=%d committed=%t", rec.Code, forwarded.Load(), committed)
+				}
+			})
+		}
+	}
+}
 
 func TestComputeWorkerStatuses(t *testing.T) {
 	for _, status := range []int{400, 422, 500, 503} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			body := `{"success":false,"error_detail":{"code":"worker_failure","message":"diagnostic"}}`
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(status)
 				io.WriteString(w, body)
 			}))
@@ -51,7 +92,7 @@ func TestComputeMalformedJSON(t *testing.T) {
 	for _, body := range []string{"", " \n\t", "<html>upstream failure</html>", `{"success":true`, `{"success":true}{"other":1}`, `{"value":NaN}`} {
 		t.Run(fmt.Sprintf("%q", body), func(t *testing.T) {
 			for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(status)
 					io.WriteString(w, body)
 				}))
@@ -72,7 +113,7 @@ func TestComputeMalformedJSON(t *testing.T) {
 func TestComputeValidJSONPreserved(t *testing.T) {
 	// Keep this a transport check: a valid JSON document is not proof of physics.
 	body := " \n" + `{"success":true,"value":1.2345678901234567,"unicode":"напряжение"}` + "\n"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, body) }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, body) }))
 	defer server.Close()
 	previous := juliaBaseURL
 	juliaBaseURL = server.URL
@@ -86,7 +127,7 @@ func TestComputeValidJSONPreserved(t *testing.T) {
 
 func TestComputeResponseFailures(t *testing.T) {
 	for _, oversized := range []bool{false, true} {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			if oversized {
 				io.WriteString(w, strings.Repeat("x", computeBodyLimit+1))
 			} else {

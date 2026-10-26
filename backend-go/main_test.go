@@ -61,7 +61,7 @@ func TestSendError(t *testing.T) {
 }
 
 func TestEnableCORS(t *testing.T) {
-	handler := enableCORS(func(w http.ResponseWriter, r *http.Request) {
+	handler := enableCORS(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -203,7 +203,7 @@ func TestCapabilitiesProxy(t *testing.T) {
 func TestComputeDeadlineCancelsUpstream(t *testing.T) {
 	started := make(chan struct{})
 	stopped := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		close(started)
 		<-r.Context().Done()
 		close(stopped)
@@ -289,7 +289,7 @@ func TestReadyEndpointWhenDBIsNil(t *testing.T) {
 func TestEnableCORSSetsConfiguredOrigin(t *testing.T) {
 	corsOrigin = "http://example.com"
 
-	handler := enableCORS(func(w http.ResponseWriter, r *http.Request) {
+	handler := enableCORS(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 

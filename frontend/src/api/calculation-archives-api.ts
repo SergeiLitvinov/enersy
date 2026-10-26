@@ -16,7 +16,7 @@ export interface ArchiveInput {
   computeBackend?: ComputeBackendId;
   executionOptions?: { max_time_ms: number };
   modelGroup: string; method: string;
-  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string> }[];
+  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string>; parameterUnits?: Record<string, string> }[];
   connections: { from: number; to: number; fromPort: string; toPort: string }[];
 }
 export interface OpenCalculationArchive { metadata: CalculationArchive; input: ArchiveInput; result: CalculationResult; provenance?: CalculationProvenance }
@@ -57,6 +57,10 @@ export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchiv
     if (!graphId(c.id) || ids.has(c.id) || !code(c.type) ||
         ![c.x, c.y, c.rotation].every(n => typeof n === 'number' && Number.isFinite(n)) || !Number.isInteger(c.rotation) ||
         !Object.values(params).every(p => typeof p === 'string')) return fail();
+    if (c.parameterUnits !== undefined) {
+      const units = record(c.parameterUnits);
+      if (!Object.entries(units).every(([key, unit]) => typeof unit === 'string' && Object.prototype.hasOwnProperty.call(params, key))) return fail();
+    }
     ids.add(c.id);
   }
   for (const value of v.connections) {

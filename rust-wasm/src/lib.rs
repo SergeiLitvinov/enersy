@@ -28,10 +28,7 @@ pub fn rotate_point(x: f64, y: f64, cx: f64, cy: f64, angle_deg: f64) -> Vec<f64
     let sin = rad.sin();
     let dx = x - cx;
     let dy = y - cy;
-    vec![
-        cx + dx * cos - dy * sin,
-        cy + dx * sin + dy * cos,
-    ]
+    vec![cx + dx * cos - dy * sin, cy + dx * sin + dy * cos]
 }
 
 #[wasm_bindgen]
@@ -101,10 +98,8 @@ pub fn has_cycles(node_count: usize, edges_flat: Vec<u32>) -> bool {
     }
 
     for i in 0..node_count {
-        if !visited[i] {
-            if dfs(i, usize::MAX, &adj, &mut visited) {
-                return true;
-            }
+        if !visited[i] && dfs(i, usize::MAX, &adj, &mut visited) {
+            return true;
         }
     }
 
@@ -163,9 +158,7 @@ pub fn validate_connection(type_a: &str, type_b: &str) -> bool {
     {
         return true;
     }
-    if (a == "generator" && b == "breaker")
-        || (a == "breaker" && b == "generator")
-    {
+    if (a == "generator" && b == "breaker") || (a == "breaker" && b == "generator") {
         return true;
     }
 
@@ -308,7 +301,10 @@ mod tests {
 
     #[test]
     fn test_validate_line_line() {
-        assert!(validate_connection("transmission_line", "transmission_line"));
+        assert!(validate_connection(
+            "transmission_line",
+            "transmission_line"
+        ));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-using EnersyCompute, SparseArrays, LinearAlgebra, JSON3, SHA
+using EnersyCompute, SparseArrays, LinearAlgebra, JSON, SHA
 include(joinpath(@__DIR__, "..", "test", "fixtures", "network_families.jl"))
 const EC = EnersyCompute
 
@@ -84,8 +84,8 @@ function run_profile(family, n, output, samples)
         "y_nnz" => nnz(network.Y), "j_nnz" => nnz(J), "lu_nnz" => nnz(factor.L) + nnz(factor.U),
         "y_bytes" => Base.summarysize(network.Y), "j_bytes" => Base.summarysize(J),
         "source_sha256" => source_hashes(), "stages" => records)
-    write(output, JSON3.write(report))
-    println(JSON3.write(Dict("family" => family, "buses" => n, "accuracy" => accuracy,
+    write(output, JSON.json(report))
+    println(JSON.json(Dict("family" => family, "buses" => n, "accuracy" => accuracy,
         "container_peak_bytes" => report["container_peak_bytes"], "status" => "passed")))
 end
 

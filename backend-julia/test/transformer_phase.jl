@@ -1,6 +1,6 @@
 @testset "Transformer phase shift against independent PYPOWER circuits" begin
     path = joinpath(@__DIR__, "reference", "transformer-phase-v1.json")
-    reference = JSON3.read(read(path, String))
+    reference = JSON.parse(read(path, String))
     @test reference.provenance.solver == "PYPOWER 5.1.19"
     for (name, hash) in pairs(reference.provenance.files)
         content = replace(read(joinpath(@__DIR__, "reference", String(name)), String), "\r\n" => "\n")
@@ -58,9 +58,9 @@
             end
         end
         @test jd ≈ numeric atol=1e-6 rtol=1e-7
-        response = EC.handle_request(HTTP.Request("POST", "/calculate", [], JSON3.write(case.scheme)))
+        response = EC.handle_request(HTTP.Request("POST", "/calculate", [], JSON.json(case.scheme)))
         @test response.status == 200
-        compare(JSON3.read(String(response.body), Dict{String,Any}))
+        compare(JSON.parse(String(response.body), Dict{String,Any}))
     end
 end
 

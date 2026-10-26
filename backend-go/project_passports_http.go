@@ -66,14 +66,14 @@ func (handler projectsHTTP) passports(w http.ResponseWriter, r *http.Request) bo
 			return true
 		}
 		if id != nil {
-			json.NewEncoder(w).Encode(items[0])
+			writeJSON(w, items[0])
 			return true
 		}
 		next := ""
 		if len(items) == limit {
 			next = items[len(items)-1].ID
 		}
-		json.NewEncoder(w).Encode(struct {
+		writeJSON(w, struct {
 			Items       []passportVersion `json:"items"`
 			NextAfterID string            `json:"nextAfterId,omitempty"`
 		}{items, next})
@@ -135,7 +135,7 @@ func (handler projectsHTTP) passports(w http.ResponseWriter, r *http.Request) bo
 		return true
 	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(version)
+	writeJSON(w, version)
 	return true
 }
 

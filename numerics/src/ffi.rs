@@ -64,6 +64,17 @@ pub struct Demand {
 
 static PLANS: OnceLock<Mutex<HashMap<u64, Arc<JacobianPlan>>>> = OnceLock::new();
 static NEXT: AtomicU64 = AtomicU64::new(1);
+fn next_handle(counter: &AtomicU64) -> Result<u64, i32> {
+    // Keep the Rust 1.85 MSRV and refuse wraparound instead of reusing a handle.
+    let mut current = counter.load(Ordering::Relaxed);
+    loop {
+        let next = current.checked_add(1).ok_or(INTERNAL)?;
+        match counter.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(id) => return Ok(id),
+            Err(actual) => current = actual,
+        }
+    }
+}
 fn plans() -> &'static Mutex<HashMap<u64, Arc<JacobianPlan>>> {
     PLANS.get_or_init(|| Mutex::new(HashMap::new()))
 }
@@ -202,9 +213,7 @@ pub unsafe extern "C" fn enersy_jacobian_create_v1(
             )
             .map_err(code)?,
         );
-        let id = NEXT
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
-            .map_err(|_| INTERNAL)?;
+        let id = next_handle(&NEXT)?;
         let value = PlanInfo {
             handle: id,
             dimension: plan.dimension() as u64,
@@ -493,8 +502,35 @@ mod tests {
     fn contains_unwind_and_invalid_ranges() {
         assert_eq!(guard(|| panic!("boundary test")), PANIC);
         assert!(range::<f64>(std::ptr::null(), 1).is_err());
-        assert!(range::<f64>(1_usize as *const f64, 1).is_err());
-        assert!(range::<f64>(8_usize as *const f64, u64::MAX).is_err());
+        assert!(range::<f64>(std::ptr::dangling::<u8>().cast(), 1).is_err());
+        assert!(range::<f64>(std::ptr::dangling::<f64>(), u64::MAX).is_err());
         assert!(range::<f64>(std::ptr::null(), 0).is_ok());
+    }
+
+    #[test]
+    fn handles_are_unique_and_never_wrap() {
+        let counter = AtomicU64::new(1);
+        let mut ids = std::thread::scope(|scope| {
+            let workers: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        (0..128)
+                            .map(|_| next_handle(&counter).unwrap())
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            workers
+                .into_iter()
+                .flat_map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        ids.sort_unstable();
+        assert_eq!(ids, (1..=1024).collect::<Vec<_>>());
+        let exhausted = AtomicU64::new(u64::MAX - 1);
+        assert_eq!(next_handle(&exhausted), Ok(u64::MAX - 1));
+        assert_eq!(next_handle(&exhausted), Err(INTERNAL));
+        assert_eq!(next_handle(&exhausted), Err(INTERNAL));
+        assert_eq!(exhausted.load(Ordering::Relaxed), u64::MAX);
     }
 }

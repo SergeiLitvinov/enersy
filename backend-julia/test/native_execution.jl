@@ -40,22 +40,22 @@ end
         sleep(0.02) # Failure fixture only; actual native solver follows unchanged.
         native.solve(Y,setup,options,limits;kwargs...)
     end, native.metadata)
-    refs = JSON3.read(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String))
-    body = JSON3.read(JSON3.write(first(refs.compiled_networks).scheme),Dict{String,Any})
+    refs = JSON.parse(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String))
+    body = JSON.parse(JSON.json(first(refs.compiled_networks).scheme),Dict{String,Any})
     body["computeBackend"] = native.id
     server = EC.start_server(;host="127.0.0.1",port=0,backends=(delayed,))
     try
         url = "http://127.0.0.1:$(HTTP.port(server))/calculate"
         post(budget) = HTTP.post(url,["Content-Type"=>"application/json"],
-            JSON3.write(merge(body,Dict("executionOptions"=>Dict("max_time_ms"=>budget))));
+            JSON.json(merge(body,Dict("executionOptions"=>Dict("max_time_ms"=>budget))));
             proxy=HTTP.ProxyConfig(),status_exception=false)
         expired = post(1)
         @test expired.status == 504
-        @test JSON3.read(expired.body).error_detail.code == "calculation_deadline_exceeded"
+        @test JSON.parse(expired.body).error_detail.code == "calculation_deadline_exceeded"
         recovered = post(20_000)
         @test recovered.status == 200
-        @test JSON3.read(recovered.body).solver.compute_backend.id == native.id
-        @test JSON3.read(recovered.body).solver.execution.max_time_ms == 20_000
+        @test JSON.parse(recovered.body).solver.compute_backend.id == native.id
+        @test JSON.parse(recovered.body).solver.execution.max_time_ms == 20_000
         RJ.with_library(LIBRARY) do library
             @test RJ.live_plans(library) == 0
         end

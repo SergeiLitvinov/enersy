@@ -62,7 +62,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Не удалось проверить соединение", 500)
 		return
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var legacyScheme int
 	err = tx.QueryRowContext(r.Context(), `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL FOR UPDATE`, req.SchemeID).Scan(&legacyScheme)
 	if errors.Is(err, sql.ErrNoRows) {

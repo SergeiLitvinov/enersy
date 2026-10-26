@@ -9,7 +9,7 @@ module EnersyCompute
 Правила оформления (docs/CODING_RULES.md):
 
 * импорт модуля не запускает HTTP-сервер; старт только в `backend-julia/server/main.jl`;
-* JSON3 нормализуется в DTO (`dto.jl`) до любых вычислений, все проверки контракта
+* JSON нормализуется в DTO (`dto.jl`) до любых вычислений, все проверки контракта
   выполняются до сборки сети;
 * неподдерживаемые режимы не имитируются результатом: они отклоняются реестром
   возможностей (`capabilities.jl`) с указанием причины;
@@ -23,7 +23,7 @@ using LinearAlgebra
 using SparseArrays
 using Printf
 using Sockets
-using JSON3
+using JSON
 using HTTP
 using SHA
 

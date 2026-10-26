@@ -1,0 +1,8 @@
+{
+  "juliaVersion": "1.13.2",
+  "juliaCommit": "45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "thirdParty": {
+    "url": "https://raw.githubusercontent.com/JuliaLang/julia/45b6d15e34bbd2003a31acce0b1847b63dad029c/THIRDPARTY.md",
+    "gitBlobSha1": "7e3e5c604c13890df513e69e7858e88ac1e0f4b4"
+  }
+}

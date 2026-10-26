@@ -2,7 +2,7 @@
 name: enersy-native-acceptance
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.19-alpine@sha256:a8e042598834300dfaa17a54f695b87b7f25d3490433bbbe2ef3bffbb9747f24
     environment:
       POSTGRES_DB: native_acceptance
       POSTGRES_USER: acceptance
@@ -27,7 +27,7 @@ services:
       retries: 12
       start_period: 15s
   archive-check:
-    image: golang:1.24-alpine
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
     working_dir: /workspace/backend-go
     volumes:
       - ../..:/workspace:ro

@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -76,7 +75,7 @@ func (handler projectsHTTP) archives(w http.ResponseWriter, r *http.Request) boo
 		}
 		page, err := store.CalculationArchives(r.Context(), token, project, before, limit)
 		if !archiveHTTPError(w, err) {
-			json.NewEncoder(w).Encode(page)
+			writeJSON(w, page)
 		}
 		return true
 	}
@@ -108,9 +107,9 @@ func (handler projectsHTTP) archives(w http.ResponseWriter, r *http.Request) boo
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("ETag", `"`+digest+`"`)
 		w.Header().Set("X-Enersy-Archive-Id", value.ID)
-		w.Write(body)
+		writeJSONBody(w, http.StatusOK, body)
 		return true
 	}
-	json.NewEncoder(w).Encode(value)
+	writeJSON(w, value)
 	return true
 }

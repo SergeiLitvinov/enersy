@@ -9,6 +9,7 @@ import (
 var errStudyInput = errors.New("invalid Study request")
 var errStudyConflict = errors.New("Study revision conflict")
 var errStudyTopology = errors.New("Study source topology conflict")
+var errStudySource = errors.New("Study source equipment revision conflict")
 var errStudyCommand = errors.New("Study command reused with different input")
 var errStudyQuota = errors.New("Study project quota exceeded")
 

@@ -1,5 +1,5 @@
 @testset "Internal EMF reactive limits against independent PQ references" begin
-    cases = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_limit_networks
+    cases = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_limit_networks
     server = start_server(; host="127.0.0.1", port=0)
     try
         url = "http://127.0.0.1:$(HTTP.port(server))/calculate"
@@ -29,9 +29,9 @@
                 @test maximum(abs, [b[key] for key in ["p_from_mw", "q_from_mvar", "p_to_mw", "q_to_mvar"]] -
                               e.component_port_mw_mvar[k]) < 1e-6
             end
-            response = HTTP.post(url, ["Content-Type"=>"application/json"], JSON3.write(case.scheme); proxy=HTTP.ProxyConfig())
+            response = HTTP.post(url, ["Content-Type"=>"application/json"], JSON.json(case.scheme); proxy=HTTP.ProxyConfig())
             @test response.status == 200
-            @test length(JSON3.read(response.body).q_limit_events) == length(case.fixed_q_mvar)
+            @test length(JSON.parse(response.body).q_limit_events) == length(case.fixed_q_mvar)
         end
         cs, es, _, _, base, options, _ = EC.parse_calculate_request(cases[1].scheme)
         budget_error = try calculate(cs, es; base, options=SolverOptions(tolerance=1e-10, max_iterations=3)) catch caught; caught end

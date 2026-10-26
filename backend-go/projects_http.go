@@ -87,7 +87,7 @@ func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			sendError(w, "Project service unavailable", 503)
 			return
 		}
-		json.NewEncoder(w).Encode(page)
+		writeJSON(w, page)
 		return
 	}
 	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -134,7 +134,7 @@ func (handler projectsHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(struct {
+	writeJSON(w, struct {
 		ID string `json:"id"`
 	}{strconv.FormatInt(id, 10)})
 }
@@ -167,7 +167,7 @@ func (handler projectsHTTP) detail(w http.ResponseWriter, r *http.Request) bool 
 	} else if err != nil {
 		sendError(w, "Project service unavailable", 503)
 	} else {
-		json.NewEncoder(w).Encode(project)
+		writeJSON(w, project)
 	}
 	return true
 }

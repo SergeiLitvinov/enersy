@@ -23,7 +23,7 @@ func (store projectStore) CreateConnection(ctx context.Context, token string, pr
 	if err != nil {
 		return ack, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, req.SchemeID); err != nil {
 		return ack, err
 	}
@@ -66,7 +66,7 @@ func (store projectStore) DeleteConnection(ctx context.Context, token string, pr
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, scheme); err != nil {
 		return 0, err
 	}

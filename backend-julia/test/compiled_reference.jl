@@ -1,5 +1,5 @@
 @testset "Compiled loaded 110/10 kV transformer against PYPOWER" begin
-    reference = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_transformer
+    reference = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_transformer
     cs = [component(1,"generator"; voltage_nom=110, e=113.3, p=0, r=0.1, x=0.5),
           component(2,"busbar"; voltage_nom=110),
           component(3,"busbar"; voltage_nom=10),

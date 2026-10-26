@@ -1,0 +1,123 @@
+# Disposable Go checks. No host ports, application volumes or host SDK required.
+name: enersy-go-acceptance
+services:
+  postgres:
+    image: postgres:15.19-alpine@sha256:a8e042598834300dfaa17a54f695b87b7f25d3490433bbbe2ef3bffbb9747f24
+    environment:
+      POSTGRES_DB: go_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acceptance -d go_acceptance"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  dependencies:
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
+    networks: [packages]
+    working_dir: /workspace/backend-go
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+    environment:
+      GOTOOLCHAIN: local
+    command: ["go", "mod", "download"]
+  go-check:
+    image: golang:1.26.10-bookworm@sha256:632dff7351799a5a9954a48dc06670ade72ee44e8c351cdc0e5a57af2fea21af
+    working_dir: /workspace/backend-go
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOMAXPROCS: 2
+      GOFLAGS: -mod=readonly
+      TEST_DATABASE_URL: host=postgres port=5432 user=acceptance password=disposable_acceptance dbname=go_acceptance sslmode=disable
+      UPDATE_CATALOG_BASELINE: "0"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      POSTGRES_DB: go_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+    command: ["sh", "-c", "go version && go vet ./... && go build -trimpath -o /tmp/enersy-api . && TEST_OPERATOR_BINARY=/tmp/enersy-api go test -race -v -count=1 ./..."]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  go-license-check:
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
+    working_dir: /workspace/backend-go
+    network_mode: none
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOMAXPROCS: 2
+      CGO_ENABLED: "0"
+      GOFLAGS: -mod=readonly
+    command: ["go", "test", "-v", "-count=1", "/workspace/scripts/security/collect-go-licenses.go", "/workspace/scripts/security/collect-go-licenses_test.go"]
+  unit-worker:
+    profiles: [parameter-units-check]
+    image: enersy-julia-check
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, julia, --project=., --startup-file=no, -e, 'using HTTP; @assert HTTP.get("http://127.0.0.1:8001/ready"; proxy=HTTP.ProxyConfig()).status == 200']
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+  parameter-units-check:
+    profiles: [parameter-units-check]
+    extends: {service: go-check}
+    environment:
+      TEST_PARAMETER_UNIT_WORKER_URL: http://unit-worker:8001
+    depends_on:
+      postgres: {condition: service_healthy}
+      unit-worker: {condition: service_healthy}
+    command: [go, test, -race, -v, -count=1, -run, TestParameterUnitsWorkerPostgres, ./...]
+  lint:
+    image: golangci/golangci-lint:v2.15.0@sha256:fbfcfd12a6f8d7f1b97b3362ca80fc2a244d46863148c73cb88e7793af96c481
+    working_dir: /workspace/backend-go
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+      - ../../.cache/golangci-lint:/root/.cache/golangci-lint
+    environment:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOMAXPROCS: 2
+      GOFLAGS: -mod=readonly
+    entrypoint: ["sh", "-c"]
+    command: ["golangci-lint version && golangci-lint config verify && golangci-lint run ./... && golangci-lint fmt --diff"]
+  audit:
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
+    networks: [packages]
+    working_dir: /workspace/backend-go
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.cache/go-mod:/go/pkg/mod
+      - ../../.cache/go-build:/root/.cache/go-build
+    environment:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: "0"
+      GOMAXPROCS: 2
+      GOBIN: /tmp/go-tools
+    command: ["sh", "-c", "go install golang.org/x/vuln/cmd/govulncheck@v1.9.0 && GOFLAGS=-mod=readonly /tmp/go-tools/govulncheck -test ./..."]
+networks:
+  default:
+    internal: true
+  packages: {}

@@ -99,7 +99,7 @@ func (handler projectsHTTP) connections(w http.ResponseWriter, r *http.Request) 
 		}
 		decimal := strconv.FormatInt(revision, 10)
 		w.Header().Set("ETag", `"`+decimal+`"`)
-		json.NewEncoder(w).Encode(map[string]any{"success": true, "topologyRevision": decimal})
+		writeJSON(w, map[string]any{"success": true, "topologyRevision": decimal})
 		return true
 	}
 	key, err := connectionCommandKey(r)
@@ -169,6 +169,6 @@ func (handler projectsHTTP) connections(w http.ResponseWriter, r *http.Request) 
 	} else {
 		w.WriteHeader(201)
 	}
-	json.NewEncoder(w).Encode(map[string]any{"id": strconv.Itoa(ack.ID), "commandId": key, "success": true, "deleted": ack.Deleted, "topologyRevision": strconv.FormatInt(ack.Revision, 10)})
+	writeJSON(w, map[string]any{"id": strconv.Itoa(ack.ID), "commandId": key, "success": true, "deleted": ack.Deleted, "topologyRevision": strconv.FormatInt(ack.Revision, 10)})
 	return true
 }

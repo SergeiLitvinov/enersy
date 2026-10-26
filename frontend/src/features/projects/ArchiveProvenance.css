@@ -1,0 +1,8 @@
+.archive-provenance-table { min-width: 650px; }
+.archive-provenance-table td { vertical-align: top; }
+.archive-provenance-table td span, .archive-provenance-table td small {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.archive-provenance-table td small { margin-top: 4px; color: var(--text-secondary); font-size: 11px; }

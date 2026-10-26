@@ -1,23 +1,42 @@
-﻿param([string]$Image = 'postgres:15')
+param(
+    [string]$Image = 'postgres:15.19@sha256:baa22e6286bf832cb147b8bb5aa9d8bc999846d69c21d11bf63f58fbeed1fa48',
+    [string]$UpgradeImage
+)
 . (Join-Path $PSScriptRoot 'DockerTools.ps1')
 $container = 'enersy-backup-test-' + [Guid]::NewGuid().ToString('N')
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $work = Join-Path $root ('.cache/backup-test-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Force -Path $work
 $started = $false
-try {
-    $null = Invoke-DatabaseDocker -Arguments @('run', '-d', '--rm', '--name', $container, '--network=none', '--tmpfs', '/var/lib/postgresql/data', '--env', 'POSTGRES_HOST_AUTH_METHOD=trust', '--env', 'POSTGRES_USER=app_user', '--env', 'POSTGRES_DB=source_db', $Image)
-    $started = $true
-    $ready = $false
+$upgradeVolume = ''
+$upgradeToken = [Guid]::NewGuid().ToString('N')
+function Wait-BackupTestDatabase {
     for ($attempt = 0; $attempt -lt 40; $attempt++) {
         try {
-            $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'pg_isready', '-U', 'app_user', '-d', 'source_db')
-            $ready = $true
-            break
+            $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'pg_isready', '-h', '127.0.0.1', '-U', 'app_user', '-d', 'source_db')
+            return
         } catch { }
         Start-Sleep -Seconds 1
     }
-    if (-not $ready) { throw 'Temporary PostgreSQL did not become ready.' }
+    throw 'Temporary PostgreSQL did not become ready.'
+}
+try {
+    $storage = @('--tmpfs', '/var/lib/postgresql/data')
+    if ($UpgradeImage) {
+        $versions = foreach ($candidate in @($Image, $UpgradeImage)) {
+            $versionText = (Invoke-DatabaseDocker -Arguments @('run', '--rm', '--network=none', '--entrypoint', 'postgres', $candidate, '--version')) -join ''
+            if ($versionText -notmatch '^postgres \(PostgreSQL\) (\d+\.\d+)\b') { throw 'Unrecognized PostgreSQL version.' }
+            [version]$Matches[1]
+        }
+        if ($versions[0].Major -ne $versions[1].Major -or $versions[1] -le $versions[0]) { throw 'UpgradeImage must be a higher minor version of the same PostgreSQL major.' }
+        $upgradeVolume = "enersy-backup-upgrade-$upgradeToken"
+        $null = Invoke-DatabaseDocker -Arguments @('volume', 'create', '--label', "enersy.acceptance=$upgradeToken", $upgradeVolume)
+        $storage = @('--mount', "type=volume,source=$upgradeVolume,target=/var/lib/postgresql/data")
+    }
+    $runArguments = @('run', '-d', '--rm', '--name', $container, '--network=none') + $storage + @('--env', 'POSTGRES_HOST_AUTH_METHOD=trust', '--env', 'POSTGRES_USER=app_user', '--env', 'POSTGRES_DB=source_db')
+    $null = Invoke-DatabaseDocker -Arguments ($runArguments + @($Image))
+    $started = $true
+    Wait-BackupTestDatabase
     $migrations = Get-ChildItem -LiteralPath (Join-Path $root 'database/migrations') -Filter '*.up.sql' | Sort-Object Name
     foreach ($migration in $migrations) {
         $null = Invoke-DatabaseDocker -Arguments @('cp', $migration.FullName, "${container}:/tmp/migration.sql")
@@ -56,8 +75,31 @@ CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(
     $fixture | Set-Content -Encoding UTF8 -LiteralPath (Join-Path $work 'fixture.sql')
     $null = Invoke-DatabaseDocker -Arguments @('cp', (Join-Path $work 'fixture.sql'), "${container}:/tmp/fixture.sql")
     $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', 'source_db', '-v', 'ON_ERROR_STOP=1', '-f', '/tmp/fixture.sql')
+    $fingerprintScript = Join-Path $PSScriptRoot 'Get-DatabaseDataFingerprint.ps1'
+    $sourceFingerprint = (& $fingerprintScript -Container $container -Database source_db -OutputFile (Join-Path $work 'source-fingerprint-before.json')) | ConvertFrom-Json
+    $expectedFingerprint = $sourceFingerprint.records | ConvertTo-Json -Depth 8 -Compress
     $dump = & (Join-Path $PSScriptRoot 'Backup-EnersyDatabase.ps1') -Container $container -Database source_db -OutputDirectory $work
+    if ($UpgradeImage) {
+        # Stop cleanly before replacing the binary. The owned test volume stays;
+        # no pg_upgrade, initdb or logical restore is used for source_db.
+        $null = Invoke-DatabaseDocker -Arguments @('stop', '--time', '30', $container)
+        $started = $false
+        $null = Invoke-DatabaseDocker -Arguments ($runArguments + @($UpgradeImage))
+        $started = $true
+        Wait-BackupTestDatabase
+        Write-Host "PostgreSQL $($versions[0]) -> $($versions[1]) started on the same disposable volume; validating data and restore."
+    }
     & (Join-Path $PSScriptRoot 'Restore-EnersyDatabase.ps1') -Backup $dump -Container $container -NewDatabase restored_db
+    foreach ($database in @('source_db', 'restored_db')) {
+        $fingerprint = (& $fingerprintScript -Container $container -Database $database -OutputFile (Join-Path $work "$database-fingerprint-after.json")) | ConvertFrom-Json
+        if (($fingerprint.records | ConvertTo-Json -Depth 8 -Compress) -cne $expectedFingerprint) { throw "Data or sequence state changed in $database." }
+    }
+    # A value change with unchanged row count must be detected. Use a separate
+    # clone: reverting coordinates would not undo the object's revision trigger.
+    $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'createdb', '-U', 'app_user', '--template=restored_db', 'fingerprint_drift')
+    $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', 'fingerprint_drift', '-v', 'ON_ERROR_STOP=1', '-c', 'UPDATE scheme_components SET pos_x=pos_x+1')
+    $changedFingerprint = (& $fingerprintScript -Container $container -Database fingerprint_drift) | ConvertFrom-Json
+    if (($changedFingerprint.records | ConvertTo-Json -Depth 8 -Compress) -ceq $expectedFingerprint) { throw 'Data fingerprint missed a changed coordinate.' }
     # Restore refusing an existing target must leave the restored data intact.
     $refused = $false
     try { & (Join-Path $PSScriptRoot 'Restore-EnersyDatabase.ps1') -Backup $dump -Container $container -NewDatabase restored_db } catch { $refused = $true }
@@ -114,4 +156,9 @@ CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(
     Write-Host "PASS: schema, catalog, Cyrillic, saved parameters, Study bytes/digests/immutability, sequences, existing target refusal and damaged dump refusal. Evidence: $work"
 } finally {
     if ($started) { $null = Invoke-DatabaseDocker -Arguments @('stop', $container) }
+    if ($upgradeVolume) {
+        $owner = (Invoke-DatabaseDocker -Arguments @('volume', 'inspect', '--format', '{{index .Labels "enersy.acceptance"}}', $upgradeVolume)) -join ''
+        if ($upgradeVolume -ne "enersy-backup-upgrade-$upgradeToken" -or $owner -cne $upgradeToken) { throw 'Refusing to remove an unowned upgrade volume.' }
+        $null = Invoke-DatabaseDocker -Arguments @('volume', 'rm', $upgradeVolume)
+    }
 }

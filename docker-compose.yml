@@ -1,6 +1,6 @@
 services:
   nginx:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
     container_name: nginx-proxy
     ports:
       - "80:80"
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:15
+    image: postgres:15.19@sha256:baa22e6286bf832cb147b8bb5aa9d8bc999846d69c21d11bf63f58fbeed1fa48
     container_name: hybrid-db
     environment:
       POSTGRES_DB: app_db
@@ -60,16 +60,58 @@ services:
 
   julia-compute:
     build:
-      context: ./backend-julia
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend-julia/Dockerfile
     container_name: julia-compute
     ports:
       - "8001:8001"
     environment:
       - PORT=8001
+    healthcheck:
+      test: ["CMD", "julia", "--project=.", "--startup-file=no", "-e", "using HTTP; @assert HTTP.get(\"http://127.0.0.1:8001/ready\"; proxy=HTTP.ProxyConfig()).status == 200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     depends_on:
       - postgres
     restart: unless-stopped
+
+  julia-check:
+    profiles: [julia-check]
+    build:
+      context: .
+      dockerfile: backend-julia/Dockerfile
+    network_mode: none
+    cpus: 2
+    mem_limit: 2g
+    command: ["julia", "--project=.", "--startup-file=no", "-e", "using Pkg; @assert VERSION == v\"1.13.2\"; Pkg.offline(true); Pkg.test(;allow_reresolve=false)"]
+    restart: "no"
+
+  julia-audit:
+    profiles: [julia-audit]
+    build:
+      context: .
+      dockerfile: backend-julia/Dockerfile
+    volumes:
+      - ./scripts/security:/audit:ro
+      - ./backend-julia/Manifest.toml:/locked/Manifest.toml:ro
+    cpus: 2
+    mem_limit: 2g
+    command: ["julia", "--project=.", "--startup-file=no", "/audit/audit_julia.jl", "/locked/Manifest.toml"]
+    restart: "no"
+
+  notice-maintenance-check:
+    profiles: [notice-maintenance-check]
+    image: python:3.12.13-alpine@sha256:6d43704baacd1bfbe7c295d7f13079d5d8104ed33568873133f8fc69980419df
+    working_dir: /workspace
+    volumes:
+      - ./scripts/security:/workspace/scripts/security:ro
+    network_mode: none
+    cpus: 1
+    mem_limit: 256m
+    command: ["python", "-B", "-m", "unittest", "discover", "-s", "scripts/security", "-p", "update_julia_notices_test.py", "-v"]
+    restart: "no"
 
   react-frontend:
     build:
@@ -100,7 +142,38 @@ services:
     volumes:
       - ./numerics:/workspace:ro
     network_mode: none
-    command: ["sh", "-c", "cargo test --all-features --locked --offline --target-dir /tmp/target && cargo clippy --all-features --locked --offline --target-dir /tmp/target --all-targets -- -D warnings"]
+    restart: "no"
+
+  rust-wasm-check:
+    profiles: [rust-wasm-check]
+    build:
+      context: .
+      dockerfile: rust-wasm/Dockerfile
+    network_mode: none
+    cpus: 2
+    mem_limit: 2g
+    restart: "no"
+
+  rust-msrv-check:
+    profiles: [rust-msrv-check]
+    build:
+      context: .
+      dockerfile: scripts/build/rust-msrv.Dockerfile
+    network_mode: none
+    cpus: 2
+    mem_limit: 2g
+    restart: "no"
+
+  rust-audit:
+    profiles: [rust-audit]
+    build:
+      context: ./numerics
+      dockerfile: audit.Dockerfile
+    volumes:
+      - ./numerics/Cargo.lock:/locks/numerics.lock:ro
+      - ./rust-wasm/Cargo.lock:/locks/wasm.lock:ro
+    cpus: 2
+    mem_limit: 2g
     restart: "no"
 
   julia-rust-compute:

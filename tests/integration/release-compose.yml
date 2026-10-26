@@ -1,0 +1,101 @@
+# Clean release acceptance. No host ports, application volumes or host compilers.
+# Use scripts/build/Test-CleanRelease.ps1 to assign a unique project and report path.
+services:
+  postgres:
+    image: postgres:15.19@sha256:baa22e6286bf832cb147b8bb5aa9d8bc999846d69c21d11bf63f58fbeed1fa48
+    environment:
+      POSTGRES_DB: release_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+    tmpfs: [/var/lib/postgresql/data]
+    cpus: 1
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U acceptance -d release_acceptance]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  julia-compute:
+    build:
+      context: ../..
+      dockerfile: backend-julia/Dockerfile
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, julia, --project=., --startup-file=no, -e, 'using HTTP; @assert HTTP.get("http://127.0.0.1:8001/ready"; proxy=HTTP.ProxyConfig()).status == 200']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  go-api:
+    build:
+      context: ../..
+      dockerfile: backend-go/Dockerfile
+    environment:
+      DB_HOST: postgres
+      POSTGRES_DB: release_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+      JULIA_BASE_URL: http://julia-compute:8001
+    cpus: 1
+    mem_limit: 512m
+    depends_on:
+      postgres: {condition: service_healthy}
+      julia-compute: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/ready]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  react-frontend:
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+    cpus: 1
+    mem_limit: 128m
+    depends_on:
+      go-api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:3000/]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  nginx:
+    image: nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
+    volumes: [../../nginx.conf:/etc/nginx/conf.d/default.conf:ro]
+    cpus: 1
+    mem_limit: 128m
+    depends_on:
+      go-api: {condition: service_healthy}
+      react-frontend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/ready]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  docs:
+    build:
+      context: ../..
+      dockerfile: docs/Dockerfile
+    cpus: 1
+    mem_limit: 128m
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/guide/quickstart.html]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  release-check:
+    profiles: [check]
+    image: node:24-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+    cpus: 1
+    mem_limit: 256m
+    volumes:
+      - ./release-check.mjs:/acceptance/check.mjs:ro
+      - ../../.node-version:/acceptance/node-version:ro
+      - ../../LICENSE:/acceptance/LICENSE:ro
+      - ../../backend-julia/test/reference/ac-networks-v1.json:/acceptance/reference.json:ro
+      - ${ENERSY_RELEASE_REPORT_DIR:?Set by Test-CleanRelease.ps1}:/reports
+    command: [node, /acceptance/check.mjs]
+networks:
+  default:
+    internal: true

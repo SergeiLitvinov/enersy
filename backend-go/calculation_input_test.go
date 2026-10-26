@@ -111,6 +111,9 @@ func TestCalculationInputConcurrentCommitPostgres(t *testing.T) {
 	if _, err := writer.ExecContext(ctx, `UPDATE scheme_component_params SET param_value='220' WHERE scheme_component_id=$1`, first); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := writer.ExecContext(ctx, `UPDATE component_params_template SET unit='V' WHERE param_key='voltage_nom' AND component_type_id=(SELECT id FROM snapshot_component_types WHERE code='busbar')`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := writer.ExecContext(ctx, `DELETE FROM scheme_connections WHERE scheme_id=$1`, scheme); err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +124,7 @@ func TestCalculationInputConcurrentCommitPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-completed
-	check := func(response *httptest.ResponseRecorder, voltage string, x float64, connections int) {
+	check := func(response *httptest.ResponseRecorder, voltage, unit string, x float64, connections int) {
 		t.Helper()
 		if response.Code != 200 {
 			t.Fatalf("Worker not reached: %d %s", response.Code, response.Body.String())
@@ -137,16 +140,19 @@ func TestCalculationInputConcurrentCommitPostgres(t *testing.T) {
 				if component.Type != "busbar" || component.X != x || component.Params["voltage_nom"] != voltage {
 					t.Fatalf("Mixed component/parameter input: %+v", input)
 				}
+				if len(component.ParameterUnits) != 1 || component.ParameterUnits["voltage_nom"] != unit {
+					t.Fatalf("Mixed value/unit snapshot or invented unit: %+v", component)
+				}
 			}
 		}
 		if !found {
 			t.Fatal("Missing original equipment")
 		}
 	}
-	check(response, "110", 0, 1)
+	check(response, "110", "кВ", 0, 1)
 	fresh := httptest.NewRecorder()
 	handleCalculate(fresh, httptest.NewRequest(http.MethodPost, path, nil).WithContext(ctx))
-	check(fresh, "220", 100, 0)
+	check(fresh, "220", "V", 100, 0)
 }
 
 func TestCalculationInputReleasesDatabaseBeforeWorkerPostgres(t *testing.T) {

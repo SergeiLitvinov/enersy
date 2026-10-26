@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Dialog } from '../../components/ui/Dialog';
-import { createStudy, appendStudyVersion, readStudy, parseStudyDocument, StudyWriteError, type StudyDocument, type StudyVersion } from '../../api/studies-api';
+import { readStudy, parseStudyDocument, StudyWriteError, type StudyDocument, type StudyVersion } from '../../api/studies-api';
+import { executeStudyIntent, type StudyIntentJournal } from './study-intent-journal';
 import { readProjectScheme, SessionError, type Project } from '../../api/projects-api';
 import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { StudyDocumentView } from './StudyDocumentView';
 
 type LimitDraft = { component: string; terminal: string; min: string; max: string };
 type Attempt = { document: StudyDocument; command: string; expected?: string; topology: string };
-export function StudyForm({ project, source, version, onSaved, onClose, onUnavailable }: {
+export function StudyForm({ project, source, version, journal, onSaved, onClose, onUnavailable }: {
+  journal: StudyIntentJournal;
   project: Project; source: ProjectGraph; version?: StudyVersion; onSaved: (v: StudyVersion) => void;
   onClose: () => void; onUnavailable?: () => void;
 }) {
@@ -37,28 +39,33 @@ export function StudyForm({ project, source, version, onSaved, onClose, onUnavai
       maxTimeMs: Number(budget), base: { s_base_mva: Number(power), v_base_kv: Number(voltage) },
       solverOptions: { tolerance: Number(tolerance), max_iterations: Number(iterations) },
       operatingLimits: limits.map(l => ({ component_id: Number(l.component), terminal: Number(l.terminal), min_kv: Number(l.min), max_kv: Number(l.max) })) });
-    if (document.operatingLimits.some(l => !graph.components.some(c => c.id === l.component_id))) document = null;
+    if (graph.projectId !== project.id || (version && (version.projectId !== project.id || version.schemeId !== graph.id)) || document.operatingLimits.some(l => !graph.components.some(c => c.id === l.component_id))) document = null;
   } catch { /* Incomplete fields remain editable and never dispatch. */ }
   const unavailable = (e: unknown) => {
-    if (e instanceof SessionError && [401, 404].includes(e.status)) onUnavailable?.();
+    if (e instanceof SessionError && ([401, 404].includes(e.status) || e instanceof StudyWriteError && e.code === 'study_session_changed')) onUnavailable?.();
   };
   async function save(event: FormEvent) {
     event.preventDefault();
     if (dispatching.current || project.role === 'viewer' || (!pending && !document)) return;
     const attempt = pending ?? { document: document!, command: crypto.randomUUID(), expected, topology: graph.topologyRevision };
     dispatching.current = true; setBusy(true); setError('');
+    let prepared = false;
     try {
-      const saved = version
-        ? await appendStudyVersion(project.id, version.id, attempt.expected!, attempt.topology, attempt.document, attempt.command, controller.signal)
-        : await createStudy(project.id, graph.id, attempt.topology, attempt.document, attempt.command, controller.signal);
-      if (!controller.signal.aborted) { setPending(null); onSaved(saved); }
+      const intent = { formatVersion: 1 as const, projectId: project.id, schemeId: graph.id, command: attempt.command, topology: attempt.topology, document: attempt.document,
+        ...(version ? { studyId: version.id, expected: attempt.expected } : {}) };
+      journal.prepare(intent); prepared = true;
+      const saved = await executeStudyIntent(intent, journal.scope, controller.signal);
+      if (!controller.signal.aborted) { journal.clear(attempt.command); setPending(null); onSaved(saved); }
     } catch (e) {
       if (!controller.signal.aborted) {
-        const uncertain = !(e instanceof StudyWriteError) || e.status >= 500;
+        const uncertain = prepared && (!(e instanceof StudyWriteError) || e.status >= 500);
+        if (prepared && !uncertain && e instanceof StudyWriteError && ![401, 404].includes(e.status) && e.code !== 'study_session_changed') {
+          try { journal.clear(attempt.command); } catch { /* Preserve the journal if local cleanup fails. */ }
+        }
         setPending(uncertain ? attempt : null);
         setConflict(e instanceof StudyWriteError && e.code === 'study_revision_conflict');
-        setError(uncertain ? 'Сохранение не подтверждено. Повторите ту же команду, чтобы проверить её исход; поля временно заблокированы.' :
-          e instanceof StudyWriteError && e.code === 'study_revision_conflict' ? 'Другая сессия сохранила новую версию. Ваши настройки остались в форме.' :
+        setError(!prepared ? 'Не удалось сохранить команду в журнале вкладки. Запрос не отправлен. Проверьте локальное хранилище и прежние команды проекта.' : uncertain ? 'Сохранение не подтверждено. Повторите ту же команду, чтобы проверить её исход; поля временно заблокированы.' :
+          e instanceof StudyWriteError && e.code === 'study_revision_conflict' ? 'На сервере уже есть новая версия. Ваши настройки остались в форме.' :
           e instanceof StudyWriteError && e.code === 'study_source_conflict' ? 'Исходная схема изменилась. Прочитайте её заново перед сохранением.' :
           e instanceof StudyWriteError && e.status === 413 ? 'Достигнут предел размера или количества снимков проекта.' : 'Не удалось сохранить исследование. Проверьте настройки и доступ к исходной схеме.');
         unavailable(e);
@@ -78,7 +85,7 @@ export function StudyForm({ project, source, version, onSaved, onClose, onUnavai
     try {
       const fresh = parseProjectGraph(await readProjectScheme(project.id, graph.id, controller.signal), project.id, graph.id);
       if (!controller.signal.aborted) { setGraph(fresh); setError('Источник обновлён. Проверьте оборудование и границы перед сохранением.'); }
-    } catch (e) { if (!controller.signal.aborted) { setError('Исходная схема недоступна. Сохранённая история исследования остаётся отдельной.'); unavailable(e); } }
+    } catch (e) { if (!controller.signal.aborted) { setError('Исходная схема недоступна. Сохранённая история исследования остаётся отдельной.'); if (e instanceof SessionError && e.status === 401) unavailable(e); } }
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   const changeLimit = (index: number, field: keyof LimitDraft, value: string) => setLimits(rows => rows.map((l, i) => i === index ? { ...l, [field]: value } : l));
@@ -124,7 +131,7 @@ export function StudyForm({ project, source, version, onSaved, onClose, onUnavai
         {pending && <button type="button" className="tool-btn" disabled={busy} onClick={onClose}>Закрыть и проверить историю</button>}
         <button className="tool-btn primary" disabled={busy || (!pending && !document)}>{busy ? 'Сохраняем снимок…' : pending ? 'Повторить ту же команду' : 'Сохранить снимок'}</button>
       </div>
-      {pending && <p className="projects-note">После закрытия или перезагрузки проверьте список исследований и историю: команда могла выполниться. Автоматического повторного создания нет.</p>}
+      {pending && <p className="projects-note">Команда сохранена в журнале этой вкладки. После закрытия формы или перезагрузки откройте исследования проекта и явно проверьте прежнюю команду. Закрытие вкладки, выход или смена сессии прекращают это локальное восстановление.</p>}
     </form>
   </Dialog>;
 }

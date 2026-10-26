@@ -114,7 +114,7 @@ func (d *integrityDriver) checkIntegrity() error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback()
+		defer rollbackTx(tx)
 		if _, err := tx.ExecContext(ctx, `CREATE TABLE schema_migration_integrity (
 version BIGINT PRIMARY KEY, sha256 CHAR(64) NOT NULL,
 origin VARCHAR(16) NOT NULL CHECK(origin IN ('applied','legacy-baseline')),

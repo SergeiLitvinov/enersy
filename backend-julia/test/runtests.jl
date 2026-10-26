@@ -1,11 +1,15 @@
-using Test, LinearAlgebra, JSON3, HTTP, EnersyCompute
+using Test, LinearAlgebra, JSON, HTTP, EnersyCompute
 # Import the executable entrypoint too; it must parse without starting a listener.
 include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
+include("json_wire.jl")
 include("execution_control.jl")
 include("operating_limits.jl")
 include("base_scaling.jl")
 include("own_base_scaling.jl")
+include("shunt_scaling.jl")
+include("source_impedance.jl")
+include("parameter_units.jl")
 include("model_definitions.jl")
 include("ac_reference.jl")
 withenv("S_BASE_MVA" => "50") do
@@ -77,7 +81,7 @@ end
     @test EC.param_number(Dict{String,String}(), "e"; required=false) === nothing
     @test_throws EnersyError EC.param_number(Dict{String,String}(), "p")
     @test_throws EnersyError EC.as_string_map(Dict("p" => nothing), "params")
-    @test_throws EnersyError EC.parse_linear_request(JSON3.read("{\"A\":[[1,2],[3]],\"b\":[1,2]}"))
+    @test_throws EnersyError EC.parse_linear_request(JSON.parse("{\"A\":[[1,2],[3]],\"b\":[1,2]}"))
     @test_throws EnersyError EC.solve_linear([1.0 2; 2 4], [1.0, 2])
     @test_throws EnersyError EC.solve_linear([NaN 0; 0 1], [1.0, 2])
 end
@@ -218,6 +222,7 @@ end
 include("source_terminal_power.jl")
 include("network_families.jl")
 include("newton_globalization.jl")
+include("root_curvature.jl")
 include("http_acceptance.jl")
 
 @testset "HTTP contract and real socket" begin
@@ -230,27 +235,27 @@ include("http_acceptance.jl")
     @test response("POST","/solve", "{}").status == 400
     @test handle_request(HTTP.Request("POST","/solve",[],"xxxx");max_body_bytes=3).status == 413
     @test response("HEAD","/health").body == UInt8[]
-    @test JSON3.read(response("GET","/capabilities").body).capabilities[1].status == "experimental"
+    @test JSON.parse(response("GET","/capabilities").body).capabilities[1].status == "experimental"
     for entry in EC.CAPABILITY_REGISTRY
         entry.status == EC.STATUS_UNSUPPORTED || continue
-        rejected = response("POST", "/calculate", JSON3.write(Dict(
+        rejected = response("POST", "/calculate", JSON.json(Dict(
             "components" => [], "connections" => [], "modelGroup" => entry.model_group, "method" => entry.method)))
         @test rejected.status == 422
-        @test JSON3.read(rejected.body).error_detail.code == "unsupported_method"
+        @test JSON.parse(rejected.body).error_detail.code == "unsupported_method"
     end
     server = start_server(;host="127.0.0.1",port=0)
     try
         url = "http://127.0.0.1:$(HTTP.port(server))"
         r = HTTP.post(url*"/solve",["Content-Type"=>"application/json"],
-                      JSON3.write(Dict("A"=>[[2,3],[1,4]],"b"=>[5,7]));proxy=HTTP.ProxyConfig())
+                      JSON.json(Dict("A"=>[[2,3],[1,4]],"b"=>[5,7]));proxy=HTTP.ProxyConfig())
         @test r.status == 200
-        @test JSON3.read(r.body).solution ≈ [-0.2,1.8]
+        @test JSON.parse(r.body).solution ≈ [-0.2,1.8]
         cs, es = fixture()
         payload = Dict("components"=>[Dict("id"=>c.id,"type"=>c.code,"params"=>c.params) for c in cs],
                        "connections"=>[Dict("from"=>e.from,"to"=>e.to,"fromPort"=>e.from_port,"toPort"=>e.to_port) for e in es])
-        r = HTTP.post(url*"/calculate",[],JSON3.write(payload);proxy=HTTP.ProxyConfig())
-        @test JSON3.read(r.body).success
-        @test length(JSON3.read(r.body).topology.terminals) == 7
+        r = HTTP.post(url*"/calculate",[],JSON.json(payload);proxy=HTTP.ProxyConfig())
+        @test JSON.parse(r.body).success
+        @test length(JSON.parse(r.body).topology.terminals) == 7
     finally
         HTTP.forceclose(server)
     end

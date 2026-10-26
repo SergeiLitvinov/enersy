@@ -31,7 +31,7 @@ end
 end
 
 @testset "ZIP specification survives PV to PQ active-set reconstruction" begin
-    cases = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_limit_networks
+    cases = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_limit_networks
     cs, es, _, _, base, options, _ = EC.parse_calculate_request(first(cases).scheme)
     for load in filter(c -> c.code == "load", cs)
         set_zip!(load)
@@ -186,7 +186,7 @@ end
     @test abs(result["balance"]["residual_q_mvar"]) < 1e-8
     payload = Dict("components" => [Dict("id" => c.id, "type" => c.code, "params" => c.params) for c in cs],
         "connections" => [Dict("from" => e.from, "to" => e.to, "fromPort" => e.from_port, "toPort" => e.to_port) for e in es])
-    response = handle_request(HTTP.Request("POST", "/calculate", [], JSON3.write(payload)))
+    response = handle_request(HTTP.Request("POST", "/calculate", [], JSON.json(payload)))
     @test response.status == 200
-    @test only(JSON3.read(response.body).loads).profile == "zip"
+    @test only(JSON.parse(response.body).loads).profile == "zip"
 end

@@ -2,7 +2,7 @@ using SparseArrays
 include("fixtures/sparse_star.jl")
 
 @testset "Sparse AC equations preserve independent references" begin
-    cases = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).cases
+    cases = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).cases
     for case in cases
         Y, setup, _ = reference_network(case)
         Ys = sparse(Y)
@@ -52,7 +52,7 @@ end
 end
 
 @testset "Compiled Y sums parallel branches without dense storage" begin
-    case = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_networks[1]
+    case = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_networks[1]
     cs, es, _, _, base, _, _ = EC.parse_calculate_request(case.scheme)
     sys = EC.assemble_system(EC.compile_network(cs, es), base)
     # Two stamps for exactly the same endpoints exercise parallel summation.

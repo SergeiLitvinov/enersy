@@ -1,0 +1,20 @@
+[
+  {
+    "name": "esrecurse",
+    "version": "4.3.0",
+    "manifestSha256": "3bc67cb54672ec6957b53947613c23599371bf9222dbbe97275d20516a561a20",
+    "file": "README.md",
+    "sha256": "a7007c78c9d9da690ef6cdb0e7a3427d05832edb00abd1f5a9882700d73be4ad",
+    "reviewedUtc": "2026-10-25",
+    "reason": "README contains the full BSD-2-Clause copyright, redistribution conditions and disclaimer; preserve the entire file."
+  },
+  {
+    "name": "imurmurhash",
+    "version": "0.1.4",
+    "manifestSha256": "aa3b07e7fa3d63aa96e401c3842b8cca1dd3247954baf92377094766e903c185",
+    "file": "README.md",
+    "sha256": "4491517f7deb68d0b2a3bb590e785e276a60f12448447a9650d0bd50161a101c",
+    "reviewedUtc": "2026-10-25",
+    "reason": "README contains the full MIT copyright, permission notice and disclaimer; preserve the entire file."
+  }
+]

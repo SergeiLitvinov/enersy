@@ -36,7 +36,7 @@ func connectionAcknowledgement(w http.ResponseWriter, id int, key string) {
 	if key != "" {
 		result["commandId"] = key
 	}
-	json.NewEncoder(w).Encode(result)
+	writeJSON(w, result)
 }
 
 func connectionCommandKey(r *http.Request) (string, error) {

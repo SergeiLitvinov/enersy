@@ -19,6 +19,7 @@ export default defineConfig({
         { text: 'Возможности и границы', link: '/guide/capabilities' },
         { text: 'Запуск', link: '/guide/quickstart' },
         { text: 'Схемы и каталог', link: '/guide/editor' },
+        { text: 'Исследования и версии', link: '/guide/studies' },
         { text: 'Расчёт и ошибки', link: '/guide/calculation' }
       ] },
       { text: 'Разработчикам', items: [
@@ -32,6 +33,9 @@ export default defineConfig({
         { text: 'Пользователи и сессии', link: '/development/sessions' },
         { text: 'Проектный каталог', link: '/development/project-catalog' },
         { text: 'Обновление базы', link: '/development/database' },
+        { text: 'Обновление PostgreSQL', link: '/development/postgres-upgrades' },
+          { text: 'Аудит старой базы', link: '/development/bootstrap-audit' },
+          { text: 'Сверка каталога', link: '/development/catalog-audit' },
         { text: 'Вычислительные движки', link: '/development/compute-backends' },
         { text: 'Граница Julia↔Rust', link: '/development/native-jacobian' },
         { text: 'Управление расчётом', link: '/development/execution-control' },
@@ -39,6 +43,7 @@ export default defineConfig({
           { text: 'Версии исследования', link: '/development/studies' },
         { text: 'Два вида схемы', link: '/development/diagram-views' },
         { text: 'Документация и CI', link: '/development/documentation' },
+        { text: 'Происхождение графики и данных', link: '/development/asset-provenance' },
         { text: 'Правила кодирования', link: '/generated/rules' },
         { text: 'Анализ проекта', link: '/generated/review' },
         { text: 'Проверка реализации', link: '/generated/implementation' },

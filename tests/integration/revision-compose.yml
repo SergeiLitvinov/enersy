@@ -2,7 +2,7 @@
 name: enersy-revision-acceptance
 services:
   calculation-archive-check:
-    image: golang:1.24-alpine
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
     profiles: [archive-check]
     networks: [default, web]
     cpus: 2
@@ -34,7 +34,7 @@ services:
       go-api:
         condition: service_healthy
   snapshot-profile-check:
-    image: golang:1.24-alpine
+    image: golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba
     profiles: [snapshot-profile]
     networks: [default, web]
     cpus: 2
@@ -55,7 +55,7 @@ services:
       postgres:
         condition: service_healthy
   connection-command-fault:
-    image: node:20-alpine
+    image: node:24-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
     profiles: [browser-fault]
     networks: [default, web]
     volumes:
@@ -74,7 +74,7 @@ services:
       timeout: 3s
       retries: 20
   connection-command-check:
-    image: node:20-alpine
+    image: node:24-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
     profiles: [commands]
     volumes:
       - ./connection-command-loss.mjs:/acceptance/connection-command-loss.mjs:ro
@@ -83,7 +83,7 @@ services:
       go-api:
         condition: service_healthy
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.19-alpine@sha256:a8e042598834300dfaa17a54f695b87b7f25d3490433bbbe2ef3bffbb9747f24
     environment:
       POSTGRES_DB: revision_acceptance
       POSTGRES_USER: acceptance
@@ -122,8 +122,8 @@ services:
       start_period: 10s
   julia-compute:
     build:
-      context: ../../backend-julia
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: backend-julia/Dockerfile
   react-frontend:
     networks: [default, web]
     build:

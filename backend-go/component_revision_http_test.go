@@ -44,7 +44,7 @@ func TestExpectedComponentRevision(t *testing.T) {
 
 func TestComponentRevisionCORS(t *testing.T) {
 	called := false
-	handler := enableCORS(func(w http.ResponseWriter, r *http.Request) { called = true; componentMutationReply(w, 12, nil) })
+	handler := enableCORS(func(w http.ResponseWriter, _ *http.Request) { called = true; componentMutationReply(w, 12, nil) })
 	r := httptest.NewRequest("OPTIONS", "/api/ees/components/1", nil)
 	r.Header.Set("Access-Control-Request-Headers", "content-type,if-match")
 	w := httptest.NewRecorder()

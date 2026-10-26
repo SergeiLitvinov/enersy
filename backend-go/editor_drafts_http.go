@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -96,10 +95,10 @@ func (handler projectsHTTP) drafts(w http.ResponseWriter, r *http.Request) bool 
 			return true
 		}
 		if workspace == "" {
-			json.NewEncoder(w).Encode(map[string]any{"items": items})
+			writeJSON(w, map[string]any{"items": items})
 		} else {
 			w.Header().Set("ETag", `"`+items[0].Revision+`"`)
-			json.NewEncoder(w).Encode(items[0])
+			writeJSON(w, items[0])
 		}
 		return true
 	}
@@ -130,6 +129,6 @@ func (handler projectsHTTP) drafts(w http.ResponseWriter, r *http.Request) bool 
 		return true
 	}
 	w.Header().Set("ETag", `"`+view.Revision+`"`)
-	json.NewEncoder(w).Encode(view)
+	writeJSON(w, view)
 	return true
 }

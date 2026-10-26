@@ -31,9 +31,11 @@ func (handler *authHTTP) cookieName() string {
 	}
 	return "enersy_session"
 }
-func (handler *authHTTP) cookie(w http.ResponseWriter, token string, expiry time.Time, clear bool) {
+func (handler *authHTTP) cookie(w http.ResponseWriter, token string, expiry time.Time, expireSession bool) {
+	// #nosec G124 -- Secure follows explicit operator configuration; local HTTP
+	// development uses an unprefixed cookie. HttpOnly and SameSite stay mandatory.
 	value := &http.Cookie{Name: handler.cookieName(), Value: token, Path: "/", Secure: handler.secure, HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: expiry}
-	if clear {
+	if expireSession {
 		value.MaxAge = -1
 		value.Expires = time.Unix(1, 0)
 	} else {
@@ -60,7 +62,7 @@ func (handler *authHTTP) token(r *http.Request) (string, error) {
 }
 func authIdentityJSON(w http.ResponseWriter, identity sessionIdentity) {
 	// BIGINT identifiers are strings at the browser boundary.
-	json.NewEncoder(w).Encode(struct {
+	writeJSON(w, struct {
 		AccountID string    `json:"accountId"`
 		SessionID string    `json:"sessionId"`
 		ExpiresAt time.Time `json:"expiresAt"`

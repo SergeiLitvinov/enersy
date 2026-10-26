@@ -81,7 +81,7 @@ func (store projectStore) ChangeMember(ctx context.Context, token string, projec
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var owner, revision int64
 	err = tx.QueryRowContext(ctx, `SELECT p.owner_account_id,p.membership_revision FROM projects p WHERE p.id=$1
  AND EXISTS(SELECT 1 FROM auth_sessions s JOIN auth_accounts a ON a.id=s.account_id

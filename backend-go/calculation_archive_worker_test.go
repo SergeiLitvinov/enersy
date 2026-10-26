@@ -192,7 +192,7 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	}
 	delete(ignored, "operating_assessment")
 	ignoredBody, _ := json.Marshal(ignored)
-	ignoringWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ignoringWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(ignoredBody)
 	}))
@@ -208,7 +208,7 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 	}
 	// Explicit failure fixture verifies the gateway/store boundary. It does not
 	// stand in for the independent native deadline and physical tests.
-	failedWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	failedWorker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusGatewayTimeout)
 		_, _ = w.Write([]byte(`{"success":false,"error":"Time budget exceeded","error_detail":{"kind":"EXECUTION","code":"calculation_deadline_exceeded","message":"Time budget exceeded"}}`))

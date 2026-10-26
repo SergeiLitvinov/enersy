@@ -1,4 +1,4 @@
-using EnersyCompute, SparseArrays, LinearAlgebra, JSON3, SHA
+using EnersyCompute, SparseArrays, LinearAlgebra, JSON, SHA
 include(joinpath(@__DIR__, "..", "experimental", "RustJacobian.jl"))
 include(joinpath(@__DIR__, "..", "test", "fixtures", "network_families.jl"))
 const EC = EnersyCompute
@@ -64,8 +64,8 @@ function profile(family,n,path)
         "julia_threads"=>Threads.nthreads(),"blas_threads"=>BLAS.get_num_threads(),"cpu"=>Sys.CPU_NAME,
         "container_peak_bytes"=>parse(UInt64,strip(read("/sys/fs/cgroup/memory.peak",String))),
         "source_sha256"=>Dict(replace(relpath(file,root),'\\'=>'/')=>bytes2hex(sha256(read(file))) for file in files))
-    write(path,JSON3.write(report))
-    println(JSON3.write(Dict("family"=>family,"buses"=>n,"max_abs_error"=>difference,"status"=>"passed")))
+    write(path,JSON.json(report))
+    println(JSON.json(Dict("family"=>family,"buses"=>n,"max_abs_error"=>difference,"status"=>"passed")))
 end
 length(ARGS)==3 || error("usage: rust_ffi.jl family buses report.json")
 profile(ARGS[1],parse(Int,ARGS[2]),ARGS[3])

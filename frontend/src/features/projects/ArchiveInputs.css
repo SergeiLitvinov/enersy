@@ -1,0 +1,6 @@
+.archive-inputs .archive-unit-value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 9rem;
+  max-width: 20rem;
+}

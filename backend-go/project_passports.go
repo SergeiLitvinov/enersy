@@ -43,8 +43,8 @@ type passportVersion struct {
 	Document        passportDocument `json:"document"`
 }
 
-func passportText(value string, max int, required bool) bool {
-	return utf8.ValidString(value) && !strings.ContainsRune(value, 0) && utf8.RuneCountInString(value) <= max && (!required || strings.TrimSpace(value) != "")
+func passportText(value string, maxLength int, required bool) bool {
+	return utf8.ValidString(value) && !strings.ContainsRune(value, 0) && utf8.RuneCountInString(value) <= maxLength && (!required || strings.TrimSpace(value) != "")
 }
 func validatePassportDocument(doc passportDocument) error {
 	if doc.FormatVersion != 1 || !passportText(doc.ComponentTypeCode, 50, true) || !passportText(doc.Name, 200, true) ||
@@ -130,6 +130,7 @@ func scanPassport(row interface{ Scan(...any) error }) (passportVersion, error) 
 	return v, nil
 }
 
+// #nosec G101 -- SQL column names; this constant contains no credentials.
 const passportColumns = `id,project_id,author_account_id,predecessor_id,revision,sha256,created_at,document`
 
 func (store projectStore) SavePassport(ctx context.Context, token string, project int64, command string, parent *int64, doc passportDocument) (passportVersion, error) {
@@ -149,7 +150,7 @@ func (store projectStore) SavePassport(ctx context.Context, token string, projec
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	author, err := lockArchiveProject(ctx, tx, token, project, true)
 	if err != nil {
 		return empty, err
@@ -209,7 +210,7 @@ func (store projectStore) ReadPassports(ctx context.Context, token string, proje
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err := lockArchiveProject(ctx, tx, token, project, false); err != nil {
 		return nil, err
 	}

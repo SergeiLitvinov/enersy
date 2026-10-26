@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createProject, listProjects, login, logout, readProject, readSession, SessionError, type Identity, type Project, type ProjectPage } from '../../api/projects-api';
 import { ProjectSchemes } from './ProjectSchemes';
+import { forgetOtherStudySessions } from './study-intent-journal';
 import { Icon } from '../../components/ui/Icon';
 import './projects.css';
 
@@ -36,6 +37,7 @@ export function ProjectsWorkspace() {
         if (preserve && (result.identity?.accountId !== previous.identity?.accountId || result.identity?.sessionId !== previous.identity?.sessionId ||
             (project && (result.selected?.id !== project.id || result.selected?.role !== project.role)))) selectProject(null);
         else if (preserve && project && result.selected) selectProject(result.selected);
+        forgetOtherStudySessions(result.identity);
         setView({ ...result, busy: false, error: '' });
       }
     } catch (error) {
@@ -76,7 +78,7 @@ export function ProjectsWorkspace() {
       return { identity, page: await listProjects(signal) };
     });
   };
-  const signOut = (all: boolean) => {
+  const signOut = (all: boolean) => { forgetOtherStudySessions(null);
     setPassword(''); setName(''); setUsername('');
     void perform(async signal => { await logout(all, signal); return { identity: null, page: emptyPage }; });
   };
@@ -110,7 +112,7 @@ export function ProjectsWorkspace() {
         <button className="tool-btn" onClick={() => void refresh()}>Обновить</button>
         <button className="tool-btn" onClick={() => signOut(false)}>Выйти</button>
         <button className="tool-btn" onClick={() => signOut(true)}>Выйти из всех сессий</button></div></div>
-      {selectedProject ? <ProjectSchemes key={`${view.identity.accountId}:${view.identity.sessionId}:${selectedProject.id}`} project={selectedProject} onBack={() => selectProject(null)} onUnavailable={refresh} /> : <><form className="project-create" onSubmit={addProject}><label htmlFor="project-name">Новый проект</label><div>
+      {selectedProject ? <ProjectSchemes key={`${view.identity.accountId}:${view.identity.sessionId}:${selectedProject.id}`} identity={view.identity} project={selectedProject} onBack={() => selectProject(null)} onUnavailable={refresh} /> : <><form className="project-create" onSubmit={addProject}><label htmlFor="project-name">Новый проект</label><div>
         <input id="project-name" value={name} onChange={event => setName(event.target.value)} maxLength={200} required placeholder="Например, подстанция Северная" />
         <button className="tool-btn primary" disabled={!name.trim()}><Icon name="plus" /> Создать проект</button></div></form>
       {view.page.items.length ? <ul className="project-cards">{view.page.items.map(project => <li key={project.id}>

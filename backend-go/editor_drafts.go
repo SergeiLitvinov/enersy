@@ -51,7 +51,7 @@ func (store projectStore) ReadEditorDrafts(ctx context.Context, token string, pr
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	account, err := lockEditorDraftScope(ctx, tx, token, project, scheme, false)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (store projectStore) WriteEditorDraft(ctx context.Context, token string, pr
 	if err != nil {
 		return editorDraftView{}, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	account, err := lockEditorDraftScope(ctx, tx, token, project, scheme, !deleting)
 	if err != nil {
 		return editorDraftView{}, err

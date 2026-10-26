@@ -20,6 +20,7 @@ var errCredentialInput = errors.New("invalid credential input")
 var errLoginUnavailable = errors.New("login unavailable")
 var localLoginPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{2,63}$`)
 
+// #nosec G101 -- Public PHC algorithm parameters, not a password or hash value.
 const passwordHashPrefix = "$argon2id$v=19$m=65536,t=3,p=4$"
 
 type credentialStore struct{ database *sql.DB }
@@ -83,7 +84,7 @@ func (store credentialStore) Provision(ctx context.Context, displayName, login, 
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var id int64
 	if err := tx.QueryRowContext(ctx, `INSERT INTO auth_accounts(display_name) VALUES($1) RETURNING id`, displayName).Scan(&id); err != nil {
 		return 0, err

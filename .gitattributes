@@ -1,0 +1,5 @@
+# Keep the shared version readable by both Unix Docker shells and CI on Windows.
+/.node-version text eol=lf
+/scripts/build/*.sh text eol=lf
+# Preserve upstream notice bytes used by the verified SHA-256 inventory.
+/scripts/security/julia-notices/** -text

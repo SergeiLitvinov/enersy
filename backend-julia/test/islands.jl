@@ -1,5 +1,5 @@
 @testset "Independent powered islands retain physical provenance" begin
-    fixtures = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String))
+    fixtures = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String))
     cases = [fixtures.q_release_network, fixtures.compiled_networks[2]]
     cs, es = RawComponent[], RawConnection[]
     offsets, rotations = [0, 10000], [-11.0, 27.0]
@@ -57,9 +57,9 @@
         payload = Dict("components"=>[Dict("id"=>c.id, "type"=>c.code, "params"=>c.params) for c in cs],
             "connections"=>[Dict("from"=>e.from, "to"=>e.to, "fromPort"=>e.from_port, "toPort"=>e.to_port) for e in es],
             "base"=>Dict("s_base_mva"=>100, "v_base_kv"=>110), "solverOptions"=>Dict("tolerance"=>1e-10, "max_iterations"=>50))
-        response = HTTP.post("http://127.0.0.1:$(HTTP.port(server))/calculate", [], JSON3.write(payload); proxy=HTTP.ProxyConfig())
+        response = HTTP.post("http://127.0.0.1:$(HTTP.port(server))/calculate", [], JSON.json(payload); proxy=HTTP.ProxyConfig())
         @test response.status == 200
-        compare(JSON3.read(response.body))
+        compare(JSON.parse(response.body))
     finally
         HTTP.forceclose(server)
     end

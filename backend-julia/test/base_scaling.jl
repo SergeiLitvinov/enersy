@@ -47,8 +47,8 @@ end
     for v in (1e308, 1e-308)
         payload = Dict("components" => [], "connections" => [],
                        "base" => Dict("s_base_mva" => 1.0, "v_base_kv" => v))
-        response = handle_request(HTTP.Request("POST", "/calculate", [], JSON3.write(payload)))
+        response = handle_request(HTTP.Request("POST", "/calculate", [], JSON.json(payload)))
         @test response.status == 400
-        @test JSON3.read(response.body).error_detail.code == "invalid_base"
+        @test JSON.parse(response.body).error_detail.code == "invalid_base"
     end
 end

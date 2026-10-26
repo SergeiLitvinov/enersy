@@ -33,12 +33,12 @@ server { listen 8080; location / { return 200 "api-VERSION|$request_uri"; } }
     $null = Invoke-DnsDocker @('network','create','--internal',$network)
     foreach ($entry in @(@($names[2],'react-frontend'),@($names[3],'go-api'))) {
         $null = Invoke-DnsDocker @('run','-d','--name',$entry[0],'--network',$network,'--network-alias',$entry[1],
-            '--mount',"type=bind,source=$(Join-Path $folder 'mock1.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine')
+            '--mount',"type=bind,source=$(Join-Path $folder 'mock1.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a')
     }
     $null = Invoke-DnsDocker @('run','-d','--name',$names[0],'--network',$network,
-        '--mount',"type=bind,source=$(Join-Path $root 'nginx.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine')
+        '--mount',"type=bind,source=$(Join-Path $root 'nginx.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a')
     $null = Invoke-DnsDocker @('run','-d','--name',$names[1],'--network',$network,
-        '--mount',"type=bind,source=$(Join-Path $root 'frontend/nginx-default.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine')
+        '--mount',"type=bind,source=$(Join-Path $root 'frontend/nginx-default.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a')
     $null = Invoke-DnsDocker @('exec',$names[0],'nginx','-t')
     $null = Invoke-DnsDocker @('exec',$names[1],'nginx','-t')
     Wait-DnsReply $names[0] 'http://127.0.0.1/probe?check=1' 'front-v1|/probe?check=1'
@@ -48,7 +48,7 @@ server { listen 8080; location / { return 200 "api-VERSION|$request_uri"; } }
     # Old containers still occupy their IPs, so replacements necessarily get others.
     foreach ($entry in @(@($names[4],'react-frontend'),@($names[5],'go-api'))) {
         $null = Invoke-DnsDocker @('run','-d','--name',$entry[0],'--network',$network,'--network-alias',$entry[1],
-            '--mount',"type=bind,source=$(Join-Path $folder 'mock2.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine')
+            '--mount',"type=bind,source=$(Join-Path $folder 'mock2.conf'),target=/etc/nginx/conf.d/default.conf,readonly",'nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a')
     }
     $newIp = (Invoke-DnsDocker @('inspect','--format','{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',$names[4])) -join ''
     if (-not $oldIp -or -not $newIp -or $oldIp -eq $newIp) { throw 'Replacement did not change the service IP' }

@@ -45,7 +45,7 @@ function reference_network(case; order=collect(eachindex(case.bus)), reverse_bra
 end
 
 @testset "Independent synthetic AC references (PYPOWER 5.1.19)" begin
-    fixtures = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String))
+    fixtures = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String))
     @test fixtures.schema_version == 1
     @test fixtures.provenance.tolerance_pu == 1e-10
     for case in fixtures.cases

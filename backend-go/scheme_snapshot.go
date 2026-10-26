@@ -21,7 +21,7 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 		sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 		return
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	query := "SELECT name, description, created_at, updated_at, owner_id,topology_revision FROM circuit_schemes WHERE id = $1 AND project_id IS NULL"
 	args := []any{id}
 	if project > 0 {
@@ -171,5 +171,5 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 			}
 		}
 	}
-	json.NewEncoder(w).Encode(result)
+	writeJSON(w, result)
 }

@@ -65,7 +65,7 @@ func (handler projectsHTTP) schemes(w http.ResponseWriter, r *http.Request) bool
 		if memberHTTPError(w, err) {
 			return true
 		}
-		json.NewEncoder(w).Encode(page)
+		writeJSON(w, page)
 		return true
 	}
 	if r.Method != http.MethodPost {
@@ -112,7 +112,7 @@ func (handler projectsHTTP) schemes(w http.ResponseWriter, r *http.Request) bool
 		return true
 	}
 	w.WriteHeader(201)
-	json.NewEncoder(w).Encode(struct {
+	writeJSON(w, struct {
 		ID string `json:"id"`
 	}{strconv.FormatInt(id, 10)})
 	return true

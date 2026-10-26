@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,6 +18,35 @@ import (
 )
 
 func TestCalculationArchivesPostgres(t *testing.T) {
+	// Deliberately non-canonical numeric formatting verifies exact transport.
+	result := []byte("{\n\"success\":true,\"node_count\":1,\"nodes\":[{\"node_id\":1,\"voltage\":1.234567890123456700e+1}],\"method_used\":\"three-phase/newton-raphson\",\"version\":\"fixture\"\n}")
+	testCalculationArchiveReplayPostgres(t, result)
+}
+
+func TestJSON3CalculationArchiveCompatibilityPostgres(t *testing.T) {
+	directory := filepath.Join("..", "backend-julia", "test", "reference", "json-wire-v1")
+	result, err := os.ReadFile(filepath.Join(directory, "json3-worker-result-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := os.ReadFile(filepath.Join(directory, "json3-worker-provenance-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var provenance struct {
+		Codec        string `json:"codec"`
+		ResultSHA256 string `json:"result_sha256"`
+	}
+	if err := json.Unmarshal(metadata, &provenance); err != nil || provenance.Codec != "JSON3" || archiveDigest(result) != provenance.ResultSHA256 {
+		t.Fatal("frozen JSON3 wire fixture failed provenance check")
+	}
+	// This reuses real old worker bytes as a transport fixture. Numerical
+	// acceptance remains the independent Julia/PYPOWER and real-worker tests.
+	testCalculationArchiveReplayPostgres(t, result)
+}
+
+func testCalculationArchiveReplayPostgres(t *testing.T, result []byte) {
+	t.Helper()
 	database := migrationTestDatabase(t)
 	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
 		t.Fatal(err)
@@ -58,9 +89,6 @@ func TestCalculationArchivesPostgres(t *testing.T) {
 	if _, err := store.ChangeMember(ctx, tokens[0].Token, project, accounts[3], 1, "viewer", false); err != nil {
 		t.Fatal(err)
 	}
-	// Numeric formatting intentionally includes insignificant trailing digits and
-	// an exponent. This is a transport fixture, not a physical reference case.
-	result := []byte("{\n\"success\":true,\"node_count\":1,\"nodes\":[{\"node_id\":1,\"voltage\":1.234567890123456700e+1}],\"method_used\":\"three-phase/newton-raphson\",\"version\":\"fixture\"\n}")
 	status := 200
 	response := result
 	var posted []byte

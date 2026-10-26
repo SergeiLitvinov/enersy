@@ -81,7 +81,7 @@ func (store projectStore) SaveCalculationArchive(ctx context.Context, token stri
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	account, err := lockArchiveProject(ctx, tx, token, project, true)
 	if err != nil {
 		return 0, err
@@ -163,7 +163,7 @@ func (store projectStore) CalculationArchives(ctx context.Context, token string,
 	if err != nil {
 		return page, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err = lockArchiveProject(ctx, tx, token, project, false); err != nil {
 		return page, err
 	}
@@ -196,7 +196,7 @@ func (store projectStore) CalculationArchive(ctx context.Context, token string, 
 	if err != nil {
 		return calculationArchive{}, nil, nil, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err = lockArchiveProject(ctx, tx, token, project, false); err != nil {
 		return calculationArchive{}, nil, nil, err
 	}

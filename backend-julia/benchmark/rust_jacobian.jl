@@ -1,4 +1,4 @@
-using EnersyCompute, SparseArrays, LinearAlgebra, JSON3, SHA
+using EnersyCompute, SparseArrays, LinearAlgebra, JSON, SHA
 include(joinpath(@__DIR__, "..", "test", "fixtures", "network_families.jl"))
 const EC = EnersyCompute
 
@@ -53,7 +53,7 @@ function prepare(family, n, prefix)
         "container_peak_bytes" => isfile("/sys/fs/cgroup/memory.peak") ? parse(UInt64, strip(read("/sys/fs/cgroup/memory.peak", String))) : nothing,
         "input_sha256" => bytes2hex(sha256(read(prefix * ".input.bin"))),
         "source_sha256" => Dict(replace(relpath(path, root), '\\' => '/') => bytes2hex(sha256(read(path))) for path in files))
-    write(prefix * ".julia.json", JSON3.write(report))
+    write(prefix * ".julia.json", JSON.json(report))
 end
 
 function read_matrix(path)
@@ -76,7 +76,7 @@ function read_matrix(path)
 end
 
 function validate(directory)
-    names = JSON3.read(read(joinpath(directory, "cases.json"), String))
+    names = JSON.parse(read(joinpath(directory, "cases.json"), String))
     records = []
     for name in names
         occursin(r"^(radial|ring|mesh)-[0-9]+$", name) || error("invalid case name")
@@ -87,10 +87,10 @@ function validate(directory)
         bound = 1e-11 + 1e-12 * maximum(abs, expected)
         difference <= bound || error("Rust/Julia derivative mismatch: $name, error=$difference bound=$bound")
         push!(records, Dict("case" => name, "max_abs_error" => difference, "tolerance" => bound,
-            "julia" => JSON3.read(read(prefix * ".julia.json", String)), "rust" => JSON3.read(read(prefix * ".rust.json", String))))
-        println(JSON3.write(Dict("case" => name, "max_abs_error" => difference, "status" => "passed")))
+            "julia" => JSON.parse(read(prefix * ".julia.json", String)), "rust" => JSON.parse(read(prefix * ".rust.json", String))))
+        println(JSON.json(Dict("case" => name, "max_abs_error" => difference, "status" => "passed")))
     end
-    write(joinpath(directory, "comparison.json"), JSON3.write(Dict("schema_version" => 1, "records" => records)))
+    write(joinpath(directory, "comparison.json"), JSON.json(Dict("schema_version" => 1, "records" => records)))
 end
 
 if ARGS[1] == "prepare"

@@ -1,5 +1,5 @@
 @testset "Compiled multi-source physical networks against PYPOWER" begin
-    references = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_networks
+    references = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).compiled_networks
     server = start_server(; host="127.0.0.1", port=0)
     try
         url = "http://127.0.0.1:$(HTTP.port(server))/calculate"
@@ -40,9 +40,9 @@
                            for e in reverse(es)]
                 compare_network(calculate(moved, rewired; base, options); idmap=remap)
                 response = HTTP.post(url, ["Content-Type"=>"application/json"],
-                                     JSON3.write(case.scheme); proxy=HTTP.ProxyConfig())
+                                     JSON.json(case.scheme); proxy=HTTP.ProxyConfig())
                 @test response.status == 200
-                compare_network(JSON3.read(response.body))
+                compare_network(JSON.parse(response.body))
                 # Multiple sources must never silently elect a slack by ID or input order.
                 unspecified = [RawComponent(c.id, c.code,
                     Dict(k=>v for (k,v) in c.params if k != "is_slack"), c.x, c.y, c.rotation) for c in cs]
@@ -68,10 +68,10 @@
                         payload = Dict("components"=>[Dict("id"=>c.id,"type"=>c.code,"params"=>c.params) for c in invalid],
                                        "connections"=>case.scheme.connections, "base"=>case.scheme.base,
                                        "solverOptions"=>case.scheme.solverOptions)
-                        rejected = HTTP.post(url, ["Content-Type"=>"application/json"], JSON3.write(payload);
+                        rejected = HTTP.post(url, ["Content-Type"=>"application/json"], JSON.json(payload);
                                              status_exception=false, proxy=HTTP.ProxyConfig())
                         @test rejected.status == 400
-                        detail = JSON3.read(rejected.body).error_detail
+                        detail = JSON.parse(rejected.body).error_detail
                         @test detail.code == "invalid_parameter" && occursin("generator#$(cid).e", detail.detail)
                     end
                 end

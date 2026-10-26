@@ -25,6 +25,12 @@ test('creation preserves exact scope, source revision and idempotency without cr
     expect(options).toMatchObject({ method: 'POST', credentials: 'same-origin', cache: 'no-store', signal, headers: { 'Idempotency-Key': command } });
     expect(JSON.parse(options.body)).toEqual({ topologyRevision: '0', document: document() });
 });
+test('an explicitly bound command constrains the cookie session through headers, never through identity in its document', async () => {
+    const fetcher = vi.fn().mockResolvedValue(reply(metadata())); vi.stubGlobal('fetch', fetcher);
+    await createStudy(project, '7', '0', document(), command, signal, { accountId: '9007199254740995', sessionId: '9007199254740996' });
+    expect(fetcher.mock.calls[0][1].headers).toMatchObject({ 'X-Enersy-Account-Id': '9007199254740995', 'X-Enersy-Session-Id': '9007199254740996' });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ topologyRevision: '0', document: document() });
+});
 test('acknowledgement cannot substitute another Study document or source scheme', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);

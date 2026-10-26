@@ -67,3 +67,43 @@ function model_parameters(code::AbstractString)
     end
     return []
 end
+
+# These are spelling aliases at exactly the same scale, not dimensional or
+# prefix conversions. Case matters: MW and mW must never be conflated.
+const PARAMETER_UNIT_ALIASES = Dict(
+    "MW" => ("MW", "МВт"), "Mvar" => ("Mvar", "Мвар"), "MVA" => ("MVA", "МВА"),
+    "kV" => ("kV", "кВ"), "Ohm" => ("Ohm", "Ω", "Ом"), "km" => ("km", "км"),
+    "Ohm/km" => ("Ohm/km", "Ω/km", "Ом/км"), "S/km" => ("S/km", "См/км"),
+    "deg" => ("deg", "°", "град"), "%" => ("%",), "1" => ("1", ""))
+
+# Read-only implementation metadata, constructed once rather than allocating
+# complete parameter descriptions for every device in a large graph.
+const AC_PARAMETER_UNIT_SPECS = let specifications = Dict{String,Dict{String,String}}()
+    for code in ("generator", "transformer", "transmission_line", "load", "capacitor", "reactor")
+        specifications[code] = Dict(spec["key"] => spec["unit"] for spec in model_parameters(code))
+    end
+    for code in ("busbar", "breaker", "disconnector", "ground", "grounding_switch")
+        specifications[code] = Dict("voltage_nom" => "kV")
+        code in ("breaker", "disconnector", "grounding_switch") && (specifications[code]["status"] = "1")
+    end
+    specifications
+end
+
+"""Check supplied catalogue labels against parameters consumed by this AC model.
+Partial metadata is accepted for legacy inputs; absence is not a unit certificate.
+Unknown/unconsumed parameters are not interpreted or certified here.
+"""
+function validate_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString)
+    require_object(declared, path)
+    specs = get(AC_PARAMETER_UNIT_SPECS, code, nothing)
+    for (key, value) in pairs(declared)
+        value isa AbstractString || throw(contract_error("type_error", "parameter unit must be a string", detail="$(path).$(key)"))
+        haskey(params, key) || throw(contract_error("unexpected_parameter_unit", "unit has no corresponding stored parameter", detail="$(code).$(path).$(key)"))
+        expected = specs === nothing ? nothing : get(specs, key, nothing)
+        expected === nothing && continue
+        strip(value) in get(PARAMETER_UNIT_ALIASES, expected, (expected,)) || throw(contract_error(
+            "parameter_unit_mismatch", "declared unit does not match the AC model; no automatic conversion is performed",
+            detail="$(code).$(path).$(key): declared=$(repr(value)), expected=$(expected)"))
+    end
+    return nothing
+end

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"mime"
 	"net/http"
 	"strconv"
@@ -119,7 +118,7 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 		decimal := strconv.FormatInt(revision, 10)
 		w.Header().Set("ETag", `"`+decimal+`"`)
 		w.WriteHeader(201)
-		json.NewEncoder(w).Encode(map[string]any{"id": strconv.Itoa(id), "revision": decimal, "params": params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true})
+		writeJSON(w, map[string]any{"id": strconv.Itoa(id), "revision": decimal, "params": params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true})
 		return true
 	}
 	id, err := intProjectID(parts[4])

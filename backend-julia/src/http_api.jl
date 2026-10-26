@@ -69,7 +69,7 @@ end
 function json_response(status::Int, payload)
     io = IOBuffer()
     try
-        JSON3.write(io, payload)
+        JSON.json(io, payload; allownan=false, omit_null=false, omit_empty=false)
     catch err
         # Ответ не должен превратиться в «500 без тела»: диагностика уходит в
         # лог сервера, клиент получает структурированную ошибку сериализации.
@@ -80,7 +80,7 @@ function json_response(status::Int, payload)
     return HTTP.Response(status, ["Content-Type" => JSON_CONTENT_TYPE], take!(io))
 end
 
-"""Тело запроса → JSON3-объект; нарушения контракта — `EnersyError`."""
+"""Тело запроса → JSON-объект; нарушения контракта — `EnersyError`."""
 function read_json_body(req::HTTP.Request; max_body_bytes::Int=MAX_BODY_BYTES)
     body = req.body
     if length(body) > max_body_bytes
@@ -91,7 +91,7 @@ function read_json_body(req::HTTP.Request; max_body_bytes::Int=MAX_BODY_BYTES)
         throw(contract_error("empty_body", "Request body is empty",
                              detail="expected a JSON object"))
     return try
-        JSON3.read(String(body))
+        JSON.parse(String(body); allownan=false, duplicate_keys=:error, maxdepth=512)
     catch err
         throw(contract_error("invalid_json", "Request body is not valid JSON",
                              detail=sprint(showerror, err)))

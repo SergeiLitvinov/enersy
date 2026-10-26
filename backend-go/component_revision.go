@@ -23,7 +23,7 @@ func mutateComponentRevision(ctx context.Context, database *sql.DB, id int, expe
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var scheme int
 	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM circuit_schemes s JOIN scheme_components sc ON sc.scheme_id=s.id
  WHERE sc.id=$1 AND s.project_id IS NULL FOR UPDATE OF s`, id).Scan(&scheme); err != nil {

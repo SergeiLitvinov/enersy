@@ -1,23 +1,54 @@
+version: "2"
+run:
+  timeout: 3m
 linters:
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
     - gosec
-    - gofmt
-    - goimports
     - misspell
     - revive
-
-run:
-  timeout: 3m
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
+    - depguard
+  settings:
+    depguard:
+      rules:
+        unsupported-openpgp:
+          list-mode: lax
+          files: ["$all"]
+          deny:
+            - pkg: golang.org/x/crypto/openpgp
+              desc: "GO-2026-5932: do not import unmaintained OpenPGP or its subpackages"
+    staticcheck:
+      # Preserve v1 staticcheck (SA) + gosimple (S1), without enabling the
+      # formerly separate stylecheck (ST) or optional quick-fix (QF) families.
+      checks: ["SA*", "S1*"]
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gosec
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

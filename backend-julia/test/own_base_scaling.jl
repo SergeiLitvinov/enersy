@@ -82,17 +82,17 @@ end
     payload = Dict("components" => [Dict("id" => 17, "type" => "transformer", "params" => Dict(
         "power_nom" => "100", "voltage_hv" => "1e-200", "voltage_lv" => "1e-200", "p_kz" => "1", "u_kz" => "10"))],
         "connections" => [], "base" => Dict("s_base_mva" => 100.0, "v_base_kv" => 10.0))
-    response = handle_request(HTTP.Request("POST", "/calculate", [], JSON3.write(payload)))
+    response = handle_request(HTTP.Request("POST", "/calculate", [], JSON.json(payload)))
     @test response.status == 400
-    @test JSON3.read(response.body).error_detail.code == "unrepresentable_parameter"
-    @test occursin("transformer#17", JSON3.read(response.body).error_detail.detail)
+    @test JSON.parse(response.body).error_detail.code == "unrepresentable_parameter"
+    @test occursin("transformer#17", JSON.parse(response.body).error_detail.detail)
     server = start_server(; host="127.0.0.1", port=0)
     try
-        reply = HTTP.post("http://127.0.0.1:$(HTTP.port(server))/calculate", [], JSON3.write(payload);
+        reply = HTTP.post("http://127.0.0.1:$(HTTP.port(server))/calculate", [], JSON.json(payload);
                           status_exception=false, proxy=HTTP.ProxyConfig())
         @test reply.status == 400
-        @test JSON3.read(reply.body).error_detail.code == "unrepresentable_parameter"
-        @test occursin("transformer#17", JSON3.read(reply.body).error_detail.detail)
+        @test JSON.parse(reply.body).error_detail.code == "unrepresentable_parameter"
+        @test occursin("transformer#17", JSON.parse(reply.body).error_detail.detail)
     finally
         HTTP.forceclose(server)
     end

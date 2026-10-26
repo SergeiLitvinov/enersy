@@ -1,4 +1,4 @@
-using Test, EnersyCompute, SparseArrays, Libdl, JSON3, HTTP
+using Test, EnersyCompute, SparseArrays, Libdl, JSON, HTTP
 include(joinpath(@__DIR__, "..", "experimental", "RustJacobian.jl"))
 const RJ = RustJacobianAdapter
 const EC = EnersyCompute
@@ -24,7 +24,7 @@ include("native_execution.jl")
 end
 
 @testset "Complete native solves against independent PYPOWER references" begin
-    references = JSON3.read(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String))
+    references = JSON.parse(read(joinpath(@__DIR__,"reference","ac-networks-v1.json"),String))
     RJ.with_library(LIBRARY) do library
         for case in vcat(collect(references.compiled_networks),collect(references.q_limit_networks),[references.q_release_network])
             cs, es, _, _, base, options, _ = EC.parse_calculate_request(case.scheme)

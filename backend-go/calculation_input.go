@@ -7,12 +7,14 @@ import (
 )
 
 type calculationComponent struct {
-	ID       int               `json:"id"`
-	Type     string            `json:"type"`
-	X        float64           `json:"x"`
-	Y        float64           `json:"y"`
-	Rotation int               `json:"rotation"`
-	Params   map[string]string `json:"params"`
+	Revision       int64             `json:"-"` // Internal capture guard; provenance retains the wire revision.
+	ID             int               `json:"id"`
+	Type           string            `json:"type"`
+	X              float64           `json:"x"`
+	Y              float64           `json:"y"`
+	Rotation       int               `json:"rotation"`
+	Params         map[string]string `json:"params"`
+	ParameterUnits map[string]string `json:"parameterUnits,omitempty"`
 }
 
 type calculationConnection struct {
@@ -43,7 +45,7 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	if err != nil {
 		return input, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var id int
 	query := `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL`
 	args := []any{schemeID}
@@ -63,7 +65,7 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	} else if err := tx.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
 		return input, err
 	}
-	components, err := tx.QueryContext(ctx, `SELECT sc.id,ct.code,sc.pos_x,sc.pos_y,sc.rotation,
+	components, err := tx.QueryContext(ctx, `SELECT sc.id,ct.code,sc.pos_x,sc.pos_y,sc.rotation,sc.revision,
 	 COALESCE((SELECT jsonb_object_agg(param_key,param_value) FROM scheme_component_params
 	 WHERE scheme_component_id=sc.id),'{}'::jsonb)
 	 FROM scheme_components sc JOIN component_types ct ON ct.id=sc.component_type_id WHERE sc.scheme_id=$1 ORDER BY sc.id`, schemeID)
@@ -74,7 +76,7 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	for components.Next() {
 		var component calculationComponent
 		var params []byte
-		if err := components.Scan(&component.ID, &component.Type, &component.X, &component.Y, &component.Rotation, &params); err != nil {
+		if err := components.Scan(&component.ID, &component.Type, &component.X, &component.Y, &component.Rotation, &component.Revision, &params); err != nil {
 			return input, err
 		}
 		if err := json.Unmarshal(params, &component.Params); err != nil {
@@ -84,6 +86,45 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	}
 	if err := components.Err(); err != nil {
 		return input, err
+	}
+	if err := components.Close(); err != nil {
+		return input, err
+	}
+	// Capture labels in the same database snapshot as values. One bulk read,
+	// independent of graph size; only stored parameter keys are transmitted.
+	unitRows, err := tx.QueryContext(ctx, `SELECT ct.code,t.param_key,coalesce(t.unit,'')
+ FROM component_params_template t JOIN component_types ct ON ct.id=t.component_type_id
+ WHERE t.component_type_id IN (SELECT component_type_id FROM scheme_components WHERE scheme_id=$1)`, schemeID)
+	if err != nil {
+		return input, err
+	}
+	units := map[string]map[string]string{}
+	for unitRows.Next() {
+		var code, key, unit string
+		if err := unitRows.Scan(&code, &key, &unit); err != nil {
+			_ = unitRows.Close()
+			return input, err
+		}
+		if units[code] == nil {
+			units[code] = map[string]string{}
+		}
+		units[code][key] = unit
+	}
+	if err := unitRows.Err(); err != nil {
+		_ = unitRows.Close()
+		return input, err
+	}
+	if err := unitRows.Close(); err != nil {
+		return input, err
+	}
+	for i := range input.Components {
+		component := &input.Components[i]
+		component.ParameterUnits = map[string]string{}
+		for key := range component.Params {
+			if unit, ok := units[component.Type][key]; ok {
+				component.ParameterUnits[key] = unit
+			}
+		}
 	}
 	connections, err := tx.QueryContext(ctx, `SELECT from_component_id,to_component_id,from_port,to_port
 	 FROM scheme_connections WHERE scheme_id=$1 ORDER BY id`, schemeID)

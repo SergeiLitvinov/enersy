@@ -65,7 +65,7 @@ func (store projectStore) studyReplay(ctx context.Context, token string, project
 	if err != nil {
 		return empty, false, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err = lockArchiveProject(ctx, tx, token, project, true); err != nil {
 		return empty, false, err
 	}
@@ -97,7 +97,7 @@ func studyReplayInTx(ctx context.Context, tx *sql.Tx, project int64, command, di
 
 func (store projectStore) SaveStudy(ctx context.Context, token string, project int64, scheme int, study, expected, topology int64, command string, doc studyDocument) (studyVersion, error) {
 	var empty studyVersion
-	if project <= 0 || study < 0 || expected < 0 || expected >= math.MaxInt64 || topology < 0 || !commandUUID.MatchString(command) ||
+	if project <= 0 || study < 0 || expected < 0 || expected == math.MaxInt64 || topology < 0 || !commandUUID.MatchString(command) ||
 		(study == 0 && (scheme <= 0 || expected != 0)) || (study > 0 && expected == 0) || validateStudyDocument(doc) != nil {
 		return empty, errStudyInput
 	}
@@ -147,7 +147,7 @@ func (store projectStore) SaveStudy(ctx context.Context, token string, project i
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	account, err := lockArchiveProject(ctx, tx, token, project, true)
 	if err != nil {
 		return empty, err
@@ -173,6 +173,9 @@ func (store projectStore) SaveStudy(ctx context.Context, token string, project i
 	}
 	if currentTopology != topology {
 		return empty, errStudyTopology
+	}
+	if err = checkStudySourceRevisions(ctx, tx, scheme, input.Components); err != nil {
+		return empty, err
 	}
 	if study > 0 {
 		var current int64
@@ -238,7 +241,7 @@ func (store projectStore) ReadStudy(ctx context.Context, token string, project, 
 	if err != nil {
 		return empty, nil, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err = lockArchiveProject(ctx, tx, token, project, false); err != nil {
 		return empty, nil, err
 	}
@@ -276,7 +279,7 @@ func (store projectStore) ListStudies(ctx context.Context, token string, project
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	if _, err = lockArchiveProject(ctx, tx, token, project, false); err != nil {
 		return nil, err
 	}

@@ -46,7 +46,7 @@
     line.params["x_cc"] = "NaN"
     request = Dict("components"=>[Dict("id"=>c.id,"type"=>c.code,"params"=>c.params) for c in cs],
                    "connections"=>[Dict("from"=>e.from,"to"=>e.to,"fromPort"=>e.from_port,"toPort"=>e.to_port) for e in es])
-    response = EC.handle_request(HTTP.Request("POST","/calculate",[],JSON3.write(request)))
+    response = EC.handle_request(HTTP.Request("POST","/calculate",[],JSON.json(request)))
     @test response.status == 400
-    @test response.status == 400 && JSON3.read(String(response.body)).error_detail.code == "param_not_finite"
+    @test response.status == 400 && JSON.parse(String(response.body)).error_detail.code == "param_not_finite"
 end

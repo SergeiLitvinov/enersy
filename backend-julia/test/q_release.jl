@@ -1,5 +1,5 @@
 @testset "PQ release restores feasible voltage regulation" begin
-    case = JSON3.read(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_release_network
+    case = JSON.parse(read(joinpath(@__DIR__, "reference", "ac-networks-v1.json"), String)).q_release_network
     cs, es, _, _, base, options, _ = EC.parse_calculate_request(case.scheme)
     result = calculate(cs, es; base, options)
     ordered = [only(filter(n -> member.component_id in n["members"] &&
@@ -26,9 +26,9 @@
     server = start_server(; host="127.0.0.1", port=0)
     try
         response = HTTP.post("http://127.0.0.1:$(HTTP.port(server))/calculate",
-            ["Content-Type"=>"application/json"], JSON3.write(case.scheme); proxy=HTTP.ProxyConfig())
+            ["Content-Type"=>"application/json"], JSON.json(case.scheme); proxy=HTTP.ProxyConfig())
         @test response.status == 200
-        body = JSON3.read(response.body)
+        body = JSON.parse(response.body)
         source = only(filter(s -> s.component_id == 2001, body.sources))
         @test source.type == "pv" && source.q_limit_status == "within_bounds"
         @test any(e -> e.from == "pq" && e.to == "pv", body.q_limit_events)

@@ -1,6 +1,7 @@
 {
   "name": "enersy-documentation",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
     "docs:generate": "node scripts/docs/generate.mjs && typedoc",

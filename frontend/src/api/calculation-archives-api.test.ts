@@ -75,6 +75,20 @@ test('validates input equipment identity, references and saved method', () => {
   for (const value of [{ ...input, method: 'other' }, { ...input, components: [...input.components, ...input.components] }, { ...input, connections: [{ from: 1, to: 2, fromPort: 'top', toPort: 'left' }] }, { ...input, components: [{ ...input.components[0], params: { p: 10 } }] }]) expect(() => parseArchiveInput(value, metadata)).toThrow();
   for (const patch of [{ id: '9223372036854775808' }, { inputBytes: 0 }, { topologyRevision: '-1' }, { createdAt: 'yesterday' }, { resultSha256: [] }]) expect(() => parseArchiveMetadata({ ...metadata, ...patch })).toThrow();
 });
+
+test('preserves optional captured unit labels exactly without certifying their physics', () => {
+  for (const units of [{ p: 'МВт' }, { p: 'W' }, { p: '' }, { p: '  ' }, {}]) {
+    const raw = { ...input, components: [{ ...input.components[0], parameterUnits: units }] };
+    const parsed = parseArchiveInput(raw, metadata);
+    expect(parsed.components[0].parameterUnits).toBe(units);
+    expect(parsed.components[0].params.p).toBe('10');
+  }
+  expect(parseArchiveInput(input, metadata).components[0].parameterUnits).toBeUndefined();
+});
+
+test.each([null, [], 'MW', { p: 1 }, { p: false }, { absent: 'MW' }, { constructor: 'MW' }].map(value => ({ value })))('rejects malformed or orphan captured unit declarations %j', ({ value: parameterUnits }) => {
+  expect(() => parseArchiveInput({ ...input, components: [{ ...input.components[0], parameterUnits }] }, metadata)).toThrow('архив');
+});
 test('requires descending unique page IDs and a cursor matching the last item', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [metadata], nextBeforeId: metadata.id }))));
   expect((await listCalculationArchives('8', new AbortController().signal)).nextBeforeId).toBe(metadata.id);

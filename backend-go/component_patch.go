@@ -141,10 +141,6 @@ func applyComponentPatch(ctx context.Context, tx *sql.Tx, id int, patch componen
 	return nil
 }
 
-func handleComponentPatch(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, expected int64) {
-	handleComponentPatchWith(w, r, database, id, expected, mutateComponentRevision)
-}
-
 func handleComponentPatchWith(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, expected int64, write componentRevisionWriter) {
 	var request componentPatchRequest
 	if !decodeComponentMutation(w, r, &request) {

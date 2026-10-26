@@ -1,5 +1,5 @@
 @testset "Independent multi-bus ZIP references (pandapower 3.5.3)" begin
-    reference = JSON3.read(read(joinpath(@__DIR__, "reference", "zip-networks-v1.json"), String))
+    reference = JSON.parse(read(joinpath(@__DIR__, "reference", "zip-networks-v1.json"), String))
     @test reference.schema_version == 1
     @test reference.provenance.packages.pandapower == "3.5.3"
     @test Set(String(case.name) for case in reference.cases) == Set([
@@ -70,9 +70,9 @@
             moved = [RawComponent(remap(c.id), c.code, copy(c.params), -73.0*c.id, 19.0*c.id, 270) for c in reverse(cs)]
             rewired = [RawConnection(remap(e.to), remap(e.from), e.to_port, e.from_port) for e in reverse(es)]
             compare(calculate(moved, rewired; base, options); idmap=remap)
-            response = handle_request(HTTP.Request("POST", "/calculate", [], JSON3.write(case.scheme)))
+            response = handle_request(HTTP.Request("POST", "/calculate", [], JSON.json(case.scheme)))
             @test response.status == 200
-            compare(JSON3.read(response.body))
+            compare(JSON.parse(response.body))
         end
     end
 end

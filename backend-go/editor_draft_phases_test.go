@@ -48,7 +48,7 @@ func TestEditorDraftPhases(t *testing.T) {
 
 // Exercise old constraint -> upgrade, preservation, and a downgrade that refuses
 // v2 without deleting or reinterpreting any user data. All changes roll back.
-func checkEditorDraftPhaseMigration(t *testing.T, ctx context.Context, db *sql.DB, account int64, scheme int64) {
+func checkEditorDraftPhaseMigration(ctx context.Context, t *testing.T, db *sql.DB, account int64, scheme int64) {
 	t.Helper()
 	up, err := os.ReadFile("../database/migrations/20261018001_editor_draft_phases.up.sql")
 	if err != nil {

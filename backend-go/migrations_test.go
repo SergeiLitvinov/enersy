@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -129,6 +131,49 @@ func TestMigrationDeploymentPostgres(t *testing.T) {
 	if !reflect.DeepEqual(before, migrationSnapshot(t, fresh)) {
 		t.Fatal("second migration changed schema or catalog")
 	}
+	t.Run("immediately previous version", func(t *testing.T) {
+		database := migrationTestDatabase(t)
+		paths, err := filepath.Glob(filepath.Join("..", "database", "migrations", "*.up.sql"))
+		if err != nil || len(paths) < 2 {
+			t.Fatal("need at least two migration versions", err)
+		}
+		// Build a real previous-release source, not an artificially relabelled current database.
+		sort.Strings(paths)
+		dir := t.TempDir()
+		for _, path := range paths[:len(paths)-1] {
+			body, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, filepath.Base(path)), body, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := runMigrationsFromSource(database, "file://"+filepath.ToSlash(dir)); err != nil {
+			t.Fatal(err)
+		}
+		var previous int64
+		if err := database.QueryRow(`SELECT version FROM schema_migrations`).Scan(&previous); err != nil {
+			t.Fatal(err)
+		}
+		expected := strings.Split(filepath.Base(paths[len(paths)-2]), "_")[0]
+		if strconv.FormatInt(previous, 10) != expected {
+			t.Fatal("not the previous release", previous, expected)
+		}
+		if _, err := database.Exec(`INSERT INTO circuit_schemes(id,name) VALUES(90002,'Previous release saved network'); INSERT INTO scheme_components(id,scheme_id,component_type_id,custom_name,pos_x,pos_y,rotation) SELECT 90002,90002,id,'Saved component',-3.25,9.5,180 FROM component_types WHERE code='generator'; INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES(90002,'p','0.125')`); err != nil {
+			t.Fatal(err)
+		}
+		if err := runMigrationsFromSource(database, url); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(before, migrationSnapshot(t, database)) {
+			t.Fatal("previous release did not reach fresh schema/catalog")
+		}
+		var value string
+		if err := database.QueryRow(`SELECT param_value FROM scheme_component_params p JOIN scheme_components c ON c.id=p.scheme_component_id WHERE c.id=90002 AND c.pos_x=-3.25 AND c.pos_y=9.5 AND c.rotation=180 AND p.param_key='p'`).Scan(&value); err != nil || value != "0.125" {
+			t.Fatal("previous release data changed", value, err)
+		}
+	})
 	for _, fixture := range []string{"init.sql", "ees_schema.sql", "migrations/20260612001_init.up.sql"} {
 		t.Run(fixture, func(t *testing.T) {
 			database := migrationTestDatabase(t)

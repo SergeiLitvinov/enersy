@@ -41,7 +41,7 @@ func expectedComponentRevision(w http.ResponseWriter, r *http.Request) (int64, b
 func componentWriteError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{"success": false, "code": code, "error": message})
+	writeJSON(w, map[string]any{"success": false, "code": code, "error": message})
 }
 
 func decodeComponentMutation(w http.ResponseWriter, r *http.Request, target any) bool {
@@ -79,7 +79,7 @@ func componentMutationReply(w http.ResponseWriter, revision int64, err error) {
 	decimal := strconv.FormatInt(revision, 10)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("ETag", `"`+decimal+`"`)
-	json.NewEncoder(w).Encode(map[string]any{"success": true, "revision": decimal})
+	writeJSON(w, map[string]any{"success": true, "revision": decimal})
 }
 
 func handleComponentMutation(w http.ResponseWriter, r *http.Request, database *sql.DB, id int, params bool) {

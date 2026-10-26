@@ -88,7 +88,7 @@ func createComponent(ctx context.Context, database *sql.DB, req createComponentR
 	if err != nil {
 		return 0, nil, 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	var scheme int
 	err = tx.QueryRowContext(ctx, "SELECT id FROM circuit_schemes WHERE id=$1 AND project_id IS NULL FOR UPDATE", req.SchemeID).Scan(&scheme)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -142,7 +142,7 @@ func handleComponents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)})
+	writeJSON(w, map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)})
 }
 
 func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentRequest) (int, map[string]string, int64, error) {

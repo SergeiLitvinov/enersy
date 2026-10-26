@@ -253,10 +253,17 @@ func TestStudyHTTPIsolationAndRevisionPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	body, _ := json.Marshal(map[string]any{"topologyRevision": strconv.FormatInt(f.topology, 10), "document": f.doc})
-	request := func(actor int, method, path, command, tag string, data []byte) *httptest.ResponseRecorder {
+	request := func(actor int, method, path, command, tag string, data []byte, headers ...http.Header) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, bytes.NewReader(data))
 		r.Header.Set("Origin", auth.origin)
 		r.Header.Set("Content-Type", "application/json")
+		for _, header := range headers {
+			for key, values := range header {
+				for _, value := range values {
+					r.Header.Add(key, value)
+				}
+			}
+		}
 		if actor >= 0 {
 			r.AddCookie(&http.Cookie{Name: auth.cookieName(), Value: f.tokens[actor].Token})
 		}
@@ -284,6 +291,32 @@ func TestStudyHTTPIsolationAndRevisionPostgres(t *testing.T) {
 	var first studyVersion
 	if json.Unmarshal(w.Body.Bytes(), &first) != nil || first.ID != "9007199254740993" {
 		t.Fatal("wire Study ID lost precision")
+	}
+	bound := http.Header{"X-Enersy-Account-Id": {strconv.FormatInt(f.tokens[0].Identity.AccountID, 10)}, "X-Enersy-Session-Id": {strconv.FormatInt(f.tokens[0].Identity.SessionID, 10)}}
+	if w := request(0, "POST", create, studyCommand(1), "", body, bound); w.Code != 201 {
+		t.Fatal("bound replay", w.Code)
+	}
+	if w := request(1, "POST", create, studyCommand(99), "", body, bound); w.Code != 409 || !strings.Contains(w.Body.String(), "study_session_changed") {
+		t.Fatal("changed account accepted", w.Code)
+	}
+	old := f.tokens[0]
+	newSession, issueErr := (sessionStore{database: f.store.database}).Issue(context.Background(), old.Identity.AccountID, time.Hour)
+	if issueErr != nil {
+		t.Fatal(issueErr)
+	}
+	f.tokens[0] = newSession
+	if w := request(0, "POST", create, studyCommand(99), "", body, bound); w.Code != 409 {
+		t.Fatal("changed session accepted", w.Code)
+	}
+	f.tokens[0] = old
+	duplicate := bound.Clone()
+	duplicate.Add("X-Enersy-Session-Id", bound.Get("X-Enersy-Session-Id"))
+	if w := request(0, "POST", create, studyCommand(99), "", body, duplicate); w.Code != 400 {
+		t.Fatal("duplicate identity accepted", w.Code)
+	}
+	var count int
+	if err := f.store.database.QueryRow(`SELECT count(*) FROM project_study_versions WHERE project_id=$1`, f.project).Scan(&count); err != nil || count != 1 {
+		t.Fatal("identity mismatch changed history", count, err)
 	}
 	base := fmt.Sprintf("/api/projects/%d/studies/%s", f.project, first.ID)
 	for _, path := range []string{base, base + "/versions/1", base + "/versions/1/input", base + "/versions/1/provenance", base + "/versions"} {

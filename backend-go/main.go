@@ -67,8 +67,85 @@ func loadConfig() Config {
 
 func main() {
 	provision := flag.Bool("provision-account", false, "Provision a local account from JSON on stdin, then exit")
+	audit := flag.Bool("audit-database", false, "Read-only bootstrap and migration inventory as JSON; do not migrate or serve HTTP")
+	catalog := flag.Bool("audit-catalog", false, "Read-only comparison with the shipped fresh-database seed baseline")
+	checkMap := flag.Bool("check-catalog-map", false, "Validate an explicit legacy model reference map from stdin without changing data")
+	applyMap := flag.Bool("apply-catalog-map", false, "Atomically apply an explicit legacy model reference map from stdin without replacing instance parameters")
+	ownerAudit := flag.Bool("audit-legacy-owners", false, "Read-only fingerprint inventory of legacy users and scheme owner references")
+	ownerCheck := flag.Bool("check-legacy-owner-map", false, "Validate an explicit legacy scheme owner map from stdin without changing data")
+	ownerApply := flag.Bool("apply-legacy-owner-map", false, "Apply an explicit legacy owner metadata map without changing accounts or project access")
 	flag.Parse()
 	cfg := loadConfig()
+	modes := 0
+	for _, selected := range []bool{*provision, *audit, *catalog, *checkMap, *applyMap, *ownerAudit, *ownerCheck, *ownerApply} {
+		if selected {
+			modes++
+		}
+	}
+	if modes > 1 {
+		slog.Error("choose exactly one operator mode")
+		os.Exit(1)
+	}
+	if *audit || *catalog || *checkMap || *applyMap || *ownerAudit || *ownerCheck || *ownerApply {
+		var plan catalogMap
+		var ownerPlan legacyOwnerMap
+		if *checkMap || *applyMap {
+			var err error
+			plan, err = readCatalogMap(os.Stdin)
+			if err != nil {
+				slog.Error("invalid catalog map; no database changes", "error", err)
+				os.Exit(1)
+			}
+		}
+		if *ownerCheck || *ownerApply {
+			var err error
+			ownerPlan, err = readLegacyOwnerMap(os.Stdin)
+			if err != nil {
+				slog.Error("invalid legacy owner map; no database changes", "error", err)
+				os.Exit(1)
+			}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		database, err := sql.Open("postgres", databaseConnectionString(cfg))
+		if err != nil {
+			slog.Error("audit database open failed")
+			os.Exit(1)
+		}
+		defer database.Close()
+		source, err := configuredMigrationSource()
+		if err != nil {
+			slog.Error("audit migration source unavailable")
+			os.Exit(1)
+		}
+		var report any
+		if *ownerAudit {
+			report, err = auditLegacyOwners(ctx, database, source)
+		} else if *ownerCheck || *ownerApply {
+			report, err = executeLegacyOwnerMap(ctx, database, source, ownerPlan, *ownerApply)
+		} else if *catalog || *checkMap || *applyMap {
+			var path string
+			path, err = configuredCatalogBaseline()
+			if err == nil {
+				if *catalog {
+					report, err = auditCatalog(ctx, database, source, path)
+				} else {
+					report, err = executeCatalogMap(ctx, database, source, path, plan, *applyMap)
+				}
+			}
+		} else {
+			report, err = auditDatabase(ctx, database, source)
+		}
+		if err != nil {
+			slog.Error("database operator command failed; no success report produced", "error", err)
+			os.Exit(1)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+			slog.Error("audit output failed")
+			os.Exit(1)
+		}
+		return
+	}
 	corsOrigin = cfg.CORSOrigin
 	juliaBaseURL = cfg.JuliaBaseURL
 
@@ -156,9 +233,13 @@ func main() {
 	slog.Info("server stopped gracefully")
 }
 
-func initDB(cfg Config) {
-	connStr := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+func databaseConnectionString(cfg Config) string {
+	return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBUser, cfg.DBPassword)
+}
+
+func initDB(cfg Config) {
+	connStr := databaseConnectionString(cfg)
 
 	var err error
 	db, err = sql.Open("postgres", connStr)
@@ -254,16 +335,16 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleHealth(w http.ResponseWriter, r *http.Request) {
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	writeJSON(w, map[string]string{"status": "ok"})
 }
 
-func handleReady(w http.ResponseWriter, r *http.Request) {
+func handleReady(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if db == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"status": "not ready", "reason": "database not connected"})
+		writeJSON(w, map[string]string{"status": "not ready", "reason": "database not connected"})
 		return
 	}
 	start := time.Now()
@@ -271,16 +352,16 @@ func handleReady(w http.ResponseWriter, r *http.Request) {
 	pingDuration := time.Since(start).String()
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"status": "not ready", "reason": err.Error(), "ping": pingDuration})
+		writeJSON(w, map[string]string{"status": "not ready", "reason": err.Error(), "ping": pingDuration})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ready", "ping": pingDuration})
+	writeJSON(w, map[string]string{"status": "ready", "ping": pingDuration})
 }
 
-func handleVersion(w http.ResponseWriter, r *http.Request) {
+func handleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, map[string]string{
 		"version":    Version,
 		"commit":     Commit,
 		"build_time": BuildTime,
@@ -291,7 +372,7 @@ func handleVersion(w http.ResponseWriter, r *http.Request) {
 // COMPONENT TYPES
 // ============================================================================
 
-func handleGetComponentTypes(w http.ResponseWriter, r *http.Request) {
+func handleGetComponentTypes(w http.ResponseWriter, _ *http.Request) {
 	if db == nil {
 		sendError(w, "Database not available", http.StatusServiceUnavailable)
 		return
@@ -328,7 +409,7 @@ func handleGetComponentTypes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(types)
+	writeJSON(w, types)
 }
 
 func handleGetComponentParams(w http.ResponseWriter, r *http.Request) {
@@ -368,7 +449,7 @@ func handleGetComponentParams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(params)
+	writeJSON(w, params)
 }
 
 func handleGetEquipmentModels(w http.ResponseWriter, r *http.Request) {
@@ -418,7 +499,7 @@ func handleGetEquipmentModels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models)
+	writeJSON(w, models)
 }
 
 func handleGetEquipmentModelParams(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +540,7 @@ func handleGetEquipmentModelParams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(params)
+	writeJSON(w, params)
 }
 
 // ============================================================================
@@ -503,7 +584,7 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(schemes)
+		writeJSON(w, schemes)
 
 	case "POST":
 		var req struct {
@@ -528,7 +609,7 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"id": id, "name": req.Name})
+		writeJSON(w, map[string]interface{}{"id": id, "name": req.Name})
 	}
 }
 
@@ -568,7 +649,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+		writeJSON(w, map[string]interface{}{"success": true})
 
 	case "DELETE":
 		result, err := db.ExecContext(r.Context(), "DELETE FROM circuit_schemes WHERE id = $1 AND project_id IS NULL", id)
@@ -581,7 +662,7 @@ func handleSchemeByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+		writeJSON(w, map[string]interface{}{"success": true})
 	}
 }
 
@@ -666,7 +747,7 @@ func handleConnectionByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	writeJSON(w, map[string]interface{}{"success": true})
 }
 
 // ============================================================================
@@ -790,13 +871,21 @@ func proxyComputeResult(w http.ResponseWriter, r *http.Request, workerURL, path 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 25 * time.Second}
+	client := &http.Client{Timeout: 25 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	// #nosec G704 -- workerURL is operator configuration and path is a constant
+	// API endpoint, never a client-supplied URL. Do not forward inputs on redirects.
 	resp, err := client.Do(req)
 	if err != nil {
 		writeComputeTransportError(w, err, "Julia service unreachable", http.StatusServiceUnavailable)
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		sendError(w, "Unexpected compute redirect", http.StatusBadGateway)
+		return
+	}
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, computeBodyLimit+1))
 	if err != nil {
@@ -816,9 +905,7 @@ func proxyComputeResult(w http.ResponseWriter, r *http.Request, workerURL, path 
 	if beforeCommit != nil && !beforeCommit(resp.StatusCode, respBody) {
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.StatusCode)
-	w.Write(respBody)
+	writeJSONBody(w, resp.StatusCode, respBody)
 }
 
 // Classify failures during both request dispatch and response streaming.
@@ -872,28 +959,8 @@ func handleComputeBackends(w http.ResponseWriter, r *http.Request) {
 // UTILS
 // ============================================================================
 
-func validateRequired(vals map[string]interface{}) string {
-	for key, val := range vals {
-		switch v := val.(type) {
-		case string:
-			if v == "" {
-				return key + " is required"
-			}
-		case int:
-			if v <= 0 {
-				return key + " must be positive"
-			}
-		case float64:
-			if v <= 0 {
-				return key + " must be positive"
-			}
-		}
-	}
-	return ""
-}
-
 func sendError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(Response{Error: message})
+	writeJSON(w, Response{Error: message})
 }

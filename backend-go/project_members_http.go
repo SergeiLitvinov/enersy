@@ -62,7 +62,7 @@ func (handler projectsHTTP) members(w http.ResponseWriter, r *http.Request) {
 		if memberHTTPError(w, err) {
 			return
 		}
-		json.NewEncoder(w).Encode(page)
+		writeJSON(w, page)
 		return
 	}
 	if r.Method != http.MethodPut && r.Method != http.MethodDelete {
@@ -124,7 +124,7 @@ func (handler projectsHTTP) members(w http.ResponseWriter, r *http.Request) {
 	if memberHTTPError(w, err) {
 		return
 	}
-	json.NewEncoder(w).Encode(struct {
+	writeJSON(w, struct {
 		Revision string `json:"revision"`
 	}{strconv.FormatInt(revision, 10)})
 }

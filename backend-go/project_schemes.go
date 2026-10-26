@@ -35,7 +35,7 @@ func (store projectStore) CreateScheme(ctx context.Context, token string, projec
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer rollbackTx(tx)
 	// A membership mutation takes FOR UPDATE on the same project. Check rights
 	// again after waiting, then retain the lock until the scheme commit.
 	query := `SELECT p.id FROM projects p WHERE p.id=$1 AND EXISTS(

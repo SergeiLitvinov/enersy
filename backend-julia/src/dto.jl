@@ -47,7 +47,7 @@ end
 
 SolverOptions(; tolerance::Real=1e-8, max_iterations::Integer=50) = SolverOptions(tolerance, max_iterations)
 
-"""Запрос `/calculate` после нормализации JSON3."""
+"""Запрос `/calculate` после нормализации JSON."""
 struct CalculateRequest
     components::Vector{RawComponent}
     connections::Vector{RawConnection}
@@ -57,7 +57,7 @@ struct CalculateRequest
     options::SolverOptions
 end
 
-"""Запрос `/solve` после нормализации JSON3: квадратная матрица и вектор."""
+"""Запрос `/solve` после нормализации JSON: квадратная матрица и вектор."""
 struct LinearRequest
     A::Matrix{Float64}
     b::Vector{Float64}
@@ -73,8 +73,8 @@ function _json_field(obj, name::Symbol)
     return nothing
 end
 
-_is_object(v) = v isa JSON3.Object || v isa AbstractDict
-_is_array(v) = v isa JSON3.Array || v isa AbstractVector
+_is_object(v) = v isa AbstractDict
+_is_array(v) = v isa AbstractVector
 
 function require_field(obj, name::Symbol, path::AbstractString)
     _json_hasfield(obj, name) ||
@@ -130,7 +130,8 @@ function as_number(value, path::AbstractString)
 end
 
 function as_int(value, path::AbstractString; positive::Bool=false)
-    n = as_number(value, path)
+    # Converting integer IDs through Float64 loses bits above 2^53.
+    n = value isa Integer && !(value isa Bool) ? value : as_number(value, path)
     isinteger(n) ||
         throw(contract_error("type_error", "expected an integer",
                              detail="$(path): got $(n)"))
@@ -223,6 +224,9 @@ function parse_component(raw, path::AbstractString)
         as_string_map(_json_field(raw, :params), "$(path).params")
     else
         Dict{String,String}()
+    end
+    if _json_hasfield(raw, :parameterUnits)
+        validate_parameter_units(code, params, _json_field(raw, :parameterUnits), "$(code)#$(id).parameterUnits")
     end
     x = _json_hasfield(raw, :x) ? as_number(_json_field(raw, :x), "$(path).x") : 0.0
     y = _json_hasfield(raw, :y) ? as_number(_json_field(raw, :y), "$(path).y") : 0.0

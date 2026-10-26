@@ -38,10 +38,10 @@
     payload = Dict("components"=>[Dict("id"=>c.id,"type"=>c.code,"params"=>c.params) for c in cs],
         "connections"=>[Dict("from"=>1,"to"=>2,"from_port"=>"bottom","to_port"=>"top")])
     target = Dict("component_id"=>2,"terminal"=>1,"min_kv"=>0.8,"max_kv"=>0.9)
-    post(limits) = EC.handle_request(HTTP.Request("POST","/calculate",[],JSON3.write(merge(payload,Dict("operatingLimits"=>limits)))))
+    post(limits) = EC.handle_request(HTTP.Request("POST","/calculate",[],JSON.json(merge(payload,Dict("operatingLimits"=>limits)))))
     response = post([target])
     @test response.status == 200
-    @test JSON3.read(response.body).operating_assessment.status == "violated"
+    @test JSON.parse(response.body).operating_assessment.status == "violated"
     for invalid in (nothing,Dict(),[merge(target,Dict("unit"=>"V"))],
                     [merge(target,Dict("component_id"=>true))],[merge(target,Dict("terminal"=>1.5))],
                     [merge(target,Dict("min_kv"=>"0.8"))],[merge(target,Dict("min_kv"=>0))],
