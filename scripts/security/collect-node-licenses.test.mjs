@@ -139,3 +139,32 @@ test('reviewed upstream notices retain exact text and provenance and fail on dri
   await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, sourceURL: 'https://example.org/main/LICENSE' }], origin), /Invalid reviewed upstream/);
   assert.equal((await collectNodeLicenses(root, lock, [{ ...source, version: '2.0.0' }], origin)).incompleteEvidenceCount, 1);
 });
+
+test('one release retains both the full upstream license and embedded authorship', async t => {
+  const { root, lock, add } = await fixture(t);
+  const attribution = 'Library by Original Authors\nLicense: Apache 2.0\n';
+  const directory = await add('multiple', 'multiple', '1.0.0', 'Apache-2.0', { 'README.md': attribution });
+  const origin = path.join(root, 'reviewed');
+  await mkdir(origin);
+  const license = 'Full original license text, including its appendix\n';
+  await writeFile(path.join(origin, 'multiple-LICENSE'), license);
+  const digest = data => createHash('sha256').update(data).digest('hex');
+  const manifestSha256 = digest(await readFile(path.join(directory, 'package.json')));
+  const embedded = { name: 'multiple', version: '1.0.0', file: 'README.md', manifestSha256, sha256: digest(attribution) };
+  const upstream = { ...embedded, file: 'multiple-LICENSE', sha256: digest(license), kind: 'reviewed-upstream',
+    sourceCommit: 'b'.repeat(40), sourceURL: `https://example.org/${'b'.repeat(40)}/LICENSE` };
+  const sources = [upstream, embedded];
+  const report = await collectNodeLicenses(root, lock, sources, origin);
+  assert.equal(report.packageCount, 1);
+  assert.equal(report.incompleteEvidenceCount, 0);
+  assert.deepEqual(report.packages[0].noticeFiles.map(file => file.kind), ['reviewed-upstream', 'reviewed-embedded']);
+  assert.equal(report.notices[digest(license)].text, license);
+  assert.equal(report.notices[digest(attribution)].text, attribution);
+  await assert.rejects(collectNodeLicenses(root, lock, [...sources, embedded], origin), /Duplicate reviewed/);
+  await assert.rejects(collectNodeLicenses(root, lock, [upstream, { ...embedded, manifestSha256: 'c'.repeat(64) }], origin), /Inconsistent reviewed/);
+  await writeFile(path.join(directory, 'README.md'), 'Changed author');
+  await assert.rejects(collectNodeLicenses(root, lock, sources, origin), /notice content changed/);
+  await writeFile(path.join(directory, 'README.md'), attribution);
+  await writeFile(path.join(origin, upstream.file), 'Changed license');
+  await assert.rejects(collectNodeLicenses(root, lock, sources, origin), /notice content changed/);
+});

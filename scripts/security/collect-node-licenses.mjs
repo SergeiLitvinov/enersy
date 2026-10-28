@@ -27,8 +27,10 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
         typeof source.sourceURL !== 'string' || !source.sourceURL.startsWith('https://') ||
         !source.sourceURL.includes(`/${source.sourceCommit}/`))) throw new Error('Invalid reviewed upstream source');
     const key = `${source.name}@${source.version}`;
-    if (reviewed.has(key)) throw new Error('Duplicate reviewed notice source');
-    reviewed.set(key, source);
+    const sources = reviewed.get(key) ?? [];
+    if (sources.some(item => item.file === source.file)) throw new Error('Duplicate reviewed notice source');
+    if (sources.some(item => item.manifestSha256 !== source.manifestSha256)) throw new Error('Inconsistent reviewed package manifest');
+    reviewed.set(key, [...sources, source]);
   }
   const root = await realpath(projectRoot);
   const modules = await realpath(path.join(root, 'node_modules'));
@@ -84,8 +86,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       if (!(await stat(file)).isFile()) continue;
       await captureNotice(item);
     }
-    const source = reviewed.get(`${pkg.name}@${pkg.version}`);
-    if (source) {
+    for (const source of reviewed.get(`${pkg.name}@${pkg.version}`) ?? []) {
       if (sha256(bytes) !== source.manifestSha256) throw new Error('Reviewed notice package manifest changed');
       if (source.kind === 'reviewed-upstream' || !files.some(file => file.name === source.file)) await captureNotice(source.file, source);
       else {

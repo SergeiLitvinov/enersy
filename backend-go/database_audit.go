@@ -22,6 +22,7 @@ type databaseAudit struct {
 	Version             *string           `json:"version"`
 	Dirty               *bool             `json:"dirty"`
 	Counts              map[string]*int64 `json:"counts"`
+	ReferenceChecks     map[string]*int64 `json:"referenceChecks"`
 	Findings            []string          `json:"findings"`
 }
 
@@ -216,6 +217,22 @@ func auditDatabase(ctx context.Context, database *sql.DB, sourceURL string) (dat
 		}
 	} else {
 		r.Findings = append(r.Findings, "integrity_table_absent")
+	}
+	r.ReferenceChecks, err = auditLegacyReferences(ctx, tx, schema)
+	if err != nil {
+		return r, err
+	}
+	for _, count := range r.ReferenceChecks {
+		if count == nil {
+			r.Findings = append(r.Findings, "legacy_reference_checks_incomplete")
+			break
+		}
+	}
+	for _, count := range r.ReferenceChecks {
+		if count != nil && *count > 0 {
+			r.Findings = append(r.Findings, "legacy_references_require_review")
+			break
+		}
 	}
 	sort.Strings(r.Findings)
 	if len(r.Findings) == 0 {

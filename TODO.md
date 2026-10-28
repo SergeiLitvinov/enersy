@@ -1,6 +1,6 @@
 # TODO — оставшиеся работы Enersy
 
-Актуализировано: 2026-10-28. Единый план незавершённых задач. [Текущие возможности и завершённые этапы](docs/site/guide/capabilities.md), [история проверок](docs/site/development/verification-history.md), [правила разработки](docs/CODING_RULES.md).
+Актуализировано: 2026-10-29. Единый план незавершённых задач. [Текущие возможности и завершённые этапы](docs/site/guide/capabilities.md), [история проверок](docs/site/development/verification-history.md), [правила разработки](docs/CODING_RULES.md).
 
 В этом файле нет журнала выполненных работ. У каждой задачи сохранены ID, приоритет, размер, зависимости и критерий приёмки. «Осталось» уточняет текущий объём; приёмка остаётся полным барьером качества, включая регрессии уже работающей части. Частичное выполнение не закрывает эпик. Результаты новых проверок и реализованные функции описываются в руководстве, а не дописываются сюда отчётами.
 
@@ -23,7 +23,7 @@
 
 - [ ] **BASE-05 · P0 · M — Единый путь развёртывания БД.**
 
-  **Осталось:** Определить и проверить перенос остальных legacy ID и внешних ссылок за пределами [карт ссылок на модели](docs/site/development/catalog-audit.md#legacy-model-map) и [legacy-владельцев схем](docs/site/development/bootstrap-audit.md#legacy-owner-map). Перенос в действующую систему аккаунтов/проектов требует отдельной подтверждённой идентичности и разрешений; одноимённые legacy-строки не объединять автоматически. Сохранять привязку к актуальному снимку источника, пользовательские значения, единый путь миграций, checksum и проверяемый backup/restore.
+  **Осталось:** Определить и проверить перенос остальных legacy ID и внешних ссылок за пределами [карт ссылок на модели](docs/site/development/catalog-audit.md#legacy-model-map) и [legacy-владельцев схем](docs/site/development/bootstrap-audit.md#legacy-owner-map). Перед переносом учитывать [аудит зависимостей legacy-узлов и результатов](docs/site/development/bootstrap-audit.md#legacy-reference-checks). Перенос в действующую систему аккаунтов/проектов требует отдельной подтверждённой идентичности и разрешений; одноимённые legacy-строки не объединять автоматически. Сохранять привязку к актуальному снимку источника, пользовательские значения, единый путь миграций, checksum и проверяемый backup/restore.
 
   **Приёмка:** пустая база и база предыдущей версии приводятся к одинаковой структуре и seed-данным; повреждённая/несовместимая миграция не маскируется запуском.
 
@@ -33,7 +33,7 @@
 
 - [ ] **BASE-07 · P1 · M — Установить проверяемый baseline сборки.**
 
-  **Осталось:** Завершить проверку поддержки и покрытия runtime/зависимостей. Подтвердить [контур чистой поставки](docs/site/development/release-acceptance.md) за пределами проверенного Docker Desktop/Linux amd64 и завершить удалённый CI после [выявленных ошибок прав кэша и проверки JSON](docs/site/development/documentation.md#remote-ci-20261028). Поддерживать повторяемые аудиты и политику совместимого обновления. [Минимум Rust](docs/site/development/documentation.md#rust-msrv), [JSON-контракты](docs/site/development/documentation.md#json-codec-migration), [обновление Julia и zlib](docs/site/development/documentation.md#julia-runtime-upgrade), [аудит Rust/Julia](docs/site/development/documentation.md#numerical-dependency-audit), [Go](docs/site/development/documentation.md#go-baseline), [frontend/docs](docs/site/development/documentation.md#runtime-baseline), [PostgreSQL](docs/site/development/postgres-upgrades.md).
+  **Осталось:** Завершить проверку поддержки и покрытия runtime/зависимостей. Подтвердить [контур чистой поставки](docs/site/development/release-acceptance.md) за пределами проверенных Linux amd64 на Docker Desktop и GitHub runner; завершить удалённый CI после [ошибок ожидания WebCrypto и разбора версии PostgreSQL](docs/site/development/documentation.md#remote-ci-284fa01). Поддерживать повторяемые аудиты и политику совместимого обновления. [Минимум Rust](docs/site/development/documentation.md#rust-msrv), [JSON-контракты](docs/site/development/documentation.md#json-codec-migration), [обновление Julia и zlib](docs/site/development/documentation.md#julia-runtime-upgrade), [аудит Rust/Julia](docs/site/development/documentation.md#numerical-dependency-audit), [Go](docs/site/development/documentation.md#go-baseline), [frontend/docs](docs/site/development/documentation.md#runtime-baseline), [PostgreSQL](docs/site/development/postgres-upgrades.md).
 
   **Приёмка:** чистая сборка на заявленных средах; выполняются тесты реально используемых языков, а не только Docker build.
 
@@ -43,7 +43,7 @@
 
 - [ ] **BASE-08 · P1 · M — Актуализировать пользовательскую документацию и лицензирование.**
 
-  **Осталось:** Завершить проверку инструкций на чистых средах и права на нормативные/DXF-производные материалы. Дополнить [реестр происхождения](docs/site/development/asset-provenance.md) первоисточниками паспортов по моделям, разрешить неполные npm/pnpm-уведомления, проверить атрибуцию внутри исходных файлов Go и уведомления за пределами SDK src/root, полноту атрибуции Rust/Julia (в том числе 11 stdlib-записей). Подтвердить происхождение отличающегося SDK LLVM и уведомления MozillaCACerts, охватить прочие бинарные компоненты, ОС и варианты выпуска; проверить совместимость собранных лицензий. [Go-инвентарь](docs/site/development/asset-provenance.md#go-license-inventory), [Rust-инвентарь](docs/site/development/asset-provenance.md#rust-license-inventory), [Julia-инвентарь и ограничения](docs/site/development/asset-provenance.md#julia-license-results). Не выдавать проверку отдельных символов за лицензирование всего каталога.
+  **Осталось:** Завершить проверку инструкций на чистых средах и права на нормативные/DXF-производные материалы. Дополнить [реестр происхождения](docs/site/development/asset-provenance.md) первоисточниками паспортов по моделям, разрешить оставшиеся [неполные npm/pnpm-уведомления](docs/site/development/asset-provenance.md#npm-humanfs-types), проверить атрибуцию внутри исходных файлов Go и уведомления за пределами SDK src/root, полноту атрибуции Rust/Julia (в том числе 11 stdlib-записей). Подтвердить происхождение отличающегося SDK LLVM и уведомления MozillaCACerts, охватить прочие бинарные компоненты, ОС и варианты выпуска; проверить совместимость собранных лицензий. [Go-инвентарь](docs/site/development/asset-provenance.md#go-license-inventory), [Rust-инвентарь](docs/site/development/asset-provenance.md#rust-license-inventory), [Julia-инвентарь и ограничения](docs/site/development/asset-provenance.md#julia-license-results). Не выдавать проверку отдельных символов за лицензирование всего каталога.
 
   **Приёмка:** инструкции воспроизводятся на чистой среде; реализованное отделено от планируемого; непроверенные паспортные значения маркированы.
 

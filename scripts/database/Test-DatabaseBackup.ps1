@@ -24,9 +24,8 @@ try {
     $storage = @('--tmpfs', '/var/lib/postgresql/data')
     if ($UpgradeImage) {
         $versions = foreach ($candidate in @($Image, $UpgradeImage)) {
-            $versionText = (Invoke-DatabaseDocker -Arguments @('run', '--rm', '--network=none', '--entrypoint', 'postgres', $candidate, '--version')) -join ''
-            if ($versionText -notmatch '^postgres \(PostgreSQL\) (\d+\.\d+)\b') { throw 'Unrecognized PostgreSQL version.' }
-            [version]$Matches[1]
+            $versionOutput = Invoke-DatabaseDocker -Arguments @('run', '--rm', '--network=none', '--entrypoint', 'postgres', $candidate, '--version')
+            ConvertFrom-PostgresVersionOutput -Output $versionOutput
         }
         if ($versions[0].Major -ne $versions[1].Major -or $versions[1] -le $versions[0]) { throw 'UpgradeImage must be a higher minor version of the same PostgreSQL major.' }
         $upgradeVolume = "enersy-backup-upgrade-$upgradeToken"

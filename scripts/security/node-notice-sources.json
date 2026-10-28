@@ -1,5 +1,26 @@
 [
   {
+    "name": "@humanfs/types",
+    "version": "0.15.0",
+    "manifestSha256": "1b849aa49814883fc0e70ca461c9faccb675ed1c801e784f1858e75e3b36eec5",
+    "file": "humanfs-types-0.15.0-LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "85069f193cbacc371c3beb649ce746f8c5a493be",
+    "sourceURL": "https://raw.githubusercontent.com/humanwhocodes/humanfs/85069f193cbacc371c3beb649ce746f8c5a493be/packages/core/LICENSE",
+    "reviewedUtc": "2026-10-29",
+    "reason": "npm 0.15.0 gitHead matches this commit. Both repository README and packages/types/README explicitly declare Apache 2.0; the types manifest agrees. Preserve the full Apache 2.0 text present in the same monorepo commit (identical in seven package LICENSE files), including the unmodified appendix. The separate reviewed types README retains Nicholas C. Zakas attribution. This is an explicit review of types 0.15.0, not automatic inheritance from core."
+  },
+  {
+    "name": "@humanfs/types",
+    "version": "0.15.0",
+    "manifestSha256": "1b849aa49814883fc0e70ca461c9faccb675ed1c801e784f1858e75e3b36eec5",
+    "file": "README.md",
+    "sha256": "e1076e47ea96eef79e05496912ad03a9fa8031e1bf4847aab1a9554aef5cc5c0",
+    "reviewedUtc": "2026-10-29",
+    "reason": "Preserve the package's own authorship and explicit Apache 2.0 declaration together with the separately reviewed full license text; this README alone is not a complete license notice."
+  },
+  {
     "name": "saxes",
     "version": "6.0.0",
     "manifestSha256": "32052572b41c2a890ed0854798c48454cc5991dcaafe5fb1718a4253046acfd3",

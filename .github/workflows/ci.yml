@@ -40,6 +40,9 @@ jobs:
       - name: Isolated database backup and restore
         shell: pwsh
         run: ./scripts/database/Test-DatabaseBackup.ps1
+      - name: PostgreSQL version probe with cold Docker output
+        shell: pwsh
+        run: ./scripts/database/Test-PostgresVersionOutput.ps1
       - name: Previous PostgreSQL minor upgrade and restore
         shell: pwsh
         run: >-
