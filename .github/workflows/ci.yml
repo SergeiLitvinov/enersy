@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Create runner-owned cache directories before Docker bind mounts
+        run: mkdir -p .cache/go-mod .cache/go-build
       - name: Prepare locked Go dependencies
         run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps dependencies
       - name: Go notice collector checks

@@ -10,7 +10,7 @@ const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 /** Inventory an installed npm/pnpm tree without importing package code.
  * Declared licenses and captured notices still require release review.
  */
-export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources = []) {
+export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources = [], upstreamRoot = fileURLToPath(new URL('./node-notices', import.meta.url))) {
   const reviewed = new Map();
   if (!Array.isArray(reviewedSources)) throw new Error('Reviewed notice sources must be an array');
   for (const source of reviewedSources) {
@@ -22,6 +22,10 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       !/^[a-f0-9]{64}$/.test(source.sha256 ?? '')) {
       throw new Error('Invalid reviewed notice source');
     }
+    if (source.kind !== undefined && (source.kind !== 'reviewed-upstream' ||
+        !/^[a-f0-9]{40}$/.test(source.sourceCommit ?? '') ||
+        typeof source.sourceURL !== 'string' || !source.sourceURL.startsWith('https://') ||
+        !source.sourceURL.includes(`/${source.sourceCommit}/`))) throw new Error('Invalid reviewed upstream source');
     const key = `${source.name}@${source.version}`;
     if (reviewed.has(key)) throw new Error('Duplicate reviewed notice source');
     reviewed.set(key, source);
@@ -54,16 +58,25 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
     }
     const files = [];
     async function captureNotice(item, source) {
-      const file = await safePath(path.join(directory, item));
-      if (source && !file.startsWith(directory + path.sep)) throw new Error('Reviewed notice escapes its package');
+      let file;
+      if (source?.kind === 'reviewed-upstream') {
+        const origin = await realpath(upstreamRoot);
+        file = await realpath(path.join(origin, item));
+        if (!file.startsWith(origin + path.sep)) throw new Error('Reviewed upstream notice escapes its root');
+      } else {
+        file = await safePath(path.join(directory, item));
+        if (source && !file.startsWith(directory + path.sep)) throw new Error('Reviewed notice escapes its package');
+      }
       const info = await stat(file);
       if (!info.isFile()) throw new Error('Dependency notice is not a file');
+      if (source?.kind === 'reviewed-upstream' && info.size === 0) throw new Error('Reviewed upstream notice is empty');
       if (info.size > 1024 * 1024) throw new Error('Dependency notice exceeds 1 MiB');
       const content = await readFile(file);
       const digest = sha256(content);
       if (source && digest !== source.sha256) throw new Error('Reviewed notice content changed');
       notices[digest] = { sha256: digest, text: utf8.decode(content) };
-      files.push({ name: item, sha256: digest, ...(source ? { kind: 'reviewed-embedded' } : {}) });
+      files.push({ name: item, sha256: digest, ...(source ? { kind: source.kind ?? 'reviewed-embedded',
+        ...(source.kind === 'reviewed-upstream' ? { sourceCommit: source.sourceCommit, sourceURL: source.sourceURL } : {}) } : {}) });
     }
     for (const item of (await readdir(directory)).sort()) {
       if (!noticeName.test(item)) continue;
@@ -74,7 +87,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
     const source = reviewed.get(`${pkg.name}@${pkg.version}`);
     if (source) {
       if (sha256(bytes) !== source.manifestSha256) throw new Error('Reviewed notice package manifest changed');
-      if (!files.some(file => file.name === source.file)) await captureNotice(source.file, source);
+      if (source.kind === 'reviewed-upstream' || !files.some(file => file.name === source.file)) await captureNotice(source.file, source);
       else {
         if (files.find(file => file.name === source.file).sha256 !== source.sha256) throw new Error('Reviewed notice content changed');
       }
@@ -133,7 +146,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       'Installed packages on this platform, including development dependencies; not the final bundle composition',
       'Optional packages absent on this platform are not inventoried',
       'Package license metadata and notice files are evidence, not a license compatibility decision',
-      'Embedded notices are included only for explicitly reviewed name/version, manifest and file hashes',
+      'Embedded and upstream notices are included only for explicitly reviewed name/version, manifest and file hashes',
       'Non-npm dependencies, operating-system packages and other non-root notice files require separate review',
     ],
   };

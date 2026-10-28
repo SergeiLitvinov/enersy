@@ -1,8 +1,9 @@
+import { parseStudySourceDigest, parseStudySourceRevisions, type StudySourceRevision } from '../../api/study-source-revisions';
 import { appendStudyVersion, createStudy, parseStudyDocument, type StudyDocument } from '../../api/studies-api';
 import type { Identity } from '../../api/projects-api';
 
 export type StudyIntentScope = Pick<Identity, 'accountId' | 'sessionId'> & { projectId: string };
-export type StudyIntent = { formatVersion: 1; projectId: string; schemeId: string; command: string; topology: string; document: StudyDocument; studyId?: string; expected?: string };
+export type StudyIntent = { formatVersion: 1; projectId: string; schemeId: string; command: string; topology: string; document: StudyDocument; studyId?: string; expected?: string; sourceRevisions?: StudySourceRevision[]; sourceDigest?: string };
 const prefix = 'enersy:study-intent:v1:';
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const revision = (v: unknown) => v === '0' || id(v);
@@ -12,9 +13,12 @@ export function parseStudyIntent(raw: unknown, project: string): StudyIntent {
   const v = raw as Record<string, unknown>;
   if (v.formatVersion !== 1 || !id(project) || v.projectId !== project || !id(v.schemeId) || BigInt(v.schemeId) > 2147483647n || !revision(v.topology) ||
       typeof v.command !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v.command) ||
-      Object.keys(v).some(k => !['formatVersion', 'projectId', 'schemeId', 'command', 'topology', 'document', 'studyId', 'expected'].includes(k)) ||
+      Object.keys(v).some(k => !['formatVersion', 'projectId', 'schemeId', 'command', 'topology', 'document', 'studyId', 'expected', 'sourceRevisions', 'sourceDigest'].includes(k)) ||
       ((v.studyId !== undefined || v.expected !== undefined) && (!id(v.studyId) || !id(v.expected) || BigInt(v.expected) >= 9223372036854775807n))) return fail();
+  if (v.sourceDigest !== undefined && v.sourceRevisions !== undefined) return fail();
   return { formatVersion: 1, projectId: project, schemeId: v.schemeId, command: v.command, topology: v.topology as string, document: parseStudyDocument(v.document),
+    ...(v.sourceDigest === undefined ? {} : { sourceDigest: parseStudySourceDigest(v.sourceDigest) }),
+    ...(v.sourceRevisions === undefined ? {} : { sourceRevisions: parseStudySourceRevisions(v.sourceRevisions) }),
     ...(v.studyId === undefined ? {} : { studyId: v.studyId as string, expected: v.expected as string }) };
 }
 /** One pending command per project in this tab. It is an intention, never a network snapshot or proof of access. */
@@ -51,9 +55,12 @@ export function createStudyIntentJournal(scope: StudyIntentScope, storage: () =>
 export type StudyIntentJournal = ReturnType<typeof createStudyIntentJournal>;
 export function executeStudyIntent(intent: StudyIntent, scope: StudyIntentScope, signal: AbortSignal) {
   const v = parseStudyIntent(intent, scope.projectId);
+  if (v.sourceDigest !== undefined) return v.studyId === undefined
+    ? createStudy(v.projectId, v.schemeId, v.topology, v.document, v.command, signal, scope, undefined, v.sourceDigest)
+    : appendStudyVersion(v.projectId, v.studyId, v.expected!, v.topology, v.document, v.command, signal, scope, undefined, v.sourceDigest);
   return v.studyId === undefined
-    ? createStudy(v.projectId, v.schemeId, v.topology, v.document, v.command, signal, scope)
-    : appendStudyVersion(v.projectId, v.studyId, v.expected!, v.topology, v.document, v.command, signal, scope);
+    ? createStudy(v.projectId, v.schemeId, v.topology, v.document, v.command, signal, scope, ...(v.sourceRevisions === undefined ? [] : [v.sourceRevisions]))
+    : appendStudyVersion(v.projectId, v.studyId, v.expected!, v.topology, v.document, v.command, signal, scope, ...(v.sourceRevisions === undefined ? [] : [v.sourceRevisions]));
 }
 /** Logout and an observed identity switch clear only this feature's tab-local values. No session token is stored. */
 export function forgetOtherStudySessions(identity: Pick<Identity, 'accountId' | 'sessionId'> | null, storage: () => Storage = () => window.sessionStorage) {

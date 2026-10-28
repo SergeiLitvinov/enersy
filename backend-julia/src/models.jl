@@ -70,6 +70,10 @@ BranchModel(id, code, from, to, ratio, ys, yf, yt, owner) =
 """Complex LV/HV no-load ratio: positive angle means LV leads HV."""
 complex_ratio(m::BranchModel) = m.ratio * cis(m.phase_shift_rad)
 
+# Divide in monotone stages: ratio^2 may overflow/underflow even when the
+# reflected admittance is finite. A real ratio scales each complex component.
+reflected_series_admittance(m::BranchModel) = (m.y_series / m.ratio) / m.ratio
+
 """Модель шунта постоянной проводимости, приведённая к базису узла."""
 struct ShuntModel
     component_id::Int
@@ -91,11 +95,11 @@ end
 where t = ratio·exp(j·phase_shift_rad); diagonal uses the real ratio².
 """
 function stamp!(Y::Matrix{ComplexF64}, m::BranchModel)
-    i, j, t = m.from_bus, m.to_bus, m.ratio
+    i, j = m.from_bus, m.to_bus
     ys = m.y_series
     tap = complex_ratio(m)
     Y[i, i] += ys + m.y_from
-    Y[j, j] += ys / (t * t) + m.y_to
+    Y[j, j] += reflected_series_admittance(m) + m.y_to
     Y[i, j] -= ys / tap
     Y[j, i] -= ys / conj(tap)
     return Y
@@ -209,7 +213,9 @@ function transformer_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSyste
                                      detail="$(owner).u_kz=$(u_kz)"))
     r_own, z_abs = p_kz / s_nom, u_kz / 100.0
     (0 <= r_own <= z_abs) || throw(contract_error("invalid_parameter", "p_kz is inconsistent with u_kz", detail=owner))
-    z_own = complex(r_own, sqrt(z_abs^2 - r_own^2))
+    # Factor before taking roots: squaring can overflow/underflow although X
+    # is representable. z_abs <= floatmax/100 and r_own <= z_abs bound the sum.
+    z_own = complex(r_own, sqrt(z_abs - r_own) * sqrt(z_abs + r_own))
     y_series = 1.0 / impedance_from_own_base(z_own, s_nom, u_hv, base; owner=owner)
     # One global voltage base: vi - vj / ratio = vi - (Uhv/Ulv)*vj.
     ratio = u_lv / u_hv
@@ -220,7 +226,7 @@ function transformer_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSyste
     else
         g_own, y_abs = p_xx / s_nom, i_xx / 100.0
         (0 <= g_own <= y_abs) || throw(contract_error("invalid_parameter", "p_xx is inconsistent with i_xx", detail=owner))
-        y_from = admittance_from_own_base(complex(g_own, -sqrt(y_abs^2 - g_own^2)), s_nom, u_hv, base; owner=owner)
+        y_from = admittance_from_own_base(complex(g_own, -sqrt(y_abs - g_own) * sqrt(y_abs + g_own)), s_nom, u_hv, base; owner=owner)
         push!(assumptions, "трансформатор $(branch.component_id): ветвь намагничивания " *
                            "(p_xx=$(p_xx) МВт, i_xx=$(i_xx) %) отнесена к обмотке ВН")
     end
@@ -587,12 +593,12 @@ end
 """
 function branch_flow(m::BranchModel, v::Vector{Float64}, theta::Vector{Float64},
                      base::BaseSystem)
-    i, j, t = m.from_bus, m.to_bus, m.ratio
+    i, j = m.from_bus, m.to_bus
     vi = complex(v[i], 0.0) * cis(theta[i])
     vj = complex(v[j], 0.0) * cis(theta[j])
     tap = complex_ratio(m)
     i_series_from = m.y_series * (vi - vj / tap)
-    i_series_to = (m.y_series / (t * t)) * vj - (m.y_series / conj(tap)) * vi
+    i_series_to = reflected_series_admittance(m) * vj - (m.y_series / conj(tap)) * vi
     i_from = i_series_from + m.y_from * vi
     i_to = i_series_to + m.y_to * vj
     s_from = vi * conj(i_from)

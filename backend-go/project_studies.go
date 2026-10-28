@@ -95,8 +95,26 @@ func studyReplayInTx(ctx context.Context, tx *sql.Tx, project int64, command, di
 	return v, true, err
 }
 
-func (store projectStore) SaveStudy(ctx context.Context, token string, project int64, scheme int, study, expected, topology int64, command string, doc studyDocument) (studyVersion, error) {
+func (store projectStore) SaveStudy(ctx context.Context, token string, project int64, scheme int, study, expected, topology int64, command string, doc studyDocument, manifests ...*[]studySourceRevision) (studyVersion, error) {
 	var empty studyVersion
+	var source *[]studySourceRevision
+	if len(manifests) > 1 {
+		return empty, errStudyInput
+	}
+	if len(manifests) == 1 {
+		source = manifests[0]
+	}
+	return store.saveStudySource(ctx, token, project, scheme, study, expected, topology, command, doc, source, nil)
+}
+
+func (store projectStore) saveStudySource(ctx context.Context, token string, project int64, scheme int, study, expected, topology int64, command string, doc studyDocument, source *[]studySourceRevision, sourceDigest *string) (studyVersion, error) {
+	var empty studyVersion
+	if sourceDigest != nil && (source != nil || !studySourceDigestPattern.MatchString(*sourceDigest)) {
+		return empty, errStudyInput
+	}
+	if err := validateStudySourceManifest(source); err != nil {
+		return empty, err
+	}
 	if project <= 0 || study < 0 || expected < 0 || expected == math.MaxInt64 || topology < 0 || !commandUUID.MatchString(command) ||
 		(study == 0 && (scheme <= 0 || expected != 0)) || (study > 0 && expected == 0) || validateStudyDocument(doc) != nil {
 		return empty, errStudyInput
@@ -116,7 +134,9 @@ func (store projectStore) SaveStudy(ctx context.Context, token string, project i
 		Scheme                    int
 		Study, Expected, Topology int64
 		Document                  studyDocument
-	}{scheme, study, expected, topology, doc})
+		Source                    *[]studySourceRevision `json:",omitempty"`
+		SourceDigest              *string                `json:",omitempty"`
+	}{scheme, study, expected, topology, doc, source, sourceDigest})
 	if err != nil {
 		return empty, errStudyInput
 	}
@@ -135,6 +155,12 @@ func (store projectStore) SaveStudy(ctx context.Context, token string, project i
 	}
 	if input.TopologyRevision != topology {
 		return empty, errStudyTopology
+	}
+	if err := matchStudySourceManifest(source, input.Components); err != nil {
+		return empty, err
+	}
+	if sourceDigest != nil && *sourceDigest != studySourceDigest(scheme, input.Components) {
+		return empty, errStudySource
 	}
 	if !limitTargetsBelongToInput(doc.Limits, input) {
 		return empty, errStudyInput

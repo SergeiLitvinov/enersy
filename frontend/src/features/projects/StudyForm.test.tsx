@@ -15,15 +15,15 @@ const saved = vi.fn(), close = vi.fn();
 const button = (s: string) => [...host.querySelectorAll('button')].find(b => b.textContent === s)!;
 const input = (label: string) => [...host.querySelectorAll('label')].find(l => l.textContent === label)!.querySelector('input')!;
 async function change(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
-beforeEach(() => { vi.resetAllMocks(); window.sessionStorage.clear(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); HTMLDialogElement.prototype.showModal = vi.fn(); HTMLDialogElement.prototype.close = vi.fn(); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
-const mount = async (v?: StudyVersion, role: 'owner' | 'viewer' = 'owner') => act(async () => root.render(<StudyForm journal={createStudyIntentJournal({accountId:'1',sessionId:'2',projectId:'8'})} project={{ id: '8', name: 'Проект', role }} source={graph} version={v} onSaved={saved} onClose={close} />));
+beforeEach(async () => { const { webcrypto } = await vi.importActual<{ webcrypto: Crypto }>('node:crypto'); vi.stubGlobal('crypto', webcrypto); vi.resetAllMocks(); window.sessionStorage.clear(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); HTMLDialogElement.prototype.showModal = vi.fn(); HTMLDialogElement.prototype.close = vi.fn(); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
+const mount = async (v?: StudyVersion, role: 'owner' | 'viewer' = 'owner', source = graph) => act(async () => root.render(<StudyForm journal={createStudyIntentJournal({accountId:'1',sessionId:'2',projectId:'8'})} project={{ id: '8', name: 'Проект', role }} source={source} version={v} onSaved={saved} onClose={close} />));
 test('new Study requires explicit physical bases and does not invent network parameters', async () => {
   await mount(); expect(button('Сохранить снимок').disabled).toBe(true);
   await change('Название', 'Проверка'); await change('Базис мощности, МВА', '100'); await change('Базис напряжения, кВ', '10');
   vi.mocked(createStudy).mockResolvedValue(version());
   await act(async () => button('Сохранить снимок').click());
-  expect(createStudy).toHaveBeenCalledOnce(); expect(createStudy).toHaveBeenCalledWith('8', '7', '3', expect.objectContaining({ name: 'Проверка', base: { s_base_mva: 100, v_base_kv: 10 } }), expect.any(String), expect.any(AbortSignal), {accountId:'1',sessionId:'2',projectId:'8'});
+  expect(createStudy).toHaveBeenCalledOnce(); expect(createStudy).toHaveBeenCalledWith('8', '7', '3', expect.objectContaining({ name: 'Проверка', base: { s_base_mva: 100, v_base_kv: 10 } }), expect.any(String), expect.any(AbortSignal), {accountId:'1',sessionId:'2',projectId:'8'}, undefined, expect.stringMatching(/^v1:[0-9a-f]{64}$/));
   expect(saved).toHaveBeenCalledOnce();
 });
 test('uncertain save freezes intent and retries the same command and document', async () => {
@@ -59,4 +59,14 @@ test('failure to persist intent blocks dispatch before any request is made', asy
   await act(async () => root.render(<StudyForm journal={createStudyIntentJournal({ accountId: '1', sessionId: '2', projectId: '8' }, () => { throw new Error('storage blocked'); })} project={{ id: '8', name: 'P', role: 'owner' }} source={graph} version={version()} onSaved={saved} onClose={close} />));
   await act(async () => button('Сохранить снимок').click());
   expect(appendStudyVersion).not.toHaveBeenCalled(); expect(host.textContent).toContain('Запрос не отправлен');
+});
+
+test('the form captures numerically ordered equipment revisions without rounding', async () => {
+  const component = (id: number, revision: string) => ({ id, revision, typeId: 1, type: 'busbar', name: '', x: 0, y: 0, rotation: 0, equipmentModelId: null, params: {} });
+  await mount(undefined, 'owner', { ...graph, components: [component(10, '9007199254740993'), component(2, '7')] });
+  await change('Название', 'Ревизии'); await change('Базис мощности, МВА', '100'); await change('Базис напряжения, кВ', '10');
+  vi.mocked(createStudy).mockResolvedValue(version());
+  await act(async () => button('Сохранить снимок').click());
+  expect(vi.mocked(createStudy).mock.calls[0][7]).toBeUndefined();
+  expect(vi.mocked(createStudy).mock.calls[0][8]).toMatch(/^v1:[0-9a-f]{64}$/);
 });

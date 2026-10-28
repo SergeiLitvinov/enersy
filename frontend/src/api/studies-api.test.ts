@@ -7,6 +7,31 @@ const metadata = () => ({ status: 'captured', id: study, projectId: project, sch
     schemeName: 'Source', createdAt: '2026-10-24T06:00:00Z', inputSha256: 'a'.repeat(64), provenanceSha256: 'b'.repeat(64), inputBytes: 1, provenanceBytes: 1, document: document() });
 const reply = (data: unknown, revision = '1') => new Response(JSON.stringify(data), { headers: { ETag: `"${revision}"` } });
 afterEach(() => vi.unstubAllGlobals());
+
+test('compact source digest is sent without a list and ambiguous references never dispatch', async () => {
+    const fetcher = vi.fn().mockResolvedValue(reply(metadata()));
+    vi.stubGlobal('fetch', fetcher);
+    const digest = 'v1:' + 'a'.repeat(64);
+    await createStudy(project, '7', '0', document(), command, signal, undefined, undefined, digest);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ topologyRevision: '0', document: document(), sourceDigest: digest });
+    fetcher.mockClear();
+    await expect(createStudy(project, '7', '0', document(), command, signal, undefined, [], digest)).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+});
+
+test('expected source revisions reach both writes unchanged; malformed manifests never dispatch', async () => {
+    const fetcher = vi.fn().mockResolvedValue(reply(metadata()));
+    vi.stubGlobal('fetch', fetcher);
+    const source = [{ id: '2', revision: '9007199254740993' }];
+    await createStudy(project, '7', '0', document(), command, signal, undefined, source);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).sourceRevisions).toEqual(source);
+    fetcher.mockResolvedValue(reply({ ...metadata(), revision: '2' }, '2'));
+    await appendStudyVersion(project, study, '1', '0', document(), command, signal, undefined, source);
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).sourceRevisions).toEqual(source);
+    fetcher.mockClear();
+    await expect(createStudy(project, '7', '0', document(), command, signal, undefined, [{ id: '2', revision: '0' }])).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+});
 test('Study settings require declared units/options and copy caller-owned mutable values', () => {
     const source = document();
     const captured = parseStudyDocument(source);

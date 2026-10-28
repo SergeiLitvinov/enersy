@@ -6,6 +6,34 @@ vi.mock('../../api/studies-api', async original => ({ ...await original<typeof i
 const scope = { accountId: '9007199254740993', sessionId: '9007199254740994', projectId: '8' };
 const intent = (): StudyIntent => ({ formatVersion: 1, projectId: '8', schemeId: '7', command: '11111111-1111-4111-8111-111111111111', topology: '9007199254740995', document: { formatVersion: 1, name: 'Намерение', modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: 'julia', maxTimeMs: 20000, base: { s_base_mva: 100, v_base_kv: 10 }, solverOptions: { tolerance: 1e-8, max_iterations: 50 }, operatingLimits: [] } });
 beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); });
+
+test('compact source digest survives reload and is replayed without a revision list', async () => {
+  const sourceDigest = 'v1:' + 'a'.repeat(64);
+  const journal = createStudyIntentJournal(scope);
+  journal.prepare({ ...intent(), sourceDigest });
+  const restored = createStudyIntentJournal(scope).read()!;
+  expect(restored.sourceDigest).toBe(sourceDigest);
+  expect(restored.sourceRevisions).toBeUndefined();
+  const signal = new AbortController().signal;
+  await executeStudyIntent(restored, scope, signal);
+  expect(createStudy).toHaveBeenCalledWith('8', '7', restored.topology, restored.document, restored.command, signal, scope, undefined, sourceDigest);
+  expect(() => journal.prepare({ ...restored, sourceDigest: 'v1:' + 'b'.repeat(64) })).toThrow();
+  expect(() => parseStudyIntent({ ...restored, sourceRevisions: [] }, '8')).toThrow();
+});
+
+test('recovered source manifest remains exact and cannot be silently replaced', async () => {
+  const original = { ...intent(), sourceRevisions: [{ id: '2', revision: '9007199254740993' }] };
+  const journal = createStudyIntentJournal(scope);
+  journal.prepare(original);
+  original.sourceRevisions[0].revision = '9';
+  const recovered = journal.read()!;
+  expect(recovered.sourceRevisions).toEqual([{ id: '2', revision: '9007199254740993' }]);
+  expect(() => journal.prepare(original)).toThrow();
+  const signal = new AbortController().signal;
+  await executeStudyIntent(recovered, scope, signal);
+  expect(createStudy).toHaveBeenCalledWith('8', '7', recovered.topology, recovered.document, recovered.command, signal, scope, recovered.sourceRevisions);
+  expect(() => parseStudyIntent({ ...intent(), sourceRevisions: null }, '8')).toThrow();
+});
 test('reload restores an exact independently parsed command, with no automatic request', () => {
   const a = intent(); createStudyIntentJournal(scope).prepare(a); a.document.name = 'Changed outside';
   const reopened = createStudyIntentJournal(scope); expect(reopened.read()).toEqual(intent());

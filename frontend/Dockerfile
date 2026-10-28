@@ -9,6 +9,7 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY scripts/security/collect-node-licenses.mjs /tools/collect-node-licenses.mjs
 COPY scripts/security/node-notice-sources.json /tools/node-notice-sources.json
+COPY scripts/security/node-notices /tools/node-notices
 RUN node /tools/collect-node-licenses.mjs /app /app/package-lock.json /enersy-notices/frontend.json
 
 COPY frontend/src ./src

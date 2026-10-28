@@ -234,8 +234,10 @@ func (handler projectsHTTP) studies(w http.ResponseWriter, r *http.Request) bool
 		return true
 	}
 	var input struct {
-		TopologyRevision string        `json:"topologyRevision"`
-		Document         studyDocument `json:"document"`
+		TopologyRevision string                 `json:"topologyRevision"`
+		Document         studyDocument          `json:"document"`
+		SourceRevisions  *[]studySourceRevision `json:"sourceRevisions"`
+		SourceDigest     *string                `json:"sourceDigest"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 128<<10))
 	decoder.DisallowUnknownFields()
@@ -262,7 +264,7 @@ func (handler projectsHTTP) studies(w http.ResponseWriter, r *http.Request) bool
 		sendError(w, "Explicit source topology revision required", 400)
 		return true
 	}
-	version, err := store.SaveStudy(r.Context(), token, project, scheme, study, expected, topology, command, input.Document)
+	version, err := store.saveStudySource(r.Context(), token, project, scheme, study, expected, topology, command, input.Document, input.SourceRevisions, input.SourceDigest)
 	if studyHTTPError(w, err) {
 		return true
 	}

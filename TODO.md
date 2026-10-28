@@ -1,6 +1,6 @@
 # TODO — оставшиеся работы Enersy
 
-Актуализировано: 2026-10-26. Единый план незавершённых задач. [Текущие возможности и завершённые этапы](docs/site/guide/capabilities.md), [история проверок](docs/site/development/verification-history.md), [правила разработки](docs/CODING_RULES.md).
+Актуализировано: 2026-10-28. Единый план незавершённых задач. [Текущие возможности и завершённые этапы](docs/site/guide/capabilities.md), [история проверок](docs/site/development/verification-history.md), [правила разработки](docs/CODING_RULES.md).
 
 В этом файле нет журнала выполненных работ. У каждой задачи сохранены ID, приоритет, размер, зависимости и критерий приёмки. «Осталось» уточняет текущий объём; приёмка остаётся полным барьером качества, включая регрессии уже работающей части. Частичное выполнение не закрывает эпик. Результаты новых проверок и реализованные функции описываются в руководстве, а не дописываются сюда отчётами.
 
@@ -33,7 +33,7 @@
 
 - [ ] **BASE-07 · P1 · M — Установить проверяемый baseline сборки.**
 
-  **Осталось:** Завершить проверку поддержки и покрытия runtime/зависимостей. Подтвердить [контур чистой поставки](docs/site/development/release-acceptance.md) за пределами проверенного Docker Desktop/Linux amd64 и удалённый CI. Поддерживать повторяемые аудиты и политику совместимого обновления. [Минимум Rust](docs/site/development/documentation.md#rust-msrv), [JSON-контракты](docs/site/development/documentation.md#json-codec-migration), [обновление Julia и zlib](docs/site/development/documentation.md#julia-runtime-upgrade), [аудит Rust/Julia](docs/site/development/documentation.md#numerical-dependency-audit), [Go](docs/site/development/documentation.md#go-baseline), [frontend/docs](docs/site/development/documentation.md#runtime-baseline), [PostgreSQL](docs/site/development/postgres-upgrades.md).
+  **Осталось:** Завершить проверку поддержки и покрытия runtime/зависимостей. Подтвердить [контур чистой поставки](docs/site/development/release-acceptance.md) за пределами проверенного Docker Desktop/Linux amd64 и завершить удалённый CI после [выявленных ошибок прав кэша и проверки JSON](docs/site/development/documentation.md#remote-ci-20261028). Поддерживать повторяемые аудиты и политику совместимого обновления. [Минимум Rust](docs/site/development/documentation.md#rust-msrv), [JSON-контракты](docs/site/development/documentation.md#json-codec-migration), [обновление Julia и zlib](docs/site/development/documentation.md#julia-runtime-upgrade), [аудит Rust/Julia](docs/site/development/documentation.md#numerical-dependency-audit), [Go](docs/site/development/documentation.md#go-baseline), [frontend/docs](docs/site/development/documentation.md#runtime-baseline), [PostgreSQL](docs/site/development/postgres-upgrades.md).
 
   **Приёмка:** чистая сборка на заявленных средах; выполняются тесты реально используемых языков, а не только Docker build.
 
@@ -126,7 +126,7 @@
 
 - [ ] **CORE-06 · P0 · M — Полные результаты режима.**
 
-  **Осталось:** Подключить запуск конкретной неизменяемой версии Study к её результату/архиву; развить сравнение сетей и серверное восстановление незавершённых команд Study между контекстами/устройствами. Передавать и проверять клиентский манифест ожидаемых ревизий параметров до серверного чтения: [сверка прочитанного оборудования перед записью](docs/site/development/studies.md#source-revision-guard) не фиксирует состояние старой вкладки. [Хранение и API Study](docs/site/development/studies.md). Расширить проверяемые величины за пределы терминального напряжения; завершить полное происхождение внутренних элементов, ModelBinding и фиксацию версии движка в запуске. Развить очистку и сравнение архивов; не создавать повторно таблицы потоков и архив приватного расчёта. [Границы в редакторе](docs/site/development/operating-limits.md).
+  **Осталось:** Подключить запуск конкретной неизменяемой версии Study к её результату/архиву; развить сравнение сетей и серверное восстановление незавершённых команд Study между контекстами/устройствами. Расширить приёмку [компактного отпечатка источника](docs/site/development/studies.md#source-digest-v1) на legacy-восстановление, невыполненные восстановленные команды и большие схемы: [сверка прочитанного оборудования перед записью](docs/site/development/studies.md#source-revision-guard) не фиксирует состояние старой вкладки. [Хранение и API Study](docs/site/development/studies.md). Расширить проверяемые величины за пределы терминального напряжения; завершить полное происхождение внутренних элементов, ModelBinding и фиксацию версии движка в запуске. Развить очистку и сравнение архивов; не создавать повторно таблицы потоков и архив приватного расчёта. [Границы в редакторе](docs/site/development/operating-limits.md).
 
   **Приёмка:** сумма инъекций согласуется с потерями в заданном допуске; повторное открытие не зависит от текущей схемы; нет округления в архиве.
 

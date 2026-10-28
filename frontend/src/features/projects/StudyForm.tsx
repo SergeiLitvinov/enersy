@@ -1,3 +1,4 @@
+import { digestStudySource } from '../../api/study-source-revisions';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Dialog } from '../../components/ui/Dialog';
 import { readStudy, parseStudyDocument, StudyWriteError, type StudyDocument, type StudyVersion } from '../../api/studies-api';
@@ -7,7 +8,7 @@ import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { StudyDocumentView } from './StudyDocumentView';
 
 type LimitDraft = { component: string; terminal: string; min: string; max: string };
-type Attempt = { document: StudyDocument; command: string; expected?: string; topology: string };
+type Attempt = { document: StudyDocument; command: string; expected?: string; topology: string; sourceDigest: string };
 export function StudyForm({ project, source, version, journal, onSaved, onClose, onUnavailable }: {
   journal: StudyIntentJournal;
   project: Project; source: ProjectGraph; version?: StudyVersion; onSaved: (v: StudyVersion) => void;
@@ -47,11 +48,13 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   async function save(event: FormEvent) {
     event.preventDefault();
     if (dispatching.current || project.role === 'viewer' || (!pending && !document)) return;
-    const attempt = pending ?? { document: document!, command: crypto.randomUUID(), expected, topology: graph.topologyRevision };
+    const attempt = pending ?? { document: document!, command: crypto.randomUUID(), expected, topology: graph.topologyRevision, sourceDigest: '' };
     dispatching.current = true; setBusy(true); setError('');
     let prepared = false;
     try {
-      const intent = { formatVersion: 1 as const, projectId: project.id, schemeId: graph.id, command: attempt.command, topology: attempt.topology, document: attempt.document,
+      if (!pending) attempt.sourceDigest = await digestStudySource(graph.id, [...graph.components].sort((a, b) => a.id - b.id).map(c => ({ id: String(c.id), revision: c.revision })));
+      controller.signal.throwIfAborted();
+      const intent = { formatVersion: 1 as const, projectId: project.id, schemeId: graph.id, command: attempt.command, topology: attempt.topology, document: attempt.document, sourceDigest: attempt.sourceDigest,
         ...(version ? { studyId: version.id, expected: attempt.expected } : {}) };
       journal.prepare(intent); prepared = true;
       const saved = await executeStudyIntent(intent, journal.scope, controller.signal);

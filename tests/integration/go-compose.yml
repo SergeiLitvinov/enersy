@@ -116,7 +116,7 @@ services:
       CGO_ENABLED: "0"
       GOMAXPROCS: 2
       GOBIN: /tmp/go-tools
-    command: ["sh", "-c", "go install golang.org/x/vuln/cmd/govulncheck@v1.9.0 && GOFLAGS=-mod=readonly /tmp/go-tools/govulncheck -test ./..."]
+    command: ["sh", "-c", "go install golang.org/x/vuln/cmd/govulncheck@v1.9.0 && GOFLAGS=-mod=readonly /tmp/go-tools/govulncheck -test -show verbose ./..."]
 networks:
   default:
     internal: true

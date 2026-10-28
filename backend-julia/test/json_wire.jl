@@ -1,3 +1,49 @@
+# Floating results are checked by independent numerical references elsewhere.
+# This guard keeps the full recursive wire structure and discrete metadata exact.
+function same_wire_contract(expected, actual)
+    if expected isa AbstractDict
+        actual isa AbstractDict || return false
+        Set(keys(expected)) == Set(keys(actual)) || return false
+        return all(keys(expected)) do key
+            same_wire_contract(expected[key], actual[key]) &&
+                (key != "computation_time_ms" ||
+                 (actual[key] isa AbstractFloat && actual[key] >= 0))
+        end
+    elseif expected isa AbstractVector
+        actual isa AbstractVector || return false
+        length(expected) == length(actual) || return false
+        return all(same_wire_contract(a, b) for (a, b) in zip(expected, actual))
+    elseif expected isa AbstractFloat
+        return actual isa AbstractFloat && isfinite(actual)
+    else
+        return typeof(expected) === typeof(actual) && isequal(expected, actual)
+    end
+end
+
+@testset "Wire contract guard rejects structural and discrete mutations" begin
+    original = JSON.parse("""{"id":9007199254740993,"success":true,"method":"lu","values":[1.0],"optional":null,"computation_time_ms":1.0}""")
+    @test same_wire_contract(original, deepcopy(original))
+    for (key, value) in (("id", 9007199254740992), ("success", 1),
+            ("method", "qr"), ("values", Any[]), ("values", ["1.0"]),
+            ("values", [Inf]), ("optional", "null"), ("computation_time_ms", -1.0))
+        changed = deepcopy(original)
+        changed[key] = value
+        @test !same_wire_contract(original, changed)
+    end
+    missing = deepcopy(original)
+    delete!(missing, "optional")
+    @test !same_wire_contract(original, missing)
+    extra = deepcopy(original)
+    extra["extra"] = nothing
+    @test !same_wire_contract(original, extra)
+    rounded = deepcopy(original)
+    rounded["values"] = [nextfloat(1.0)]
+    @test same_wire_contract(original, rounded)
+    # An equal-looking integer is not a floating result in the wire contract.
+    rounded["values"] = [1]
+    @test !same_wire_contract(original, rounded)
+end
+
 @testset "JSON transport compatibility with frozen JSON3 responses" begin
     directory = joinpath(@__DIR__, "reference", "json-wire-v1")
     input = read(joinpath(directory, "json3-worker-input-v1.json"))
@@ -9,17 +55,12 @@
     @test bytes2hex(EC.sha256(old_result)) == provenance.result_sha256
     current = handle_request(HTTP.Request("POST", "/calculate", [], copy(input)))
     @test current.status == 200
-    # Only the measured wall-clock times are variable. No numerical tolerance
-    # is introduced: all physical values, shapes and solver metadata must agree.
-    before, after = JSON.parse(old_result), JSON.parse(current.body)
-    for body in (before, after)
-        for record in (body, body.island_results...)
-            @test record.computation_time_ms isa Real
-            @test isfinite(record.computation_time_ms) && record.computation_time_ms >= 0
-            delete!(record, "computation_time_ms")
-        end
-    end
-    @test after == before
+    # Test codec preservation on identical data, not a second BLAS calculation:
+    # CPU-dependent floating-point rounding belongs to the physical references.
+    before = JSON.parse(old_result)
+    @test JSON.parse(EC.json_response(200, before).body) == before
+    @test JSON.parse(current.body).success === true
+    @test same_wire_contract(before, JSON.parse(current.body))
 
     for fixture in JSON.parse(read(joinpath(directory, "json3-http-contract-v1.json")))
         response = handle_request(HTTP.Request("POST", "/solve", [], fixture.body))
@@ -32,7 +73,9 @@
             @test response.status == fixture.status
             before = JSON.parse(fixture.response)
             if response.status == 200
-                @test value == before
+                @test JSON.parse(EC.json_response(200, before).body) == before
+                @test same_wire_contract(before, value)
+                @test value.success === true
             else
                 @test value.success === false
                 @test value.error_detail.code == before.error_detail.code

@@ -111,3 +111,31 @@ test('reviewed notice source cannot escape its package even within node_modules'
   await assert.rejects(collectNodeLicenses(root, lock, [{ ...reviewed[0], file: '../README.md' }]), /Invalid reviewed/);
   await assert.rejects(collectNodeLicenses(root, lock, [...reviewed, ...reviewed]), /Duplicate reviewed/);
 });
+
+test('reviewed upstream notices retain exact text and provenance and fail on drift or escape', async t => {
+  const { root, lock, add } = await fixture(t);
+  const directory = await add('upstream', 'upstream', '1.0.0', 'ISC', {});
+  const origin = path.join(root, 'reviewed');
+  await mkdir(origin);
+  const text = 'Copyright Authors\r\nFull upstream notice\r\n';
+  await writeFile(path.join(origin, 'upstream-LICENSE'), text);
+  const digest = data => createHash('sha256').update(data).digest('hex');
+  const source = { name: 'upstream', version: '1.0.0', file: 'upstream-LICENSE',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: digest(text),
+    kind: 'reviewed-upstream', sourceCommit: 'a'.repeat(40), sourceURL: `https://example.org/${'a'.repeat(40)}/LICENSE` };
+  const report = await collectNodeLicenses(root, lock, [source], origin);
+  assert.equal(report.incompleteEvidenceCount, 0);
+  assert.equal(report.notices[source.sha256].text, text);
+  assert.equal(report.packages[0].noticeFiles[0].sourceCommit, source.sourceCommit);
+  assert.equal(report.packages[0].noticeFiles[0].kind, 'reviewed-upstream');
+  await writeFile(path.join(origin, source.file), 'changed');
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), /content changed/);
+  await writeFile(path.join(origin, source.file), '');
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), /is empty/);
+  await rm(path.join(origin, source.file));
+  await writeFile(path.join(root, 'outside'), text);
+  await symlink(path.join(root, 'outside'), path.join(origin, source.file));
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), /escapes its root/);
+  await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, sourceURL: 'https://example.org/main/LICENSE' }], origin), /Invalid reviewed upstream/);
+  assert.equal((await collectNodeLicenses(root, lock, [{ ...source, version: '2.0.0' }], origin)).incompleteEvidenceCount, 1);
+});

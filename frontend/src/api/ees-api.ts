@@ -455,3 +455,4 @@ export async function calculateScheme(schemeId: number, method: string = 'newton
   return result;
 }
 export type { Identity } from './projects-api';
+export type { StudySourceRevision } from './study-source-revisions';

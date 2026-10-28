@@ -1,3 +1,4 @@
+import { parseStudySourceDigest, parseStudySourceRevisions, type StudySourceRevision } from './study-source-revisions';
 import { SessionError, type Identity } from './projects-api';
 import { isComputeBackendId, type ComputeBackendId } from './compute-backends';
 import { isCalculationBudget } from './calculation-execution';
@@ -104,26 +105,27 @@ export async function readStudy(project: string, study: string, signal: AbortSig
         return fail();
     return result;
 }
-async function saveStudy(url: string, project: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, expected?: string, identity?: Pick<Identity, 'accountId' | 'sessionId'>): Promise<StudyVersion> {
+async function saveStudy(url: string, project: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, expected?: string, identity?: Pick<Identity, 'accountId' | 'sessionId'>, sourceRevisions?: StudySourceRevision[], sourceDigest?: string): Promise<StudyVersion> {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(command))
         return fail();
+    if (sourceDigest !== undefined && sourceRevisions !== undefined) return fail();
     const captured = parseStudyDocument(document);
-    const response = await request(url, signal, { topologyRevision: revision(topology), document: captured }, { ...(identity ? { 'X-Enersy-Account-Id': id(identity.accountId), 'X-Enersy-Session-Id': id(identity.sessionId) } : {}), 'Idempotency-Key': command, ...(expected === undefined ? {} : { 'If-Match': `"${id(expected)}"` }) });
+    const response = await request(url, signal, { topologyRevision: revision(topology), document: captured, ...(sourceDigest === undefined ? {} : { sourceDigest: parseStudySourceDigest(sourceDigest) }), ...(sourceRevisions === undefined ? {} : { sourceRevisions: parseStudySourceRevisions(sourceRevisions) }) }, { ...(identity ? { 'X-Enersy-Account-Id': id(identity.accountId), 'X-Enersy-Session-Id': id(identity.sessionId) } : {}), 'Idempotency-Key': command, ...(expected === undefined ? {} : { 'If-Match': `"${id(expected)}"` }) });
     const result = await metadata(response, project, signal);
     if (result.topologyRevision !== topology || JSON.stringify(result.document) !== JSON.stringify(captured))
         return fail();
     return result;
 }
-export async function createStudy(project: string, scheme: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, identity?: Pick<Identity, 'accountId' | 'sessionId'>): Promise<StudyVersion> {
+export async function createStudy(project: string, scheme: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, identity?: Pick<Identity, 'accountId' | 'sessionId'>, sourceRevisions?: StudySourceRevision[], sourceDigest?: string): Promise<StudyVersion> {
     if (BigInt(id(scheme)) > 2147483647n)
         return fail();
-    const result = await saveStudy(`/api/projects/${id(project)}/schemes/${scheme}/studies`, project, topology, document, command, signal, undefined, identity);
+    const result = await saveStudy(`/api/projects/${id(project)}/schemes/${scheme}/studies`, project, topology, document, command, signal, undefined, identity, sourceRevisions, sourceDigest);
     if (result.schemeId !== scheme || result.revision !== '1')
         return fail();
     return result;
 }
-export async function appendStudyVersion(project: string, study: string, expected: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, identity?: Pick<Identity, 'accountId' | 'sessionId'>): Promise<StudyVersion> {
-    const result = await saveStudy(`${path(project)}/${id(study)}/versions`, project, topology, document, command, signal, expected, identity);
+export async function appendStudyVersion(project: string, study: string, expected: string, topology: string, document: StudyDocument, command: string, signal: AbortSignal, identity?: Pick<Identity, 'accountId' | 'sessionId'>, sourceRevisions?: StudySourceRevision[], sourceDigest?: string): Promise<StudyVersion> {
+    const result = await saveStudy(`${path(project)}/${id(study)}/versions`, project, topology, document, command, signal, expected, identity, sourceRevisions, sourceDigest);
     if (result.id !== study || BigInt(result.revision) !== BigInt(expected) + 1n)
         return fail();
     return result;

@@ -153,10 +153,10 @@ function build_admittance(sys::AcSystem)
         push!(rows, i); push!(cols, j); push!(values, y)
     end
     for m in sys.branch_models
-        i, j, t, ys = m.from_bus, m.to_bus, m.ratio, m.y_series
+        i, j, ys = m.from_bus, m.to_bus, m.y_series
         tap = complex_ratio(m)
         add(i, i, ys + m.y_from)
-        add(j, j, ys / (t * t) + m.y_to)
+        add(j, j, reflected_series_admittance(m) + m.y_to)
         add(i, j, -ys / tap)
         add(j, i, -ys / conj(tap))
     end

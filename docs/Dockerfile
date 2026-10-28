@@ -7,6 +7,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml typedoc.json ./
 RUN pnpm install --frozen-lockfile
 COPY scripts/security/collect-node-licenses.mjs /tools/collect-node-licenses.mjs
 COPY scripts/security/node-notice-sources.json /tools/node-notice-sources.json
+COPY scripts/security/node-notices /tools/node-notices
 RUN node /tools/collect-node-licenses.mjs /workspace /workspace/pnpm-lock.yaml /enersy-notices/documentation.json
 COPY scripts/docs ./scripts/docs
 COPY docs ./docs
