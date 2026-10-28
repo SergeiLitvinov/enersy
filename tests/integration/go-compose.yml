@@ -33,6 +33,11 @@ services:
       - ../../.cache/go-mod:/go/pkg/mod
       - ../../.cache/go-build:/root/.cache/go-build
     environment:
+      # GitHub checkout belongs to the runner UID, while this container is root.
+      # Trust only this read-only checkout for Go's VCS stamping, never '*'.
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /workspace
       GOTOOLCHAIN: local
       GOPROXY: "off"
       GOMAXPROCS: 2

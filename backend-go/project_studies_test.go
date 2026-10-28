@@ -422,8 +422,8 @@ func TestStudyQuotaAndEmptyMigrationPostgres(t *testing.T) {
 	ctx := context.Background()
 	owner := f.tokens[0].Token
 	// An unused schema can roll the additive migration down/up without data loss.
-	for _, suffix := range []string{"down", "up"} {
-		body, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261024001_project_studies."+suffix+".sql"))
+	for _, migration := range []string{"20261028002_study_run_leases.down", "20261028001_study_run_queue.down", "20261024001_project_studies.down", "20261024001_project_studies.up", "20261028001_study_run_queue.up", "20261028002_study_run_leases.up"} {
+		body, err := os.ReadFile(filepath.Join("..", "database", "migrations", migration+".sql"))
 		if err != nil {
 			t.Fatal(err)
 		}

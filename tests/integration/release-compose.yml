@@ -47,6 +47,27 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+  study-worker:
+    build:
+      context: ../..
+      dockerfile: backend-go/Dockerfile
+    command: ["./server", "-study-worker"]
+    environment:
+      DB_HOST: postgres
+      POSTGRES_DB: release_acceptance
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: disposable_acceptance
+      JULIA_BASE_URL: http://julia-compute:8001
+    cpus: 1
+    mem_limit: 256m
+    depends_on:
+      go-api: {condition: service_healthy}
+      julia-compute: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/ready]
+      interval: 2s
+      timeout: 3s
+      retries: 30
   react-frontend:
     build:
       context: ../..

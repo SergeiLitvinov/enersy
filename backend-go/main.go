@@ -66,6 +66,7 @@ func loadConfig() Config {
 }
 
 func main() {
+	studyWorker := flag.Bool("study-worker", false, "Execute admitted immutable Study runs from PostgreSQL")
 	provision := flag.Bool("provision-account", false, "Provision a local account from JSON on stdin, then exit")
 	audit := flag.Bool("audit-database", false, "Read-only bootstrap and migration inventory as JSON; do not migrate or serve HTTP")
 	catalog := flag.Bool("audit-catalog", false, "Read-only comparison with the shipped fresh-database seed baseline")
@@ -77,7 +78,7 @@ func main() {
 	flag.Parse()
 	cfg := loadConfig()
 	modes := 0
-	for _, selected := range []bool{*provision, *audit, *catalog, *checkMap, *applyMap, *ownerAudit, *ownerCheck, *ownerApply} {
+	for _, selected := range []bool{*studyWorker, *provision, *audit, *catalog, *checkMap, *applyMap, *ownerAudit, *ownerCheck, *ownerApply} {
 		if selected {
 			modes++
 		}
@@ -152,6 +153,16 @@ func main() {
 	slog.Info("starting server", "port", cfg.Port, "cors_origin", cfg.CORSOrigin)
 
 	initDB(cfg)
+	if *studyWorker {
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		defer db.Close()
+		if err := serveStudyWorker(ctx, projectStore{database: db}, cfg.JuliaBaseURL, cfg.Port); err != nil {
+			slog.Error("study worker failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *provision {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()

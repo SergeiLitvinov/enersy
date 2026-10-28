@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listCalculationArchives, readCalculationArchive, type CalculationArchive, type OpenCalculationArchive } from '../../api/calculation-archives-api';
 import { SessionError, type Project } from '../../api/projects-api';
-import { ResultsModal } from '../../components/ees/panels/ResultsModal';
-import { ArchiveInputs } from './ArchiveInputs';
+import { ArchiveResultView } from './ArchiveResultView';
 import './ProjectArchives.css';
 type Props = { project: Project; onBack: () => void; onUnavailable?: () => void };
 const date = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
@@ -38,10 +37,6 @@ function ArchiveList({ project, onBack, onUnavailable }: Props) {
       <div className="projects-pages"><button className="tool-btn" disabled={!cursor} onClick={() => setCursor('')}>Новые расчёты</button>{next && <button className="tool-btn" onClick={() => setCursor(next)}>Более ранние расчёты</button>}</div>
     </>}
     {opening && <div role="status">Открываем расчёт №{opening}… <button className="tool-btn" onClick={close}>Отменить открытие</button></div>}
-    {opened && <ResultsModal result={opened.result} schemeName={opened.metadata.schemeName} onClose={close} context={<>
-      <div className="archive-origin"><strong>Архив №{opened.metadata.id} · {date.format(new Date(opened.metadata.createdAt))}</strong><p>Исходная схема №{opened.metadata.schemeId} · топология {opened.metadata.topologyRevision}. Результат открыт со своим входом, независимо от текущей схемы.</p>
-        <details><summary>Контрольные суммы и размеры</summary><dl><dt>Вход · {opened.metadata.inputBytes} байт</dt><dd>{opened.metadata.inputSha256}</dd><dt>Результат · {opened.metadata.resultBytes} байт</dt><dd>{opened.metadata.resultSha256}</dd>{opened.metadata.provenanceSha256 && <><dt>Происхождение · {opened.metadata.provenanceBytes} байт</dt><dd>{opened.metadata.provenanceSha256}</dd></>}</dl><p>Сервер проверил SHA-256. Клиент сверил идентификатор, ETag и размер каждого тела.</p></details>
-      </div><ArchiveInputs key={opened.metadata.id} input={opened.input} provenance={opened.provenance} />
-    </>} />}
+    {opened && <ArchiveResultView archive={opened} onClose={close}/>}
   </section>;
 }

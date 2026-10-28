@@ -8,6 +8,7 @@ import { StudyForm } from './StudyForm';
 import { ArchiveInputs } from './ArchiveInputs';
 import { createStudyIntentJournal } from './study-intent-journal';
 import { StudyIntentRecovery } from './StudyIntentRecovery';
+import { StudyRunPanel } from './StudyRunPanel';
 import './ProjectArchives.css';
 import './ProjectStudies.css';
 
@@ -112,13 +113,14 @@ function StudyList({ project, identity, source, autoCreate, onBack, onUnavailabl
       </>}
     </nav><div aria-label="Выбранная версия исследования" className="study-detail">
       {opened ? <>
-        <div className="study-detail-heading"><span className="study-status">Снимок сохранён · расчёт не выполнялся</span><h3>{opened.document.name}</h3><p>Исследование №{opened.id} · версия {opened.revision}</p></div>
+        <div className="study-detail-heading"><span className="study-status">Снимок версии сохранён</span><h3>{opened.document.name}</h3><p>Исследование №{opened.id} · версия {opened.revision}</p></div>
         <p className="projects-note">{date.format(new Date(opened.createdAt))} · автор №{opened.authorAccountId}. Источник: «{opened.schemeName}» №{opened.schemeId}, топология {opened.topologyRevision}.</p>
         <StudyDocumentView document={opened.document} />
         <div className="study-actions"><button className="tool-btn primary" disabled={!!action} onClick={() => void inspect()}>Просмотреть сохранённый снимок</button>
           {writable && <button className="tool-btn" disabled={!!action || !!recovery.intent || !!recovery.error} onClick={() => void edit()}>Создать новую версию</button>}
         </div>
-        <p className="projects-note">Новая версия захватывает текущую сохранённую схему с настройками выбранной версии. Запуск выбранного снимка ещё разрабатывается.</p>
+        <p className="projects-note">Новая версия захватывает текущую сохранённую схему с настройками выбранной версии. Запуск ниже использует уже сохранённый снимок.</p>
+        <StudyRunPanel version={opened} identity={identity} project={project} onUnavailable={clearPrivate}/>
         <details className="study-hashes"><summary>Контрольные суммы и размеры</summary><dl><dt>Вход · {opened.inputBytes} байт</dt><dd>{opened.inputSha256}</dd><dt>Происхождение · {opened.provenanceBytes} байт</dt><dd>{opened.provenanceSha256}</dd></dl></details>
         <section aria-label="История исследования" className="study-history"><h4>История версий</h4>
           {historyError && <p role="alert">{historyError}</p>}{historyBusy ? <p role="status">Читаем историю…</p> : <ul>{history.map(v => <li key={v.revision}><button className="tool-btn" disabled={!!action} aria-pressed={v.revision === opened.revision} onClick={() => void open(v.id, v.revision)}>Версия {v.revision} · {v.document.name}</button><small>{date.format(new Date(v.createdAt))} · автор №{v.authorAccountId}</small></li>)}</ul>}

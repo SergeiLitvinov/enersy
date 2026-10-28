@@ -90,7 +90,7 @@ func (handler *authHTTP) prepare(w http.ResponseWriter, r *http.Request) bool {
 	if origin == handler.origin {
 		w.Header().Set("Access-Control-Allow-Origin", handler.origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Expose-Headers", "ETag, Idempotency-Replayed, X-Enersy-Input-SHA256, X-Enersy-Topology-Revision, X-Enersy-Project-Id, X-Enersy-Scheme-Id, X-Enersy-Archive-Id")
+		w.Header().Set("Access-Control-Expose-Headers", "ETag, Location, Idempotency-Replayed, X-Enersy-Input-SHA256, X-Enersy-Topology-Revision, X-Enersy-Project-Id, X-Enersy-Scheme-Id, X-Enersy-Archive-Id")
 	}
 	if r.Method == http.MethodOptions {
 		if origin != handler.origin {
@@ -98,7 +98,7 @@ func (handler *authHTTP) prepare(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, If-Match, Idempotency-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, If-Match, Idempotency-Key, X-Enersy-Account-Id, X-Enersy-Session-Id")
 		w.WriteHeader(204)
 		return false
 	}

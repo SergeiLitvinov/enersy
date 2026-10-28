@@ -40,7 +40,7 @@ services:
       TEST_JULIA_URL: http://worker:8001
       TEST_COMPUTE_BACKEND: julia-rust-jacobian
       TEST_MAX_TIME_MS: "20000"
-    command: ["go", "test", "-run", "^(TestCalculationArchiveWorkerPostgres|TestStudyFrozenInputWorkerPostgres)$$", "-v", "-count=1", "./..."]
+    command: ["go", "test", "-run", "^(TestCalculationArchiveWorkerPostgres|TestStudyFrozenInputWorkerPostgres|TestStudyRunRealWorkerPostgres)$$", "-v", "-count=1", "./..."]
     depends_on:
       postgres:
         condition: service_healthy

@@ -36,7 +36,7 @@ function Get-ReleaseProperty($Object, [string]$Name) {
 }
 
 function Assert-ReleaseIsolation($Config) {
-    if ($Config.name -ne $project -or @($Config.services.PSObject.Properties).Count -ne 7) { throw 'Unexpected release project or service set' }
+    if ($Config.name -ne $project -or @($Config.services.PSObject.Properties).Count -ne 8) { throw 'Unexpected release project or service set' }
     if (@($Config.networks.PSObject.Properties).Count -ne 1 -or -not $Config.networks.default.internal) { throw 'Release network must be internal and unique' }
     $allowedMounts = @{
         'nginx:/etc/nginx/conf.d/default.conf' = Join-Path $root 'nginx.conf'
@@ -87,10 +87,10 @@ try {
     $build = $compose + @('build','--pull')
     if (-not $UseCache) { $build += '--no-cache' }
     $buildStarted = $true
-    Invoke-ReleaseDocker -Label build -Arguments ($build + @('go-api','julia-compute','react-frontend','docs'))
+    Invoke-ReleaseDocker -Label build -Arguments ($build + @('go-api','study-worker','julia-compute','react-frontend','docs'))
     # Finish all compilation before the cold numerical HTTP check. Runtime CPU
     # and memory budgets stay in Compose; never extend a solver timeout here.
-    Invoke-ReleaseDocker -Label start -Arguments ($compose + @('up','-d','--wait','--wait-timeout','240','postgres','julia-compute','go-api','react-frontend','nginx','docs'))
+    Invoke-ReleaseDocker -Label start -Arguments ($compose + @('up','-d','--wait','--wait-timeout','240','postgres','julia-compute','go-api','study-worker','react-frontend','nginx','docs'))
     $receipt.images = @(Invoke-ReleaseDocker -Label images -Json -Arguments ($compose + @('images','--format','json')))
     $receipt.checks.database = Invoke-ReleaseDocker -Label database-audit -Json -Arguments ($compose + @('exec','-T','go-api','/app/server','-audit-database'))
     if ($receipt.checks.database.status -ne 'no_findings_in_audited_scope') { throw 'Fresh database migration audit has findings' }

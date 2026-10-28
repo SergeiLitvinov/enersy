@@ -62,8 +62,7 @@ func lockArchiveProject(ctx context.Context, tx *sql.Tx, token string, project i
 	return account, err
 }
 
-func (store projectStore) SaveCalculationArchive(ctx context.Context, token string, project int64, scheme int,
-	input calculationInput, group, method string, request, result []byte) (int64, error) {
+func validateCalculationArchive(input calculationInput, group, method string, request, result []byte) error {
 	var outcome struct {
 		Success   bool              `json:"success"`
 		NodeCount int               `json:"node_count"`
@@ -75,7 +74,15 @@ func (store projectStore) SaveCalculationArchive(ctx context.Context, token stri
 		len(input.Provenance) > computeBodyLimit || (len(input.Provenance) > 0 && !json.Valid(input.Provenance)) ||
 		json.Unmarshal(result, &outcome) != nil || !outcome.Success || outcome.NodeCount < 1 || outcome.NodeCount != len(outcome.Nodes) ||
 		outcome.Method != group+"/"+method || outcome.Version == "" {
-		return 0, errArchiveResult
+		return errArchiveResult
+	}
+	return nil
+}
+
+func (store projectStore) SaveCalculationArchive(ctx context.Context, token string, project int64, scheme int,
+	input calculationInput, group, method string, request, result []byte) (int64, error) {
+	if err := validateCalculationArchive(input, group, method, request, result); err != nil {
+		return 0, err
 	}
 	tx, err := store.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
@@ -95,6 +102,20 @@ func (store projectStore) SaveCalculationArchive(ctx context.Context, token stri
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id=$2 FOR SHARE`, scheme, project).Scan(&parent); err != nil {
 		return 0, err
 	}
+	id, err := insertCalculationArchive(ctx, tx, project, scheme, input, group, method, request, result, func() error {
+		_, err := lockArchiveProject(ctx, tx, token, project, true)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
+}
+
+// Callers hold the project row and validate their own authority (session or
+// execution lease). A failed final fence check rolls back this same transaction.
+func insertCalculationArchive(ctx context.Context, tx *sql.Tx, project int64, scheme int, input calculationInput,
+	group, method string, request, result []byte, beforeInsert func() error) (int64, error) {
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('enersy-calculation-archives:' || $1::text,0))`, project); err != nil {
 		return 0, err
 	}
@@ -106,8 +127,8 @@ func (store projectStore) SaveCalculationArchive(ctx context.Context, token stri
 	if count >= 100 || size+int64(len(request))+int64(len(result))+int64(len(input.Provenance)) > 64<<20 {
 		return 0, errArchiveQuota
 	}
-	// A session can expire while waiting for the quota lock.
-	if _, err = lockArchiveProject(ctx, tx, token, project, true); err != nil {
+	// A session or execution lease can expire while waiting for the quota lock.
+	if err := beforeInsert(); err != nil {
 		return 0, err
 	}
 	var id int64
@@ -117,14 +138,14 @@ func (store projectStore) SaveCalculationArchive(ctx context.Context, token stri
 		provenanceDigest = archiveDigest(input.Provenance)
 		provenanceBody = input.Provenance
 	}
-	err = tx.QueryRowContext(ctx, `INSERT INTO project_calculation_archives
+	err := tx.QueryRowContext(ctx, `INSERT INTO project_calculation_archives
  (project_id,scheme_id,scheme_name,author_account_id,topology_revision,model_group,method,input_body,result_body,input_sha256,result_sha256,provenance_body,provenance_sha256)
- VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`, project, scheme, input.SchemeName, account, input.TopologyRevision,
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`, project, scheme, input.SchemeName, input.AuthorAccountID, input.TopologyRevision,
 		group, method, request, result, archiveDigest(request), archiveDigest(result), provenanceBody, provenanceDigest).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
-	return id, tx.Commit()
+	return id, nil
 }
 
 const archiveColumns = `id,scheme_id,scheme_name,author_account_id,topology_revision,model_group,method,created_at,

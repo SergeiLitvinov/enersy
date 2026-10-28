@@ -23,6 +23,8 @@ function close(actual, expected, tolerance, label) {
   assert.ok(Number.isFinite(actual) && Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}, tolerance ${tolerance}`);
 }
 try {
+  assert.equal((await request('/ready', undefined, 'http://study-worker:8080')).status, 200);
+  report.checks.push('Docker Study worker readiness (no admitted calculation in this release fixture)');
   assert.equal(process.versions.node, (await readFile('/acceptance/node-version', 'utf8')).trim());
   report.node = process.versions.node;
   report.requestPacingMs = 50;
