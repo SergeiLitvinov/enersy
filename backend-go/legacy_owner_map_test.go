@@ -88,6 +88,61 @@ func TestLegacyOwnerMapInput(t *testing.T) {
 	}
 }
 
+func TestLegacyOwnerBindingsRejectDuplicateSourceIDs(t *testing.T) {
+	plan := legacyOwnerMap{Changes: []legacyOwnerChange{{SchemeID: "7", ExpectedSHA256: strings.Repeat("a", 64), FromOwnerID: ownerID("10"), ToOwnerID: ownerID("20")}}}
+	row := legacyOwnerRow{ID: "7", RowSHA256: plan.Changes[0].ExpectedSHA256, OwnerID: plan.Changes[0].FromOwnerID.Value}
+	before := legacyOwnerInventory{Users: []legacyOwnerRow{{ID: "10"}, {ID: "20"}}, Schemes: []legacyOwnerRow{row}}
+	if err := checkLegacyOwnerBindings(before, plan); err != nil {
+		t.Fatal("unique explicit IDs rejected", err)
+	}
+	for _, kind := range []string{"users", "schemes"} {
+		t.Run(kind, func(t *testing.T) {
+			ambiguous := before
+			if kind == "users" {
+				ambiguous.Users = append(append([]legacyOwnerRow{}, before.Users...), legacyOwnerRow{ID: "20"})
+			} else {
+				ambiguous.Schemes = append(append([]legacyOwnerRow{}, before.Schemes...), row)
+			}
+			if err := checkLegacyOwnerBindings(ambiguous, plan); err == nil {
+				t.Fatal("duplicate identity silently collapsed by owner map")
+			}
+		})
+	}
+}
+
+func TestLegacyOwnerMapDuplicateIdentitiesPostgres(t *testing.T) {
+	for _, table := range []string{"users", "circuit_schemes"} {
+		t.Run(table, func(t *testing.T) {
+			database, url, plan := ownerMapFixture(t)
+			// This disposable fixture models a damaged legacy source lacking
+			// its original primary key. No working database is modified.
+			duplicate := "90012"
+			if table == "circuit_schemes" {
+				duplicate = "90011"
+			}
+			if _, err := database.Exec(`ALTER TABLE ` + pq.QuoteIdentifier(table) + ` DROP CONSTRAINT ` + pq.QuoteIdentifier(table+"_pkey") + ` CASCADE;
+INSERT INTO ` + pq.QuoteIdentifier(table) + ` SELECT * FROM ` + pq.QuoteIdentifier(table) + ` WHERE id=` + duplicate); err != nil {
+				t.Fatal(err)
+			}
+			inventory, err := auditLegacyOwners(context.Background(), database, url)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// A fresh digest cannot make duplicated IDs unambiguous.
+			plan.SnapshotSHA256 = inventory.SnapshotSHA256
+			for _, apply := range []bool{false, true} {
+				if _, err := executeLegacyOwnerMap(context.Background(), database, url, plan, apply); err == nil || !strings.Contains(err.Error(), "duplicate legacy") {
+					t.Fatal("ambiguous identity must reject both check and apply", apply, err)
+				}
+			}
+			after, err := auditLegacyOwners(context.Background(), database, url)
+			if err != nil || after.SnapshotSHA256 != inventory.SnapshotSHA256 {
+				t.Fatal("rejected ambiguous map changed source rows", after, err)
+			}
+		})
+	}
+}
+
 func TestLegacyOwnerMapApplyPostgres(t *testing.T) {
 	database, url, plan := ownerMapFixture(t)
 	ctx := context.Background()

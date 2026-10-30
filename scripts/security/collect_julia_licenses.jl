@@ -3,8 +3,8 @@ module JuliaNoticeInventory
 using Pkg, TOML, SHA, JSON, Dates
 
 digest(bytes) = bytes2hex(sha256(bytes))
-file_digest(file) = open(file, "r") do io
-    bytes2hex(sha256(io))
+file_digest(file, algorithm=sha256) = open(file, "r") do io
+    bytes2hex(algorithm(io))
 end
 
 function within(root, candidate)
@@ -26,7 +26,12 @@ function reviewed_platform_bindings(config, platform)
     seen = Set{Tuple{String,String,String}}()
     required = Set(["runtimePlatform","componentUUID","componentVersion","metadataSha256","artifact","tags","archiveSha256","sdkFile","artifactFile","sdkSha256"])
     for entry in entries
-        entry isa AbstractDict && Set(keys(entry)) == required || error("Invalid artifact platform binding fields")
+        entry isa AbstractDict && Set(keys(entry)) in (required,union(required,Set(["repackagingProof"]))) || error("Invalid artifact platform binding fields")
+        if haskey(entry,"repackagingProof")
+            proof = entry["repackagingProof"]
+            proof isa AbstractDict && Set(keys(proof)) == Set(["file","sha256"]) || error("Invalid repackaging proof reference")
+            startswith(relative_file(proof["file"]),"packaging/") && occursin(r"\A[a-f0-9]{64}\z",proof["sha256"]) || error("Invalid repackaging proof identity")
+        end
         for key in setdiff(required,Set(["tags"]))
             entry[key] isa AbstractString && !isempty(entry[key]) || error("Invalid artifact platform binding value")
         end
@@ -114,17 +119,56 @@ function sdk_libraries()
     sort!(rows;by=r->r.file)
 end
 
+function sdk_executables(root=realpath(joinpath(Sys.BINDIR,"..")))
+    root = realpath(root)
+    rows = []
+    # Only SDK-owned locations used by the LLD_jll stub; never search host PATH.
+    for relative in ("libexec/julia/lld", "tools/lld", "bin/lld",
+                     "libexec/julia/lld.exe", "tools/lld.exe", "bin/lld.exe")
+        candidate = joinpath(root,split(relative,'/')...)
+        (ispath(candidate) || islink(candidate)) || continue
+        file = realpath(candidate)
+        isfile(file) && within(root,file) || error("SDK executable escapes its runtime or is not a file")
+        push!(rows,(;file=relative,sha256=file_digest(file),bytes=filesize(file),component="LLD_jll"))
+    end
+    sort!(rows;by=r->r.file)
+end
+
+function sdk_data_products(root=realpath(joinpath(Sys.BINDIR,"..")), stdlib=Sys.STDLIB)
+    project = joinpath(stdlib,"MozillaCACerts_jll","Project.toml")
+    isfile(project) || return []
+    within(realpath(root),realpath(project)) || error("SDK data component escapes runtime")
+    component = TOML.parsefile(project)
+    component["name"] == "MozillaCACerts_jll" && component["uuid"] == "14a3606d-f60d-562e-9121-12d972cd8159" || error("Unexpected SDK CA data component")
+    stub = checked_file(root,replace(relpath(joinpath(dirname(project),"src","MozillaCACerts_jll.jl"),root),'\\'=>'/'))
+    file = checked_file(root,"share/julia/cert.pem")
+    0 < filesize(file) <= 4*1024*1024 || error("SDK CA data is empty or oversized")
+    [Dict("componentName"=>component["name"],"componentUUID"=>component["uuid"],"componentVersion"=>component["version"],
+        "projectSha256"=>file_digest(project),"stubSha256"=>file_digest(stub),"sdkFile"=>"share/julia/cert.pem",
+        "sdkSha256"=>file_digest(file),"sdkSha512"=>file_digest(file,sha512),"sdkBytes"=>filesize(file))]
+end
+
+function executable_coverage(executables, comparisons, proofs=[])
+    [Dict("file"=>row["file"],"sha256"=>row["sha256"],"bytes"=>row["bytes"],"component"=>row["component"],
+        "comparisonStatus"=>begin
+            matched = filter(item->item["sdkFile"] == row["file"] && item["sdkSha256"] == row["sha256"],comparisons)
+            isempty(matched) ? "not_compared" : any(item->item["sameBytes"],matched) ? "byte_identical" :
+                any(item->item["evidence"]["sdkFile"] == row["file"] && item["evidence"]["sdkSha256"] == row["sha256"],proofs) ? "reviewed_repackaging" : "different_bytes"
+        end) for row in executables]
+end
+
 function facts(config=nothing)
     if config !== nothing
         config["juliaVersion"] == string(VERSION) && config["juliaCommit"] == Base.GIT_VERSION_INFO.commit || error("Runtime differs from reviewed binding configuration")
     end
     platform = Base.BinaryPlatforms.HostPlatform()
     libraries = sdk_libraries()
+    executables = sdk_executables()
     bindings = reviewed_platform_bindings(config,platform)
     (;formatVersion=1, scope="julia-sdk-notice-facts", juliaVersion=string(VERSION),
         juliaCommit=Base.GIT_VERSION_INFO.commit,
         platform=Base.BinaryPlatforms.triplet(platform),
-        components=sdk_components(platform,libraries,bindings), libraries)
+        components=sdk_components(platform,vcat(libraries,executables),bindings), libraries, executables, dataProducts=sdk_data_products())
 end
 
 const NOTICE_NAME = r"(?i)^(licen[sc]e|copying|notice|copyright|patents)([-_][a-z0-9-]+)?(\.(txt|md|markdown|rst|text|html))?$|^third[-_]?party[-_ ]?(notices?|licen[sc]es?)(\.(txt|md|markdown|rst|text|html))?$"
@@ -140,6 +184,53 @@ function checked_file(root, relative)
     file = realpath(joinpath(root,relative_file(relative)))
     within(realpath(root),file) && isfile(file) || error("Notice source escapes its directory or is not a file")
     file
+end
+
+function repackaging_proof(root, binding, current)
+    reference = binding["repackagingProof"]
+    file = checked_file(root,reference["file"])
+    0 < filesize(file) <= 65536 && file_digest(file) == reference["sha256"] || error("Repackaging proof checksum/size mismatch")
+    proof = JSON.parse(read(file,String),Dict{String,Any})
+    expected = Set(["formatVersion","scope","juliaVersion","juliaCommit","platform","componentUUID","metadataSha256",
+        "archiveUrl","archiveSha256","artifactFile","artifactSha256","sdkFile","sdkSha256","sdkBytes","tool","operation",
+        "reproducedSha256","reproducedBytes","sameBytesAfterRepackaging","sdkImageId","builderImageId"])
+    Set(keys(proof)) == expected && proof["formatVersion"] === 1 && proof["scope"] == "julia-lld-repackaging-verification" || error("Unsupported repackaging proof schema")
+    for (source,target) in (("juliaVersion","juliaVersion"),("juliaCommit","juliaCommit"),("platform","platform"))
+        proof[source] == current[target] || error("Repackaging proof runtime mismatch")
+    end
+    for field in ("componentUUID","metadataSha256","archiveSha256","artifactFile","sdkFile","sdkSha256")
+        proof[field] == binding[field] || error("Repackaging proof binding mismatch")
+    end
+    binding["componentUUID"] == "d55e3150-da41-5e91-b323-ecfd1eec6109" && binding["artifact"] == "LLD" &&
+        binding["tags"] == Dict("llvm_version"=>"20") && binding["sdkFile"] == "libexec/julia/lld" &&
+        binding["artifactFile"] == "tools/lld" || error("Unsupported SDK repackaging product")
+    proof["tool"] == Dict("version"=>"0.17.2","sourceUrl"=>"https://github.com/NixOS/patchelf/releases/download/0.17.2/patchelf-0.17.2.tar.bz2",
+        "sourceSha512"=>"8277adf95513f88fb190536a38bdfdf438a4cc7685d8a130bdffbe064441f0f25095b6c83bbb190133e1a138963776d15b46c247dd2f1a073a1bfe1d1dbdd503") &&
+        proof["operation"] == ["patchelf","--set-rpath","\$ORIGIN/../../lib/julia"] || error("Unsupported SDK repackaging operation/tool")
+    for field in ("sdkImageId","builderImageId")
+        proof[field] isa AbstractString && occursin(r"\Asha256:[a-f0-9]{64}\z",proof[field]) || error("Invalid proof image identity")
+    end
+    proof["artifactSha256"] isa AbstractString && occursin(r"\A[a-f0-9]{64}\z",proof["artifactSha256"]) &&
+        proof["artifactSha256"] != binding["sdkSha256"] && proof["sameBytesAfterRepackaging"] === true &&
+        proof["reproducedSha256"] == binding["sdkSha256"] && proof["sdkBytes"] isa Integer && !(proof["sdkBytes"] isa Bool) &&
+        proof["sdkBytes"] > 0 && proof["reproducedBytes"] == proof["sdkBytes"] || error("Invalid reproduced SDK identity")
+    any(row->row["file"] == binding["sdkFile"] && row["sha256"] == binding["sdkSha256"] && row["bytes"] == proof["sdkBytes"],get(current,"executables",[])) || error("Repackaging proof executable changed")
+    Dict("file"=>reference["file"],"sha256"=>reference["sha256"],"evidence"=>proof)
+end
+
+function verify_bound_comparison(root, binding, current, artifact)
+    artifact["archiveSha256"] == binding["archiveSha256"] || error("Bound archive identity changed")
+    if haskey(binding,"repackagingProof")
+        proof = repackaging_proof(root,binding,current)["evidence"]
+        artifact["archiveUrl"] == proof["archiveUrl"] && any(row->row["sdkFile"] == binding["sdkFile"] &&
+            row["archivePath"] == binding["artifactFile"] && row["sdkSha256"] == binding["sdkSha256"] &&
+            row["artifactSha256"] == proof["artifactSha256"] && row["sameBytes"] === false, artifact["libraryComparisons"]) || error("Repackaging proof lacks matching original artifact comparison")
+    else
+        any(row->row["sdkFile"] == binding["sdkFile"] && row["archivePath"] == binding["artifactFile"] &&
+            row["sdkSha256"] == row["artifactSha256"] == binding["sdkSha256"] && row["sameBytes"],
+            artifact["libraryComparisons"]) || error("Bound archive lacks byte-identical SDK library evidence")
+    end
+    nothing
 end
 
 function notice_index_relative(directory, platform)
@@ -164,6 +255,85 @@ function capture_text(root, relative, notices; expected=nothing, expected_bytes=
     isvalid(text) || error("Notice is not valid UTF-8")
     notices[sha] = text
     Dict("name"=>String(relative),"sha256"=>sha,"bytes"=>length(bytes))
+end
+
+function sdk_data_references(config, platform)
+    references = get(config,"sdkDataSources",[])
+    references isa AbstractVector && length(references) <= 64 || error("Invalid SDK data source references")
+    seen = Set{Tuple{String,String}}()
+    for reference in references
+        reference isa AbstractDict && Set(keys(reference)) == Set(["runtimePlatform","file","sha256"]) || error("Invalid SDK data source reference")
+        relative = relative_file(reference["file"])
+        startswith(relative,"data/") && occursin(r"\A[a-f0-9]{64}\z",reference["sha256"]) || error("Invalid SDK data source identity")
+        triplet = reference["runtimePlatform"]
+        triplet isa AbstractString && sizeof(triplet) <= 200 && occursin(r"\A[a-z0-9][a-z0-9_.+\-]*\z",triplet) && occursin('-',triplet) && !endswith(triplet,".") || error("Invalid SDK data source platform")
+        identity = (triplet,relative)
+        identity in seen && error("Duplicate SDK data source reference")
+        push!(seen,identity)
+    end
+    filter(row->row["runtimePlatform"] == platform,references)
+end
+
+function provenance_bytes(root, relative, expected; blob=nothing)
+    file = checked_file(root,relative)
+    0 < filesize(file) <= 65536 && file_digest(file) == expected || error("SDK data provenance checksum/size mismatch")
+    bytes = read(file)
+    blob === nothing || bytes2hex(sha1(vcat(collect(codeunits("blob $(length(bytes))\0")),bytes))) == blob || error("SDK data provenance Git blob mismatch")
+    bytes
+end
+
+function verify_sdk_data_sources(current, config, index, root, notices)
+    references = sdk_data_references(config,current["platform"])
+    get(index,"sdkDataSources",[]) == references || error("SDK data source index mismatch")
+    rows = []
+    seen = Set{String}()
+    required = Set(["formatVersion","scope","originKind","runtimePlatform","juliaVersion","juliaCommit","componentName","componentUUID","componentVersion",
+        "projectSha256","stubSha256","sdkFile","sdkSha256","sdkSha512","sdkBytes","archiveUrl","archiveSha256","archiveBytes","artifactFile","artifactSha256",
+        "artifactSha512","artifactBytes","metadataFile","metadataUrl","metadataSha256","metadataGitBlobSha1","artifactTreeSha1","checksumFile","checksumUrl",
+        "checksumSha256","checksumGitBlobSha1","licenseExpression","noticeFiles"])
+    for reference in references
+        record = JSON.parse(String(provenance_bytes(root,reference["file"],reference["sha256"])),Dict{String,Any})
+        Set(keys(record)) == required && record["formatVersion"] === 1 && record["scope"] == "julia-sdk-reviewed-data-source" &&
+            record["originKind"] == "reviewed-upstream-jll" || error("Unsupported SDK data source schema")
+        record["runtimePlatform"] == current["platform"] && record["juliaVersion"] == current["juliaVersion"] && record["juliaCommit"] == current["juliaCommit"] || error("SDK data source runtime changed")
+        record["componentUUID"] == "14a3606d-f60d-562e-9121-12d972cd8159" && record["componentName"] == "MozillaCACerts_jll" &&
+            record["sdkFile"] == "share/julia/cert.pem" && record["artifactFile"] == "share/cacert.pem" && record["licenseExpression"] == "MPL-2.0" || error("Unsupported SDK data source product")
+        record["componentUUID"] in seen && error("Duplicate SDK data product source")
+        push!(seen,record["componentUUID"])
+        any(product->all(product[key] == record[key] for key in ("componentName","componentUUID","componentVersion","projectSha256","stubSha256","sdkFile","sdkSha256","sdkSha512","sdkBytes")),
+            get(current,"dataProducts",[])) || error("SDK data product changed")
+        for key in ("sdkSha256","artifactSha256","archiveSha256","metadataSha256","checksumSha256","projectSha256","stubSha256")
+            record[key] isa AbstractString && occursin(r"\A[a-f0-9]{64}\z",record[key]) || error("Invalid SDK data checksum")
+        end
+        for key in ("sdkSha512","artifactSha512")
+            record[key] isa AbstractString && occursin(r"\A[a-f0-9]{128}\z",record[key]) || error("Invalid SDK data SHA-512")
+        end
+        for key in ("metadataGitBlobSha1","checksumGitBlobSha1","artifactTreeSha1")
+            record[key] isa AbstractString && occursin(r"\A[a-f0-9]{40}\z",record[key]) || error("Invalid SDK data Git identity")
+        end
+        for key in ("sdkBytes","artifactBytes","archiveBytes")
+            record[key] isa Integer && !(record[key] isa Bool) && record[key] > 0 || error("Invalid SDK data source size")
+        end
+        record["sdkSha256"] == record["artifactSha256"] && record["sdkSha512"] == record["artifactSha512"] &&
+            record["sdkBytes"] == record["artifactBytes"] || error("SDK data differs from reviewed archive product")
+        for key in ("metadataFile","checksumFile")
+            startswith(relative_file(record[key]),"data/") || error("SDK data provenance path mismatch")
+        end
+        occursin(r"\Ahttps://raw.githubusercontent.com/JuliaBinaryWrappers/MozillaCACerts_jll.jl/[a-f0-9]{40}/Artifacts.toml\z",record["metadataUrl"]) || error("Unreviewed SDK data metadata URL")
+        metadata = TOML.parse(String(provenance_bytes(root,record["metadataFile"],record["metadataSha256"];blob=record["metadataGitBlobSha1"])))["MozillaCACerts"]
+        metadata["git-tree-sha1"] == record["artifactTreeSha1"] && any(row->row["url"] == record["archiveUrl"] && row["sha256"] == record["archiveSha256"],metadata["download"]) || error("SDK data archive is not declared by reviewed upstream metadata")
+        date = replace(record["componentVersion"],'.'=>'-')
+        record["checksumUrl"] == "https://raw.githubusercontent.com/JuliaLang/julia/$(current["juliaCommit"])/deps/checksums/cacert-$date.pem/sha512" || error("Unreviewed SDK data build checksum URL")
+        strip(String(provenance_bytes(root,record["checksumFile"],record["checksumSha256"];blob=record["checksumGitBlobSha1"]))) == record["sdkSha512"] || error("SDK CA data differs from Julia build checksum")
+        record["noticeFiles"] isa AbstractVector && !isempty(record["noticeFiles"]) || error("SDK data license notices missing")
+        for notice in record["noticeFiles"]
+            path = relative_file(notice["archivePath"])
+            startswith(path,"share/licenses/MozillaCACerts/") && notice["file"] == "artifacts/$(record["archiveSha256"])/$path" || error("SDK data notice source mismatch")
+            capture_text(root,notice["file"],notices;expected=notice["sha256"],expected_bytes=notice["bytes"])
+        end
+        push!(rows,Dict("file"=>reference["file"],"sha256"=>reference["sha256"],"source"=>record,"sameBytes"=>true))
+    end
+    rows
 end
 
 function root_notices(directory, notices)
@@ -192,7 +362,7 @@ function verify_supplements(current, config, index, directory, notices)
     bytes2hex(sha1(blob)) == thirdparty["gitBlobSha1"] || error("Julia third-party Git blob mismatch")
     sdk = Dict(row["uuid"]=>row for row in current["components"])
     length(sdk) == length(current["components"]) == length(index["components"]) || error("SDK notice component set mismatch")
-    libraries = Dict(row["file"]=>row for row in current["libraries"])
+    libraries = Dict(row["file"]=>row for row in vcat(current["libraries"],get(current,"executables",[])))
     seen = Set{String}()
     rows = []
     for component in index["components"]
@@ -233,9 +403,7 @@ function verify_supplements(current, config, index, directory, notices)
                 comparison["sameBytes"] == (comparison["sdkSha256"] == comparison["artifactSha256"]) || error("Invalid artifact binary comparison")
             end
             if binding !== nothing
-                artifact["archiveSha256"] == binding["archiveSha256"] && any(row->row["sdkFile"] == binding["sdkFile"] &&
-                    row["archivePath"] == binding["artifactFile"] && row["sdkSha256"] == row["artifactSha256"] == binding["sdkSha256"] && row["sameBytes"],
-                    artifact["libraryComparisons"]) || error("Bound archive lacks byte-identical SDK library evidence")
+                verify_bound_comparison(directory,binding,current,artifact)
             end
         end
         push!(rows,component)
@@ -281,6 +449,7 @@ function inventory(source_directory, config_file; project_license="/usr/share/li
     index = JSON.parse(read(index_file,String),Dict{String,Any})
     notices = Dict{String,String}()
     thirdparty, components = verify_supplements(current,config,index,source_directory,notices)
+    data_sources = verify_sdk_data_sources(current,config,index,source_directory,notices)
     sdk = Dict(component["uuid"]=>component for component in components)
     dependencies = Pkg.dependencies()
     records = []
@@ -306,12 +475,15 @@ function inventory(source_directory, config_file; project_license="/usr/share/li
     push!(runtime_files,installed_index)
     own = capture_text(realpath(dirname(project_license)),basename(project_license),notices)
     comparisons = [comparison for component in components for artifact in component["artifacts"] for comparison in get(artifact,"libraryComparisons",[])]
+    proofs = [repackaging_proof(source_directory,artifact["platformBinding"],current) for component in components for artifact in component["artifacts"]
+        if get(artifact,"platformBinding",nothing) !== nothing && haskey(artifact["platformBinding"],"repackagingProof")]
     selection_diagnostics = [Dict("component"=>component["name"],"uuid"=>component["uuid"],"artifact"=>artifact["name"],"unboundPlatformTags"=>artifact["unboundPlatformTags"])
         for component in current["components"] for artifact in component["artifacts"] if !isempty(artifact["unboundPlatformTags"])]
     gaps = []
     for component in components
         if component["metadataSha256"] === nothing
-            push!(gaps,Dict("name"=>component["name"],"version"=>component["version"],"reason"=>"no_artifact_metadata"))
+            push!(gaps,Dict("name"=>component["name"],"version"=>component["version"],"reason"=>"no_artifact_metadata",
+                "reviewedDataSource"=>any(row->row["source"]["componentUUID"] == component["uuid"],data_sources)))
         end
         for artifact in component["artifacts"]
             isempty(get(artifact,"noticeFiles",[])) && push!(gaps,Dict("name"=>component["name"],"version"=>component["version"],"reason"=>artifact["status"]))
@@ -321,20 +493,25 @@ function inventory(source_directory, config_file; project_license="/usr/share/li
     Dict("formatVersion"=>1,"scope"=>"julia-locked-environment-and-sdk-notices", "capturedUtc"=>string(now(UTC))*"Z",
         "noticeSourceIndex"=>Dict("file"=>index_relative,"sha256"=>file_digest(index_file)),
         "artifactSelectionDiagnostics"=>selection_diagnostics,
+        "reviewedRepackagingProofs"=>proofs,
+        "reviewedSdkDataSources"=>data_sources,"sdkDataProducts"=>get(current,"dataProducts",[]),
         "appliedArtifactPlatformBindings"=>[artifact["platformBinding"] for component in current["components"] for artifact in component["artifacts"] if artifact["platformBinding"] !== nothing],
         "runtime"=>Dict("version"=>string(VERSION),"commit"=>current["juliaCommit"],"platform"=>current["platform"],"noticeFiles"=>runtime_files),
         "project"=>Dict("name"=>project["name"],"uuid"=>project["uuid"],"version"=>project["version"],"noticeFiles"=>[own]),
         "projectSha256"=>digest(original_project),"manifestSha256"=>digest(original_manifest),
         "sourceIndexSha256"=>file_digest(index_file),"packages"=>records,"sdkComponents"=>components,
-        "sdkLibraries"=>current["libraries"],"packageCount"=>length(records),
+        "sdkLibraries"=>current["libraries"],"sdkExecutables"=>get(current,"executables",[]),
+        "sdkExecutableCoverage"=>executable_coverage(get(current,"executables",[]),comparisons,proofs),"packageCount"=>length(records),
         "sdkNoticeGaps"=>gaps,"binaryComparisons"=>Dict("total"=>length(comparisons),"sameBytes"=>count(row->row["sameBytes"],comparisons),"differentBytes"=>count(row->!row["sameBytes"],comparisons)),
         "incompletePackageEvidenceCount"=>count(row->row["incompleteEvidence"],records),"notices"=>notices,
         "limitations"=>[
             "A runtime third-party index is not a full per-source-file license attribution review",
             "SDK artifact notices are taken from the declared checksum-pinned upstream archives; binary comparisons are reported separately",
             "A differing SDK library is not treated as a byte-identical artifact product; build-variant and provenance differences require review",
-            "Unbound artifact variant tags are reported explicitly; reviewed bindings separately require byte-identical SDK library evidence",
+            "Unbound artifact variant tags are explicit; direct bindings require byte-identical products, repackaged products require a separately reviewed reproduction proof",
             "No-artifact components, operating-system packages and other build variants require separate review",
+            "Executable coverage currently inventories SDK LLD paths only; not_compared is not a provenance confirmation",
+            "Bundled CA data provenance does not identify environment-overridden trust stores or validate certificate trust",
             "Presence of notice text is not a license compatibility decision or engineering validation"])
 end
 

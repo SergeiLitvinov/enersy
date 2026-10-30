@@ -11,9 +11,176 @@ from unittest.mock import patch
 SPEC = importlib.util.spec_from_file_location("notice_updater", Path(__file__).with_name("update-julia-notices.py"))
 UPDATER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(UPDATER)
+PROOF_SPEC = importlib.util.spec_from_file_location("lld_packaging", Path(__file__).with_name("verify-julia-lld-packaging.py"))
+PROOF = importlib.util.module_from_spec(PROOF_SPEC)
+PROOF_SPEC.loader.exec_module(PROOF)
 
 
 class JuliaNoticeMaintenanceTests(unittest.TestCase):
+    def test_ca_data_provenance_is_checked_before_refresh_writes_or_downloads(self):
+        security = Path(__file__).parent
+        reviewed = json.loads((security / "julia-notice-sources.json").read_text())
+        reference = reviewed["sdkDataSources"][0]
+        record = json.loads((security / "julia-notices" / reference["file"]).read_text())
+        product = {key: record[key] for key in ("componentName", "componentUUID", "componentVersion", "projectSha256", "stubSha256", "sdkFile", "sdkSha256", "sdkSha512", "sdkBytes")}
+        facts = {"formatVersion": 1, "scope": "julia-sdk-notice-facts", "platform": record["runtimePlatform"],
+            "juliaVersion": record["juliaVersion"], "juliaCommit": record["juliaCommit"], "dataProducts": [product], "components": []}
+        reviewed["artifactPlatformBindings"] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            root = repo / "scripts/security/julia-notices"
+            for relative in [reference["file"], record["metadataFile"], record["checksumFile"], record["noticeFiles"][0]["file"]]:
+                file = root / relative
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_bytes((security / "julia-notices" / relative).read_bytes())
+            config_file = root.parent / "julia-notice-sources.json"
+            config_file.write_text(json.dumps(reviewed))
+            self.assertEqual(UPDATER.verify_sdk_data_sources(repo, facts, reviewed), [reference])
+            self.assertEqual(UPDATER.verify_sdk_data_sources(repo, {**facts, "platform": "other-platform"}, reviewed), [])
+            source = root / reference["file"]
+            source.write_bytes(b"changed")
+            (root / "index.json").write_bytes(b"Do not overwrite")
+            with patch.object(UPDATER, "download") as download, self.assertRaisesRegex(ValueError, "checksum"):
+                UPDATER.refresh(repo, facts)
+            download.assert_not_called()
+            self.assertEqual((root / "index.json").read_bytes(), b"Do not overwrite")
+            for key, value in (("formatVersion", True), ("scope", "wrong"), ("originKind", "sdk-artifact"),
+                    ("juliaCommit", "0" * 40), ("projectSha256", "0" * 64), ("artifactSha256", "0" * 64),
+                    ("archiveUrl", "https://example.invalid/archive"), ("archiveBytes", False),
+                    ("metadataUrl", "https://example.invalid/Artifacts.toml"), ("checksumUrl", "https://example.invalid/sha512"),
+                    ("metadataGitBlobSha1", "0" * 40), ("checksumGitBlobSha1", "0" * 40),
+                    ("metadataGitBlobSha1", None), ("checksumGitBlobSha1", None), ("artifactBytes", 188900.0),
+                    ("licenseExpression", "MIT"), ("noticeFiles", []), ("extra", "unsupported")):
+                changed = copy.deepcopy(record)
+                changed[key] = value
+                source.write_text(json.dumps(changed))
+                reference["sha256"] = UPDATER.file_hash(source)
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    UPDATER.verify_sdk_data_sources(repo, facts, reviewed)
+            source.write_bytes((security / "julia-notices" / reference["file"]).read_bytes())
+            reference["sha256"] = UPDATER.file_hash(source)
+            (root / record["noticeFiles"][0]["file"]).write_text("Changed license")
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                UPDATER.verify_sdk_data_sources(repo, facts, reviewed)
+
+    def test_reviewed_repackaging_receipt_is_checked_before_downloads(self):
+        security = Path(__file__).parent
+        reviewed = json.loads((security / "julia-notice-sources.json").read_text())
+        binding = next(row for row in reviewed["artifactPlatformBindings"] if "repackagingProof" in row)
+        receipt_bytes = (security / "julia-notices" / binding["repackagingProof"]["file"]).read_bytes()
+        receipt = json.loads(receipt_bytes)
+        facts = {"formatVersion": 1, "scope": "julia-sdk-notice-facts", "juliaVersion": receipt["juliaVersion"],
+            "juliaCommit": receipt["juliaCommit"], "platform": receipt["platform"], "libraries": [],
+            "executables": [{"file": receipt["sdkFile"], "sha256": receipt["sdkSha256"], "bytes": receipt["sdkBytes"]}],
+            "components": [{"uuid": binding["componentUUID"], "version": binding["componentVersion"], "metadataSha256": binding["metadataSha256"],
+                "artifacts": [{"name": "LLD", "platformBinding": binding,
+                    "selected": {"download": [{"url": receipt["archiveUrl"], "sha256": receipt["archiveSha256"]}]}}]}]}
+        reviewed["artifactPlatformBindings"] = [binding]
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            root = repo / "scripts/security/julia-notices"
+            file = root / binding["repackagingProof"]["file"]
+            file.parent.mkdir(parents=True)
+            file.write_bytes(receipt_bytes)
+            (root.parent / "julia-notice-sources.json").write_text(json.dumps(reviewed))
+            self.assertEqual(UPDATER.load_repackaging_proofs(repo, facts, reviewed), {(binding["componentUUID"], "LLD"): receipt})
+            file.write_bytes(b"changed")
+            with patch.object(UPDATER, "download") as download, self.assertRaisesRegex(ValueError, "checksum"):
+                UPDATER.refresh(repo, facts)
+            download.assert_not_called()
+            self.assertFalse((root / "index.json").exists())
+            for key, value in (("formatVersion", True), ("scope", "wrong"), ("juliaCommit", "0" * 40), ("metadataSha256", "0" * 64),
+                    ("tool", {}), ("operation", ["patchelf", "--add-rpath", "wrong"]), ("reproducedSha256", "0" * 64),
+                    ("reproducedBytes", 1), ("sameBytesAfterRepackaging", False), ("sdkImageId", "latest"),
+                    ("archiveUrl", "https://example.invalid/other.tar.gz"), ("extra", "unsupported")):
+                changed = copy.deepcopy(receipt)
+                changed[key] = value
+                file.write_text(json.dumps(changed))
+                binding["repackagingProof"]["sha256"] = UPDATER.file_hash(file)
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    UPDATER.load_repackaging_proofs(repo, facts, reviewed)
+
+    def test_lld_repackaging_proof_is_scoped_to_exact_sdk_identity(self):
+        facts = {"formatVersion": 1, "scope": "julia-sdk-notice-facts", "juliaVersion": PROOF.VERSION,
+            "juliaCommit": PROOF.COMMIT, "platform": PROOF.PLATFORM,
+            "components": [{"uuid": PROOF.UUID, "name": "LLD_jll", "version": "20.1.8+2", "metadataSha256": PROOF.METADATA_SHA}],
+            "executables": [{"file": PROOF.SDK_FILE, "sha256": PROOF.SDK_SHA, "bytes": 7515760, "component": "LLD_jll"}]}
+        PROOF.validate_facts(facts)
+        for field in ("formatVersion", "scope", "juliaVersion", "juliaCommit", "platform"):
+            changed = copy.deepcopy(facts)
+            changed[field] = "changed"
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "exact reviewed"):
+                PROOF.validate_facts(changed)
+        for section, field in (("components", "uuid"), ("components", "name"), ("components", "version"),
+                ("components", "metadataSha256"), ("executables", "file"), ("executables", "sha256"),
+                ("executables", "bytes"), ("executables", "component")):
+            changed = copy.deepcopy(facts)
+            changed[section][0][field] = "changed"
+            with self.subTest(section=section, field=field), self.assertRaises(ValueError):
+                PROOF.validate_facts(changed)
+        for section in ("components", "executables"):
+            for rows in ([], facts[section] * 2):
+                changed = copy.deepcopy(facts)
+                changed[section] = rows
+                with self.subTest(section=section, rows=len(rows)), self.assertRaises(ValueError):
+                    PROOF.validate_facts(changed)
+
+    def test_lld_repackaging_uses_an_archive_declared_by_sdk_metadata(self):
+        metadata = ('[[LLD]]\narch="x86_64"\nos="linux"\nlibc="glibc"\ncxxstring_abi="cxx11"\nllvm_version="20"\n'
+            f'[[LLD.download]]\nurl="{PROOF.ARCHIVE_URL}"\nsha256="{PROOF.ARCHIVE_SHA}"\n').encode()
+        with patch.object(PROOF, "METADATA_SHA", UPDATER.sha256(metadata)):
+            PROOF.validate_metadata(metadata)
+            with self.assertRaisesRegex(ValueError, "differs"):
+                PROOF.validate_metadata(metadata + b"\n")
+        for before, after in ((b'"20"', b'"20.asserts"'), (PROOF.ARCHIVE_SHA.encode(), b"0" * 64)):
+            changed = metadata.replace(before, after)
+            with patch.object(PROOF, "METADATA_SHA", UPDATER.sha256(changed)), self.assertRaisesRegex(ValueError, "not declared"):
+                PROOF.validate_metadata(changed)
+
+    def test_lld_repackaging_refuses_links_duplicates_and_changed_product_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = b"x" * 7511664
+            archive = self.archive(root, [("tools/lld", data, tarfile.REGTYPE)])
+            with patch.object(PROOF, "ARCHIVE_SHA", UPDATER.file_hash(archive)), patch.object(PROOF, "SOURCE_SHA", UPDATER.sha256(data)):
+                self.assertEqual(PROOF.artifact_product(archive), data)
+            with patch.object(PROOF, "ARCHIVE_SHA", UPDATER.file_hash(archive)), self.assertRaisesRegex(ValueError, "product checksum"):
+                PROOF.artifact_product(archive)
+            for entries in ([ ("tools/lld", b"x", tarfile.REGTYPE) ],
+                    [ ("tools/lld", b"", tarfile.SYMTYPE) ],
+                    [ ("tools/lld", b"", tarfile.REGTYPE) ] * 2):
+                archive = self.archive(root, entries)
+                with patch.object(PROOF, "ARCHIVE_SHA", UPDATER.file_hash(archive)), self.assertRaisesRegex(ValueError, "product is"):
+                    PROOF.artifact_product(archive)
+            with self.assertRaisesRegex(ValueError, "archive checksum"):
+                PROOF.artifact_product(archive)
+
+    def test_lld_repackaging_requires_exact_reproduced_output_without_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "lld"
+            output.write_bytes(b"x" * 7515760)
+            expected = UPDATER.file_hash(output)
+            with self.assertRaisesRegex(ValueError, "not byte-identical"):
+                PROOF.verify_output(output)
+            with patch.object(PROOF, "SDK_SHA", expected):
+                report = PROOF.verify_output(output)
+                self.assertTrue(report["sameBytesAfterRepackaging"])
+                self.assertEqual(report["reproducedSha256"], expected)
+                self.assertEqual(report["operation"], ["patchelf", "--set-rpath", "$ORIGIN/../../lib/julia"])
+                linked = root / "linked"
+                linked.symlink_to(output)
+                with self.assertRaises(ValueError):
+                    PROOF.verify_output(linked)
+                output.write_bytes(b"short")
+                with self.assertRaises(ValueError):
+                    PROOF.verify_output(output)
+                output.unlink()
+                with self.assertRaises(ValueError):
+                    PROOF.verify_output(output)
+            with self.assertRaisesRegex(ValueError, "commas"):
+                PROOF.mount(root / "unusable,mount", "/inputs/lld")
+
     def test_offline_facts_require_the_same_bound_sdk_and_archive(self):
         binding = {"runtimePlatform": "x86_64-linux-gnu", "componentUUID": "demo", "componentVersion": "1.0.0",
             "metadataSha256": "a" * 64, "artifact": "Demo", "sdkFile": "lib/demo.so", "sdkSha256": "b" * 64,
@@ -138,6 +305,19 @@ class JuliaNoticeMaintenanceTests(unittest.TestCase):
             self.assertTrue(comparisons[0]["sameBytes"])
             self.assertEqual([file for file in destination.rglob("*") if file.is_file()], [destination / files[0]["file"]])
             self.assertFalse((destination / "lib/libdemo.so").exists())
+
+    def test_executable_products_are_hashed_but_not_extracted_or_executed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary = b"#!/bin/sh\nexit 99 # must never execute\n"
+            archive = self.archive(root, [("tools/lld", binary, tarfile.REGTYPE)])
+            output = root / "notices"
+            files, comparisons = UPDATER.extract_notices(archive, output, "a" * 64,
+                [{"file": "libexec/julia/lld", "sha256": UPDATER.sha256(binary)}])
+            self.assertEqual(files, [])
+            self.assertEqual(comparisons, [{"sdkFile": "libexec/julia/lld", "archivePath": "tools/lld",
+                "sdkSha256": UPDATER.sha256(binary), "artifactSha256": UPDATER.sha256(binary), "sameBytes": True}])
+            self.assertFalse(output.exists())
 
     def test_unsafe_paths_and_license_links_are_rejected(self):
         for name, kind in [("../private.txt", tarfile.REGTYPE),

@@ -1,6 +1,7 @@
 import { readEquipmentModels, readEquipmentModelParams, readParameterTemplate } from './catalog-api';
 export {createStudy,appendStudyVersion,readStudy,listStudies,listStudyVersions,readStudyArtifact,parseStudyDocument,parseStudyVersion,StudyWriteError} from './studies-api';
 export type {StudyDocument,StudyVersion} from './studies-api';
+export type { InputUnitContract } from './input-unit-contract';
 import { parseOperatingAssessment, parseTerminalVoltageLimits, requireOperatingLimits, type OperatingAssessment, type TerminalVoltageLimit } from './operating-assessment';
 export type { OperatingAssessment, VoltageLimitCheck, TerminalVoltageLimit } from './operating-assessment';
 import { parseCalculationTopology, type CalculationTopology } from './calculation-topology';

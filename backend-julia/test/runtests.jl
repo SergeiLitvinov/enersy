@@ -12,6 +12,7 @@ include("source_impedance.jl")
 include("transformer_magnitude.jl")
 include("transformer_reflection.jl")
 include("parameter_units.jl")
+include("unit_contract.jl")
 include("model_definitions.jl")
 include("ac_reference.jl")
 withenv("S_BASE_MVA" => "50") do

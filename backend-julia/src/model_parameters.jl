@@ -92,18 +92,48 @@ end
 """Check supplied catalogue labels against parameters consumed by this AC model.
 Partial metadata is accepted for legacy inputs; absence is not a unit certificate.
 Unknown/unconsumed parameters are not interpreted or certified here.
+With complete=true every stored key must have a model unit definition and an
+explicit matching label; dimensionless inputs must declare 1 rather than blank.
 """
-function validate_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString)
+function validate_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString; complete::Bool=false)
     require_object(declared, path)
     specs = get(AC_PARAMETER_UNIT_SPECS, code, nothing)
+    if complete
+        specs === nothing && throw(contract_error("unsupported_unit_contract_component", "component has no parameter schema for this unit profile", detail=path))
+        for key in sort!(collect(keys(params)))
+            haskey(specs,key) || throw(contract_error("unsupported_unit_contract_parameter", "parameter has no unit definition in this profile", detail="$(path).$(key)"))
+            haskey(declared,key) || throw(contract_error("missing_parameter_unit", "every stored parameter requires a declared unit", detail="$(path).$(key)"))
+        end
+    end
     for (key, value) in pairs(declared)
         value isa AbstractString || throw(contract_error("type_error", "parameter unit must be a string", detail="$(path).$(key)"))
         haskey(params, key) || throw(contract_error("unexpected_parameter_unit", "unit has no corresponding stored parameter", detail="$(code).$(path).$(key)"))
         expected = specs === nothing ? nothing : get(specs, key, nothing)
         expected === nothing && continue
+        complete && expected == "1" && isempty(strip(value)) && throw(contract_error(
+            "parameter_unit_mismatch", "dimensionless parameters require an explicit unit 1 in this profile", detail="$(path).$(key)"))
         strip(value) in get(PARAMETER_UNIT_ALIASES, expected, (expected,)) || throw(contract_error(
             "parameter_unit_mismatch", "declared unit does not match the AC model; no automatic conversion is performed",
             detail="$(code).$(path).$(key): declared=$(repr(value)), expected=$(expected)"))
     end
     return nothing
+end
+
+const AC_INPUT_UNIT_PROFILE = "legacy-ac-three-phase-rms-v1"
+
+"""An explicit complete declaration profile; no inference of historical units.
+The profile fixes the current AC model conventions, not SI prefix conversion.
+"""
+function request_unit_contract(json)
+    _json_hasfield(json,:unitContract) || return nothing
+    raw = require_object(_json_field(json,:unitContract),"\$.unitContract")
+    length(raw) == 2 && Set(string(key) for key in keys(raw)) == Set(["formatVersion","profile"]) ||
+        throw(contract_error("invalid_unit_contract", "unitContract requires exactly formatVersion and profile", detail="\$.unitContract"))
+    version = require_field(raw,:formatVersion,"\$.unitContract")
+    version isa Integer && !(version isa Bool) && version == 1 ||
+        throw(contract_error("unsupported_unit_contract_version", "unsupported unit contract formatVersion", detail="\$.unitContract.formatVersion"))
+    profile = require_field(raw,:profile,"\$.unitContract")
+    profile isa AbstractString && profile == AC_INPUT_UNIT_PROFILE ||
+        throw(contract_error("unsupported_unit_contract_profile", "unsupported unit convention profile", detail="\$.unitContract.profile"))
+    (;formatVersion=1,profile=AC_INPUT_UNIT_PROFILE)
 end

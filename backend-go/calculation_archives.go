@@ -63,6 +63,9 @@ func lockArchiveProject(ctx context.Context, tx *sql.Tx, token string, project i
 }
 
 func validateCalculationArchive(input calculationInput, group, method string, request, result []byte) error {
+	if !confirmsRequestedUnitContract(request, result) {
+		return errArchiveResult
+	}
 	var outcome struct {
 		Success   bool              `json:"success"`
 		NodeCount int               `json:"node_count"`

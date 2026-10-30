@@ -12,6 +12,16 @@ const version = (): StudyVersion => ({ status: 'captured', id: '9007199254740994
   document: { formatVersion: 1, name: 'Исследование', modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: 'julia', base: { s_base_mva: 100, v_base_kv: 10 }, solverOptions: { tolerance: 1e-8, max_iterations: 50 }, maxTimeMs: 20000, operatingLimits: [] } });
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const saved = vi.fn(), close = vi.fn();
+
+test('editing an existing strict-unit Study keeps its policy in the next immutable intent', async () => {
+  const value = version();
+  value.document.unitContract = { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' };
+  await mount(value);
+  vi.mocked(appendStudyVersion).mockResolvedValue({ ...value, revision: '2' });
+  await change('Название', 'Следующая версия');
+  await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
+  expect(vi.mocked(appendStudyVersion).mock.calls[0][4].unitContract).toEqual(value.document.unitContract);
+});
 const button = (s: string) => [...host.querySelectorAll('button')].find(b => b.textContent === s)!;
 const input = (label: string) => [...host.querySelectorAll('label')].find(l => l.textContent === label)!.querySelector('input')!;
 async function change(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); }); }

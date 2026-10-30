@@ -106,8 +106,15 @@ function handle_calculate(json; backends=(julia_backend(),))
         parse_calculate_request(json; default_s_base_mva=default_s_base_mva())
     backend = select_backend(json, backends)
     operating_limits = request_operating_limits(json)
-    return calculate(components, connections; model_group=model_group, method=method,
+    result = calculate(components, connections; model_group=model_group, method=method,
                      base=base, options=options, default_s_base_mva=default_s, backend, control, operating_limits)
+    contract = request_unit_contract(json)
+    if contract !== nothing
+        result["input_unit_contract"] = Dict("formatVersion"=>contract.formatVersion,"profile"=>contract.profile,
+            "validation_scope"=>"request-declarations-only","component_count"=>length(components),
+            "parameter_count"=>sum(length(component.params) for component in components))
+    end
+    return result
 end
 
 function handle_solve(json)

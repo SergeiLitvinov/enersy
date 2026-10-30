@@ -197,6 +197,9 @@ func executeCatalogMap(ctx context.Context, database *sql.DB, url, baselinePath 
 	if err = checkOperatorMigrationHistory(ctx, tx, url, b.SourceVersion); err != nil {
 		return result, err
 	}
+	if err = checkCatalogMapIdentities(ctx, tx, schema); err != nil {
+		return result, err
+	}
 	snapshot, err := readCatalogSnapshotTx(ctx, tx)
 	if err != nil {
 		return result, err
@@ -212,6 +215,8 @@ func executeCatalogMap(ctx context.Context, database *sql.DB, url, baselinePath 
 	for i, change := range plan.Changes {
 		var valid bool
 		err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM scheme_components c
+JOIN circuit_schemes scheme ON scheme.id=c.scheme_id
+JOIN component_types component_type ON component_type.id=c.component_type_id
 JOIN equipment_models old ON old.id=c.equipment_model_id AND old.component_type_id=c.component_type_id
 JOIN equipment_models target ON target.id=$5 AND target.component_type_id=c.component_type_id
 WHERE c.id=$1 AND c.scheme_id=$2 AND c.revision=$3 AND c.equipment_model_id=$4 AND c.project_passport_version_id IS NULL)`,
@@ -251,6 +256,23 @@ WHERE c.id=$1 AND c.scheme_id=$2 AND c.revision=$3 AND c.equipment_model_id=$4 A
 		status = "applied"
 	}
 	return catalogMapResult{1, plan.Scope, status, !apply, hex.EncodeToString(hash[:]), plan.SnapshotSHA256, plan.Changes}, nil
+}
+
+func checkCatalogMapIdentities(ctx context.Context, tx *sql.Tx, schema string) error {
+	tables := []string{"component_types", "equipment_models", "circuit_schemes", "scheme_components"}
+	counts, err := auditLegacyIdentityTables(ctx, tx, schema, tables)
+	if err != nil {
+		return err
+	}
+	for _, table := range tables {
+		for _, kind := range []string{"null", "duplicateGroups"} {
+			count := counts[table+".id."+kind]
+			if count == nil || *count != 0 {
+				return fmt.Errorf("catalog map requires assessed, non-NULL unique IDs in %s", table)
+			}
+		}
+	}
+	return nil
 }
 
 func checkOperatorMigrationHistory(ctx context.Context, tx *sql.Tx, url, expectedVersion string) error {

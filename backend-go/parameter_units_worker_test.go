@@ -48,11 +48,16 @@ func TestParameterUnitsWorkerPostgres(t *testing.T) {
 	if _, err := database.ExecContext(ctx, `INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port) VALUES($1,$2,$3,'bottom','top')`, scheme, source, load); err != nil {
 		t.Fatal(err)
 	}
-	calculate := func() *httptest.ResponseRecorder {
+	calculateProfile := func(strict bool) *httptest.ResponseRecorder {
 		response := httptest.NewRecorder()
-		handleCalculate(response, httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/ees/calculate/%d", scheme), nil).WithContext(ctx))
+		path := fmt.Sprintf("/api/ees/calculate/%d", scheme)
+		if strict {
+			path += "?unitContract=" + acInputUnitProfile
+		}
+		handleCalculate(response, httptest.NewRequest(http.MethodPost, path, nil).WithContext(ctx))
 		return response
 	}
+	calculate := func() *httptest.ResponseRecorder { return calculateProfile(false) }
 	checkPhysical := func(response *httptest.ResponseRecorder) {
 		t.Helper()
 		if response.Code != 200 {
@@ -86,6 +91,7 @@ func TestParameterUnitsWorkerPostgres(t *testing.T) {
 		}
 	}
 	checkPhysical(calculate())
+	checkPhysical(calculateProfile(true))
 	for _, unit := range []string{"Вт", "mW", "", "MW", "МВт"} {
 		if _, err := database.ExecContext(ctx, `UPDATE component_params_template SET unit=$1 WHERE param_key='p' AND component_type_id=(SELECT id FROM component_types WHERE code='load')`, unit); err != nil {
 			t.Fatal(err)
@@ -93,7 +99,11 @@ func TestParameterUnitsWorkerPostgres(t *testing.T) {
 		response := calculate()
 		if unit == "MW" || unit == "МВт" {
 			checkPhysical(response)
+			checkPhysical(calculateProfile(true))
 			continue
+		}
+		if strict := calculateProfile(true); strict.Code != 400 {
+			t.Fatal("strict unit mismatch was not rejected", strict.Code, strict.Body.String())
 		}
 		var body struct {
 			Detail struct {

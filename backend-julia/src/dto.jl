@@ -216,7 +216,7 @@ end
 
 # --- сборка DTO -----------------------------------------------------------------
 
-function parse_component(raw, path::AbstractString)
+function parse_component(raw, path::AbstractString; complete_units::Bool=false)
     require_object(raw, path)
     id = as_int(require_field(raw, :id, path), "$(path).id"; positive=true)
     code = lowercase(as_string(require_field(raw, :type, path), "$(path).type"))
@@ -226,7 +226,9 @@ function parse_component(raw, path::AbstractString)
         Dict{String,String}()
     end
     if _json_hasfield(raw, :parameterUnits)
-        validate_parameter_units(code, params, _json_field(raw, :parameterUnits), "$(code)#$(id).parameterUnits")
+        validate_parameter_units(code, params, _json_field(raw, :parameterUnits), "$(code)#$(id).parameterUnits"; complete=complete_units)
+    elseif complete_units
+        throw(contract_error("missing_parameter_units", "unitContract requires parameterUnits for every component", detail="$(code)#$(id).parameterUnits"))
     end
     x = _json_hasfield(raw, :x) ? as_number(_json_field(raw, :x), "$(path).x") : 0.0
     y = _json_hasfield(raw, :y) ? as_number(_json_field(raw, :y), "$(path).y") : 0.0
@@ -265,8 +267,9 @@ end
 """
 function parse_calculate_request(json; default_s_base_mva::Real=100.0)
     require_object(json,     "\$")
+    unit_contract = request_unit_contract(json)
     comps_raw = require_array(require_field(json, :components,     "\$"), "\$.components")
-    components = [parse_component(c, "\$.components[$(i)]") for (i, c) in enumerate(comps_raw)]
+    components = [parse_component(c, "\$.components[$(i)]"; complete_units=unit_contract !== nothing) for (i, c) in enumerate(comps_raw)]
     ids = Set{Int}()
     for c in components
         c.id in ids &&

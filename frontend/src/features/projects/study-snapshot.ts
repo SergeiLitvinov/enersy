@@ -19,6 +19,9 @@ export function parseStudySnapshot(raw: unknown, evidence: unknown, version: Stu
     throw new Error('Снимок не соответствует выбранной версии исследования');
   }
   const input = parseArchiveInput(raw, doc);
+  if (input.unitContract?.formatVersion !== doc.unitContract?.formatVersion || input.unitContract?.profile !== doc.unitContract?.profile) {
+    throw new Error('Контракт единиц снимка не соответствует версии исследования');
+  }
   return { input, provenance: parseCalculationProvenance(evidence, input) };
 }
 export async function readStudySnapshot(project: string, version: StudyVersion, signal: AbortSignal): Promise<StudySnapshot> {

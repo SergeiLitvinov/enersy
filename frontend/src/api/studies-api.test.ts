@@ -6,6 +6,20 @@ const document = (): StudyDocument => ({ formatVersion: 1, name: 'AC study', mod
 const metadata = () => ({ status: 'captured', id: study, projectId: project, schemeId: '7', revision: '1', authorAccountId: '9007199254740995', topologyRevision: '0',
     schemeName: 'Source', createdAt: '2026-10-24T06:00:00Z', inputSha256: 'a'.repeat(64), provenanceSha256: 'b'.repeat(64), inputBytes: 1, provenanceBytes: 1, document: document() });
 const reply = (data: unknown, revision = '1') => new Response(JSON.stringify(data), { headers: { ETag: `"${revision}"` } });
+
+test('Study preserves a complete-unit policy and rejects unsupported envelopes', () => {
+    const source = { ...document(), unitContract: { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' } };
+    const parsed = parseStudyDocument(source);
+    expect(parsed.unitContract).toEqual(source.unitContract);
+    source.unitContract.profile = 'changed';
+    expect(parsed.unitContract?.profile).toBe('legacy-ac-three-phase-rms-v1');
+    for (const unitContract of [null, undefined, [], {}, { formatVersion: true, profile: 'legacy-ac-three-phase-rms-v1' },
+        { formatVersion: 2, profile: 'legacy-ac-three-phase-rms-v1' }, { formatVersion: 1, profile: 'unknown' },
+        { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1', extra: true }]) {
+        expect(() => parseStudyDocument({ ...document(), unitContract })).toThrow();
+    }
+    expect(parseStudyDocument(document()).unitContract).toBeUndefined();
+});
 afterEach(() => vi.unstubAllGlobals());
 
 test('compact source digest is sent without a list and ambiguous references never dispatch', async () => {

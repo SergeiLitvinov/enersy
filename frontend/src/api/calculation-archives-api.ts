@@ -1,4 +1,5 @@
 import { SessionError } from './projects-api';
+import { parseInputUnitContract, type InputUnitContract } from './input-unit-contract';
 import { parseCalculationResult, type CalculationResult } from './ees-api';
 import { parseCalculationProvenance, type CalculationProvenance } from './calculation-provenance';
 import { isComputeBackendId, requireSelectedBackend, type ComputeBackendId } from './compute-backends';
@@ -12,6 +13,7 @@ export interface CalculationArchive {
   inputBytes: number; resultBytes: number;
 }
 export interface ArchiveInput {
+  unitContract?: InputUnitContract;
   operatingLimits?: TerminalVoltageLimit[];
   computeBackend?: ComputeBackendId;
   executionOptions?: { max_time_ms: number };
@@ -45,6 +47,8 @@ export function parseArchiveMetadata(raw: unknown): CalculationArchive {
 }
 export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>): ArchiveInput {
   const v = record(raw);
+  const completeUnits = Object.prototype.hasOwnProperty.call(v, 'unitContract');
+  if (completeUnits) parseInputUnitContract(v.unitContract);
   if (v.computeBackend !== undefined && !isComputeBackendId(v.computeBackend)) return fail();
   if (v.executionOptions !== undefined) {
     const execution = record(v.executionOptions);
@@ -60,6 +64,9 @@ export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchiv
     if (c.parameterUnits !== undefined) {
       const units = record(c.parameterUnits);
       if (!Object.entries(units).every(([key, unit]) => typeof unit === 'string' && Object.prototype.hasOwnProperty.call(params, key))) return fail();
+      if (completeUnits && (Object.keys(units).length !== Object.keys(params).length || !Object.values(units).every(unit => typeof unit === 'string' && unit.trim().length > 0))) return fail();
+    } else if (completeUnits) {
+      return fail();
     }
     ids.add(c.id);
   }

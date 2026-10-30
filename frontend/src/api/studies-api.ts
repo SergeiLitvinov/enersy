@@ -3,6 +3,7 @@ import { SessionError, type Identity } from './projects-api';
 import { isComputeBackendId, type ComputeBackendId } from './compute-backends';
 import { isCalculationBudget } from './calculation-execution';
 import { parseTerminalVoltageLimits, type TerminalVoltageLimit } from './operating-assessment';
+import { parseInputUnitContract, type InputUnitContract } from './input-unit-contract';
 export interface StudyDocument {
     formatVersion: 1;
     name: string;
@@ -19,6 +20,7 @@ export interface StudyDocument {
         max_iterations: number;
     };
     operatingLimits: TerminalVoltageLimit[];
+    unitContract?: InputUnitContract;
 }
 export interface StudyVersion {
     status: 'captured';
@@ -52,13 +54,14 @@ const size = (v: unknown): v is number => positive(v) && Number.isInteger(v) && 
 /** Explicit units and options; no defaults are synthesized for an existing Study. */
 export function parseStudyDocument(raw: unknown): StudyDocument {
     const v = row(raw), base = row(v.base), solver = row(v.solverOptions);
-    if (!exact(v, ['formatVersion', 'name', 'modelGroup', 'method', 'computeBackend', 'maxTimeMs', 'base', 'solverOptions', 'operatingLimits']) ||
+    const contract = Object.prototype.hasOwnProperty.call(v, 'unitContract') ? parseInputUnitContract(v.unitContract) : undefined;
+    if (!exact(v, ['formatVersion', 'name', 'modelGroup', 'method', 'computeBackend', 'maxTimeMs', 'base', 'solverOptions', 'operatingLimits', ...(contract ? ['unitContract'] : [])]) ||
         v.formatVersion !== 1 || typeof v.name !== 'string' || !v.name.trim() || v.name.includes('\0') || Array.from(v.name).length > 200 ||
         v.modelGroup !== 'three-phase' || v.method !== 'newton-raphson' || !isComputeBackendId(v.computeBackend) || !isCalculationBudget(v.maxTimeMs) ||
         !exact(base, ['s_base_mva', 'v_base_kv']) || !positive(base.s_base_mva) || !positive(base.v_base_kv) || !exact(solver, ['tolerance', 'max_iterations']) ||
         !positive(solver.tolerance) || !positive(solver.max_iterations) || !Number.isInteger(solver.max_iterations) || solver.max_iterations > 1000)
         return fail();
-    return { formatVersion: 1, name: v.name, modelGroup: v.modelGroup, method: v.method, computeBackend: v.computeBackend, maxTimeMs: v.maxTimeMs,
+    return { ...(contract ? { unitContract: contract } : {}), formatVersion: 1, name: v.name, modelGroup: v.modelGroup, method: v.method, computeBackend: v.computeBackend, maxTimeMs: v.maxTimeMs,
         base: { s_base_mva: base.s_base_mva, v_base_kv: base.v_base_kv }, solverOptions: { tolerance: solver.tolerance, max_iterations: solver.max_iterations }, operatingLimits: parseTerminalVoltageLimits(v.operatingLimits) };
 }
 export function parseStudyVersion(raw: unknown, project: string): StudyVersion {

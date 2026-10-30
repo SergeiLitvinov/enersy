@@ -792,6 +792,11 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Прокси на Julia
+	unitContract, unitErr := calculationUnitContractOption(r.URL.Query())
+	if unitErr != nil {
+		sendError(w, "Invalid input unit contract", 400)
+		return
+	}
 	modelGroup := r.URL.Query().Get("modelGroup")
 	if modelGroup == "" {
 		modelGroup = "three-phase"
@@ -811,6 +816,9 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 		"connections": input.Connections,
 		"modelGroup":  modelGroup,
 		"method":      method,
+	}
+	if unitContract != nil {
+		workerInput["unitContract"] = unitContract
 	}
 	if backend != "" {
 		workerInput["computeBackend"] = backend
@@ -841,6 +849,10 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxyComputeResult(w, r, juliaBaseURL, "/calculate", calcReq, func(status int, result []byte) bool {
+		if status >= 200 && status < 300 && !confirmsRequestedUnitContract(calcReq, result) {
+			sendError(w, "Worker did not confirm requested input unit contract", 502)
+			return false
+		}
 		if status >= 200 && status < 300 && !confirmsCalculationLimits(result, limits) {
 			sendError(w, "Worker did not confirm requested operating limits", 502)
 			return false

@@ -37,6 +37,7 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   let document: StudyDocument | null = null;
   try {
     document = parseStudyDocument({ formatVersion: 1, name, modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: backend,
+      ...(initial?.unitContract ? { unitContract: initial.unitContract } : {}),
       maxTimeMs: Number(budget), base: { s_base_mva: Number(power), v_base_kv: Number(voltage) },
       solverOptions: { tolerance: Number(tolerance), max_iterations: Number(iterations) },
       operatingLimits: limits.map(l => ({ component_id: Number(l.component), terminal: Number(l.terminal), min_kv: Number(l.min), max_kv: Number(l.max) })) });

@@ -14,6 +14,7 @@ import subprocess
 import tarfile
 import tempfile
 import threading
+import tomllib
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -197,7 +198,7 @@ def verify_fact_bindings(facts, reviewed):
             if identity in seen or expected.get(identity) != binding:
                 raise ValueError("Unreviewed or duplicate binding in SDK facts")
             if component["version"] != binding["componentVersion"] or component["metadataSha256"] != binding["metadataSha256"] or not any(
-                    row["file"] == binding["sdkFile"] and row["sha256"] == binding["sdkSha256"] for row in facts["libraries"]):
+                    row["file"] == binding["sdkFile"] and row["sha256"] == binding["sdkSha256"] for row in facts["libraries"] + facts.get("executables", [])):
                 raise ValueError("Bound SDK facts identity changed")
             selected = artifact["selected"]
             if not selected or not any(row["sha256"] == binding["archiveSha256"] for row in selected.get("download", [])):
@@ -207,6 +208,130 @@ def verify_fact_bindings(facts, reviewed):
         raise ValueError("SDK facts lack reviewed bindings; recapture with --facts CONFIG")
 
 
+def load_repackaging_proofs(repo, facts, reviewed):
+    root = repo / "scripts/security/julia-notices"
+    proofs = {}
+    for binding in reviewed.get("artifactPlatformBindings", []):
+        if binding["runtimePlatform"] != facts["platform"] or "repackagingProof" not in binding:
+            continue
+        reference = binding["repackagingProof"]
+        if set(reference) != {"file", "sha256"} or not HEX64.fullmatch(reference["sha256"]):
+            raise ValueError("Invalid repackaging proof reference")
+        parts = safe_parts(reference["file"])
+        file = root.joinpath(*parts)
+        if not parts or parts[0] != "packaging" or not file.resolve().is_relative_to(root.resolve()):
+            raise ValueError("Repackaging proof escapes its source directory")
+        if not file.is_file() or not 0 < file.stat().st_size <= 65536 or file_hash(file) != reference["sha256"]:
+            raise ValueError("Repackaging proof checksum/size mismatch")
+        proof = json.loads(file.read_text(encoding="utf-8"))
+        required = {"formatVersion", "scope", "juliaVersion", "juliaCommit", "platform", "componentUUID", "metadataSha256",
+            "archiveUrl", "archiveSha256", "artifactFile", "artifactSha256", "sdkFile", "sdkSha256", "sdkBytes", "tool", "operation",
+            "reproducedSha256", "reproducedBytes", "sameBytesAfterRepackaging", "sdkImageId", "builderImageId"}
+        if set(proof) != required or type(proof["formatVersion"]) is not int or proof["formatVersion"] != 1 or proof["scope"] != "julia-lld-repackaging-verification":
+            raise ValueError("Unsupported repackaging proof schema")
+        if any(proof[key] != facts[key] for key in ("juliaVersion", "juliaCommit", "platform")) or any(
+                proof[key] != binding[key] for key in ("componentUUID", "metadataSha256", "archiveSha256", "artifactFile", "sdkFile", "sdkSha256")):
+            raise ValueError("Repackaging proof binding/runtime mismatch")
+        if (binding["componentUUID"], binding["artifact"], binding["tags"], binding["sdkFile"], binding["artifactFile"]) != (
+                "d55e3150-da41-5e91-b323-ecfd1eec6109", "LLD", {"llvm_version": "20"}, "libexec/julia/lld", "tools/lld"):
+            raise ValueError("Unsupported SDK repackaging product")
+        if proof["tool"] != {"version": "0.17.2", "sourceUrl": "https://github.com/NixOS/patchelf/releases/download/0.17.2/patchelf-0.17.2.tar.bz2",
+                "sourceSha512": "8277adf95513f88fb190536a38bdfdf438a4cc7685d8a130bdffbe064441f0f25095b6c83bbb190133e1a138963776d15b46c247dd2f1a073a1bfe1d1dbdd503"} or proof["operation"] != ["patchelf", "--set-rpath", "$ORIGIN/../../lib/julia"]:
+            raise ValueError("Unsupported SDK repackaging operation/tool")
+        if any(not isinstance(proof[key], str) or not re.fullmatch(r"sha256:[a-f0-9]{64}", proof[key]) for key in ("sdkImageId", "builderImageId")):
+            raise ValueError("Invalid proof image identity")
+        if not HEX64.fullmatch(proof["artifactSha256"]) or proof["artifactSha256"] == binding["sdkSha256"] or proof["sameBytesAfterRepackaging"] is not True or (
+                proof["reproducedSha256"] != binding["sdkSha256"] or type(proof["sdkBytes"]) is not int or proof["sdkBytes"] <= 0 or proof["reproducedBytes"] != proof["sdkBytes"]):
+            raise ValueError("Invalid reproduced SDK identity")
+        if not any(row["file"] == binding["sdkFile"] and row["sha256"] == binding["sdkSha256"] and row["bytes"] == proof["sdkBytes"] for row in facts.get("executables", [])):
+            raise ValueError("Repackaging proof executable changed")
+        selected = [artifact["selected"] for component in facts["components"] if component["uuid"] == binding["componentUUID"]
+            for artifact in component["artifacts"] if artifact["name"] == binding["artifact"]]
+        if len(selected) != 1 or not selected[0] or not any(row["url"] == proof["archiveUrl"] and row["sha256"] == proof["archiveSha256"] for row in selected[0].get("download", [])):
+            raise ValueError("Repackaging proof archive is not selected by SDK facts")
+        proofs[(binding["componentUUID"], binding["artifact"])] = proof
+    return proofs
+
+
+def verify_sdk_data_sources(repo, facts, reviewed):
+    root = repo / "scripts/security/julia-notices"
+    references = reviewed.get("sdkDataSources", [])
+    if not isinstance(references, list) or len(references) > 64:
+        raise ValueError("Invalid SDK data source references")
+    active, seen, products_seen = [], set(), set()
+
+    def checked(relative, checksum, blob=None, max_bytes=65536):
+        path = root.joinpath(*safe_parts(relative))
+        if not path.resolve().is_relative_to(root.resolve()) or not path.is_file() or not 0 < path.stat().st_size <= max_bytes:
+            raise ValueError("SDK data provenance path/size mismatch")
+        data = path.read_bytes()
+        if sha256(data) != checksum or (blob is not None and git_blob_hash(data) != blob):
+            raise ValueError("SDK data provenance checksum/Git blob mismatch")
+        return data
+
+    for reference in references:
+        if set(reference) != {"runtimePlatform", "file", "sha256"} or not HEX64.fullmatch(reference["sha256"]) or safe_parts(reference["file"])[:1] != ("data",):
+            raise ValueError("Invalid SDK data source reference")
+        platform = reference["runtimePlatform"]
+        if not isinstance(platform, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_.+\-]{0,199}", platform) or "-" not in platform or platform.endswith("."):
+            raise ValueError("Invalid SDK data source platform")
+        identity = (platform, reference["file"])
+        if identity in seen:
+            raise ValueError("Duplicate SDK data source reference")
+        seen.add(identity)
+        if platform != facts["platform"]:
+            continue
+        record = json.loads(checked(reference["file"], reference["sha256"]))
+        fields = set(("formatVersion scope originKind runtimePlatform juliaVersion juliaCommit componentName componentUUID componentVersion "
+            "projectSha256 stubSha256 sdkFile sdkSha256 sdkSha512 sdkBytes archiveUrl archiveSha256 archiveBytes artifactFile artifactSha256 "
+            "artifactSha512 artifactBytes metadataFile metadataUrl metadataSha256 metadataGitBlobSha1 artifactTreeSha1 checksumFile checksumUrl "
+            "checksumSha256 checksumGitBlobSha1 licenseExpression noticeFiles").split())
+        if set(record) != fields or type(record["formatVersion"]) is not int or record["formatVersion"] != 1 or record["scope"] != "julia-sdk-reviewed-data-source" or record["originKind"] != "reviewed-upstream-jll":
+            raise ValueError("Unsupported SDK data source schema")
+        if (record["componentUUID"], record["componentName"], record["sdkFile"], record["artifactFile"], record["licenseExpression"]) != (
+                "14a3606d-f60d-562e-9121-12d972cd8159", "MozillaCACerts_jll", "share/julia/cert.pem", "share/cacert.pem", "MPL-2.0"):
+            raise ValueError("Unsupported SDK data source product")
+        if record["componentUUID"] in products_seen:
+            raise ValueError("Duplicate SDK data product source")
+        products_seen.add(record["componentUUID"])
+        if (record["runtimePlatform"], record["juliaVersion"], record["juliaCommit"]) != (facts["platform"], facts["juliaVersion"], facts["juliaCommit"]):
+            raise ValueError("SDK data source runtime changed")
+        keys = ("componentName", "componentUUID", "componentVersion", "projectSha256", "stubSha256", "sdkFile", "sdkSha256", "sdkSha512", "sdkBytes")
+        if not any(all(product[key] == record[key] for key in keys) for product in facts.get("dataProducts", [])):
+            raise ValueError("SDK data product changed")
+        if record["sdkSha256"] != record["artifactSha256"] or record["sdkSha512"] != record["artifactSha512"] or record["sdkBytes"] != record["artifactBytes"]:
+            raise ValueError("SDK data differs from reviewed archive product")
+        if any(type(record[key]) is not int or record[key] <= 0 for key in ("sdkBytes", "artifactBytes", "archiveBytes")):
+            raise ValueError("Invalid SDK data source size")
+        if any(not isinstance(record[key], str) or not re.fullmatch(r"[a-f0-9]{40}", record[key]) for key in ("metadataGitBlobSha1", "checksumGitBlobSha1", "artifactTreeSha1")):
+            raise ValueError("Invalid SDK data Git identity")
+        for key in ("metadataFile", "checksumFile"):
+            if safe_parts(record[key])[:1] != ("data",):
+                raise ValueError("SDK data provenance path mismatch")
+        if not re.fullmatch(r"https://raw.githubusercontent.com/JuliaBinaryWrappers/MozillaCACerts_jll.jl/[a-f0-9]{40}/Artifacts.toml", record["metadataUrl"]):
+            raise ValueError("Unreviewed SDK data metadata URL")
+        date = record["componentVersion"].replace(".", "-")
+        if record["checksumUrl"] != f"https://raw.githubusercontent.com/JuliaLang/julia/{facts['juliaCommit']}/deps/checksums/cacert-{date}.pem/sha512":
+            raise ValueError("Unreviewed SDK data build checksum URL")
+        metadata = tomllib.loads(checked(record["metadataFile"], record["metadataSha256"], record["metadataGitBlobSha1"]).decode())["MozillaCACerts"]
+        if metadata["git-tree-sha1"] != record["artifactTreeSha1"] or not any(row["url"] == record["archiveUrl"] and row["sha256"] == record["archiveSha256"] for row in metadata["download"]):
+            raise ValueError("SDK data archive is not declared by reviewed metadata")
+        if checked(record["checksumFile"], record["checksumSha256"], record["checksumGitBlobSha1"]).decode().strip() != record["sdkSha512"]:
+            raise ValueError("SDK data differs from Julia build checksum")
+        if not record["noticeFiles"]:
+            raise ValueError("SDK data license notices missing")
+        for notice in record["noticeFiles"]:
+            archive_path = "/".join(safe_parts(notice["archivePath"]))
+            if not archive_path.startswith("share/licenses/MozillaCACerts/") or notice["file"] != f"artifacts/{record['archiveSha256']}/{archive_path}":
+                raise ValueError("SDK data notice source mismatch")
+            data = checked(notice["file"], notice["sha256"], max_bytes=4 * 1024 * 1024)
+            data.decode("utf-8", errors="strict")
+            if len(data) != notice["bytes"]:
+                raise ValueError("SDK data notice size mismatch")
+        active.append(reference)
+    return active
+
+
 def refresh(repo, facts, jobs=3, scoped_index=False):
     if facts.get("formatVersion") != 1 or facts.get("scope") != "julia-sdk-notice-facts":
         raise ValueError("Unsupported Julia SDK facts")
@@ -214,6 +339,8 @@ def refresh(repo, facts, jobs=3, scoped_index=False):
     if facts["juliaCommit"] != reviewed["juliaCommit"] or facts["juliaVersion"] != reviewed["juliaVersion"]:
         raise ValueError("Julia runtime requires a reviewed third-party source record")
     verify_fact_bindings(facts, reviewed)
+    proofs = load_repackaging_proofs(repo, facts, reviewed)
+    data_references = verify_sdk_data_sources(repo, facts, reviewed)
     output = repo / "scripts/security/julia-notices"
     cache = repo / ".cache/julia-license-artifacts"
     if not output.resolve().is_relative_to(repo.resolve()) or not cache.resolve().is_relative_to(repo.resolve()):
@@ -256,7 +383,11 @@ def refresh(repo, facts, jobs=3, scoped_index=False):
                 raise ValueError("Unreviewed SDK binary artifact source")
             with locks[checksum]:
                 archive = download(url, cache / f"{checksum}.tar.gz", checksum)
-                notice_files, comparisons = extract_notices(archive, output, checksum, facts["libraries"])
+                notice_files, comparisons = extract_notices(archive, output, checksum, facts["libraries"] + facts.get("executables", []))
+            proof = proofs.get((component["uuid"], artifact["name"]))
+            if proof and (proof["archiveUrl"] != url or not any(row["sdkFile"] == proof["sdkFile"] and row["archivePath"] == proof["artifactFile"] and
+                    row["sdkSha256"] == proof["sdkSha256"] and row["artifactSha256"] == proof["artifactSha256"] and row["sameBytes"] is False for row in comparisons)):
+                raise ValueError("Repackaging proof lacks matching original artifact comparison")
             record = {"name": artifact["name"], "treeSha1": selected["git-tree-sha1"],
                 "archiveUrl": url, "archiveSha256": checksum, "archiveBytes": archive.stat().st_size,
                 "noticeFiles": notice_files, "libraryComparisons": comparisons,
@@ -275,6 +406,7 @@ def refresh(repo, facts, jobs=3, scoped_index=False):
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
         components = list(pool.map(collect_component, facts["components"]))
     result = {"formatVersion": 1, "scope": "julia-sdk-reviewed-notice-sources",
+        "sdkDataSources": data_references,
         "capturedUtc": datetime.now(timezone.utc).isoformat(), "juliaVersion": facts["juliaVersion"],
         "juliaCommit": facts["juliaCommit"], "platform": facts["platform"],
         "runtimeThirdParty": runtime_notice, "components": components}

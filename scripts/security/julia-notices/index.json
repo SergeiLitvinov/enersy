@@ -1,5 +1,5 @@
 {
-  "capturedUtc": "2026-10-30T04:44:40.006331+00:00",
+  "capturedUtc": "2026-10-30T05:39:34.565588+00:00",
   "components": [
     {
       "artifacts": [
@@ -137,24 +137,47 @@
     {
       "artifacts": [
         {
-          "archiveBytes": 7230396,
-          "archiveSha256": "866dded04d20d55cf008f3fd7e1c7bd4b6355770fa6437538b1d1f57d7bafdc7",
-          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LLD_jll.jl/releases/download/LLD-v20.1.8+2/LLD.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version+20.asserts.tar.gz",
-          "libraryComparisons": [],
+          "archiveBytes": 6192239,
+          "archiveSha256": "96052dfa6bfbc41930fac40b163fa47558819f7ba8ab2feed962f7e8f0743081",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LLD_jll.jl/releases/download/LLD-v20.1.8+2/LLD.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "tools/lld",
+              "artifactSha256": "e77fae23ddbc6dfcf2a1a79ff8cbf61138ec95ed7ae95bb493c30a85bd2aedfc",
+              "sameBytes": false,
+              "sdkFile": "libexec/julia/lld",
+              "sdkSha256": "ea38ae21454bd2fe3b6585bdf7ceb561f8dbdf0ee7369f3559d462cc4034dd58"
+            }
+          ],
           "name": "LLD",
           "noticeFiles": [
             {
               "archivePath": "share/licenses/LLD/LICENSE.TXT",
               "bytes": 15141,
-              "file": "artifacts/866dded04d20d55cf008f3fd7e1c7bd4b6355770fa6437538b1d1f57d7bafdc7/share/licenses/LLD/LICENSE.TXT",
+              "file": "artifacts/96052dfa6bfbc41930fac40b163fa47558819f7ba8ab2feed962f7e8f0743081/share/licenses/LLD/LICENSE.TXT",
               "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
             }
           ],
+          "platformBinding": {
+            "archiveSha256": "96052dfa6bfbc41930fac40b163fa47558819f7ba8ab2feed962f7e8f0743081",
+            "artifact": "LLD",
+            "artifactFile": "tools/lld",
+            "componentUUID": "d55e3150-da41-5e91-b323-ecfd1eec6109",
+            "componentVersion": "20.1.8+2",
+            "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
+            "repackagingProof": {
+              "file": "packaging/lld-julia-1.13.2-linux-amd64.json",
+              "sha256": "1b56bee1fecd191d2fd3c7695586a2c5b46812c702b10a5efdf06c7cecfec853"
+            },
+            "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+            "sdkFile": "libexec/julia/lld",
+            "sdkSha256": "ea38ae21454bd2fe3b6585bdf7ceb561f8dbdf0ee7369f3559d462cc4034dd58",
+            "tags": {
+              "llvm_version": "20"
+            }
+          },
           "status": "notices_collected",
-          "treeSha1": "65fb9e0c03eb3e4f804a782a77cd73bdf35d89a3",
-          "unboundPlatformTags": {
-            "llvm_version": "20.asserts"
-          }
+          "treeSha1": "e19b1a4b1e72bb62b200647e117e12eb84dd939a"
         }
       ],
       "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
@@ -914,5 +937,12 @@
     "sha256": "7028c525d1a25e31c6c684ade567b3f6f1e408636c65c2d787fc8304e69df777",
     "url": "https://raw.githubusercontent.com/JuliaLang/julia/45b6d15e34bbd2003a31acce0b1847b63dad029c/THIRDPARTY.md"
   },
-  "scope": "julia-sdk-reviewed-notice-sources"
+  "scope": "julia-sdk-reviewed-notice-sources",
+  "sdkDataSources": [
+    {
+      "file": "data/mozilla-cacerts-2026-08-13-linux-amd64.json",
+      "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "sha256": "5593a454c527f42f14bfb495ba91ab1f2178ec7eb7b18c4dc8bb9e10c0d99f83"
+    }
+  ]
 }

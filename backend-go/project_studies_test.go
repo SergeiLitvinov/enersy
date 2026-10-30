@@ -86,12 +86,12 @@ func newStudyFixture(t *testing.T) studyTestFixture {
 	if err = database.QueryRow(`SELECT topology_revision FROM circuit_schemes WHERE id=$1`, scheme).Scan(&f.topology); err != nil {
 		t.Fatal(err)
 	}
-	f.doc = studyDocument{1, "AC study", "three-phase", "newton-raphson", "julia", 20000, studyBase{1, 1}, studySolverOptions{1e-12, 50}, []terminalVoltageLimit{{f.load, 1, 0.7, 0.8}}}
+	f.doc = studyDocument{1, "AC study", "three-phase", "newton-raphson", "julia", 20000, studyBase{1, 1}, studySolverOptions{1e-12, 50}, []terminalVoltageLimit{{f.load, 1, 0.7, 0.8}}, nil}
 	return f
 }
 
 func TestStudyDocumentExplicitContract(t *testing.T) {
-	valid := studyDocument{1, "AC", "three-phase", "newton-raphson", "julia", 20000, studyBase{100, 10}, studySolverOptions{1e-8, 50}, []terminalVoltageLimit{}}
+	valid := studyDocument{1, "AC", "three-phase", "newton-raphson", "julia", 20000, studyBase{100, 10}, studySolverOptions{1e-8, 50}, []terminalVoltageLimit{}, nil}
 	if err := validateStudyDocument(valid); err != nil {
 		t.Fatal(err)
 	}

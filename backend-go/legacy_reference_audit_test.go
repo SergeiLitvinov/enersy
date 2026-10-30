@@ -32,12 +32,17 @@ func TestLegacyReferenceAuditCLIPostgres(t *testing.T) {
 		t.Fatal("read-only CLI failed", err, diagnostic.String())
 	}
 	var r databaseAudit
-	if err := json.Unmarshal(output.Bytes(), &r); err != nil || !r.ReadOnly || r.Version != nil || r.Status != "review_required" || len(r.ReferenceChecks) != 37 {
+	if err := json.Unmarshal(output.Bytes(), &r); err != nil || !r.ReadOnly || r.Version != nil || r.Status != "review_required" || len(r.ReferenceChecks) != 37 || len(r.IdentityChecks) != 39 {
 		t.Fatal("CLI did not report the unmigrated source honestly", r, err)
 	}
 	for code, count := range r.ReferenceChecks {
 		if count != nil {
 			t.Fatal("absent legacy relation presented as assessed", code)
+		}
+	}
+	for code, count := range r.IdentityChecks {
+		if count != nil {
+			t.Fatal("absent legacy identity presented as assessed", code)
 		}
 	}
 	var relations int
@@ -56,6 +61,17 @@ func TestLegacyReferenceAuditCLIPostgres(t *testing.T) {
 	invalid.Stdout, invalid.Stderr = &output, &diagnostic
 	if err := invalid.Run(); err == nil || output.Len() != 0 {
 		t.Fatal("incompatible reference emitted a partial success report", err, output.String())
+	}
+	if _, err := db.Exec(`DROP TABLE scheme_components,circuit_schemes; CREATE TABLE circuit_nodes(id json); INSERT INTO circuit_nodes VALUES('{"private":"identity fixture"}')`); err != nil {
+		t.Fatal(err)
+	}
+	invalidIdentity := exec.CommandContext(ctx, binary, "-audit-database")
+	invalidIdentity.Env = cmd.Env
+	output.Reset()
+	diagnostic.Reset()
+	invalidIdentity.Stdout, invalidIdentity.Stderr = &output, &diagnostic
+	if err := invalidIdentity.Run(); err == nil || output.Len() != 0 {
+		t.Fatal("incompatible identity emitted a partial success report", err, output.String())
 	}
 }
 
@@ -156,6 +172,52 @@ func TestLegacyReferenceAuditSchemaIsolationPostgres(t *testing.T) {
 	for code, count := range r {
 		if count != nil {
 			t.Fatal("read outside requested schema", code)
+		}
+	}
+}
+
+func TestLegacyReferenceMismatchCountsSourceRowsWithDuplicateTargetIDsPostgres(t *testing.T) {
+	db := migrationTestDatabase(t)
+	if _, err := db.Exec(`
+CREATE TABLE calculation_results(id int,scheme_id int);
+CREATE TABLE circuit_nodes(id int,scheme_id int);
+CREATE TABLE scheme_components(id int,scheme_id int);
+CREATE TABLE calculation_node_results(calculation_id int,node_id int);
+CREATE TABLE calculation_branch_results(calculation_id int,from_component_id int,to_component_id int);
+CREATE TABLE scheme_connections(scheme_id int,from_component_id int,to_component_id int);
+INSERT INTO calculation_results VALUES(10,1),(10,2),(10,3);
+INSERT INTO circuit_nodes VALUES(20,4),(20,5);
+INSERT INTO scheme_components VALUES(30,4),(30,5);
+INSERT INTO calculation_node_results VALUES(10,20),(10,20);
+INSERT INTO calculation_branch_results VALUES(10,30,30);
+INSERT INTO scheme_connections VALUES(1,30,30);
+`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := beginReadOnlyAudit(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rollbackTx(tx)
+	var schema string
+	if err := tx.QueryRow(`SELECT current_schema()`).Scan(&schema); err != nil {
+		t.Fatal(err)
+	}
+	counts, err := auditLegacyReferences(context.Background(), tx, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for code, want := range map[string]int64{
+		"nodeResults.schemeMismatch":                          2,
+		"branchResults.fromSchemeMismatch":                    1,
+		"branchResults.toSchemeMismatch":                      1,
+		"scheme_connections.from_component_id.schemeMismatch": 1,
+		"scheme_connections.to_component_id.schemeMismatch":   1,
+	} {
+		if got := counts[code]; got == nil {
+			t.Errorf("%s unexpectedly not assessed", code)
+		} else if *got != want {
+			t.Errorf("%s must count each source row once, got %d, want %d", code, *got, want)
 		}
 	}
 }

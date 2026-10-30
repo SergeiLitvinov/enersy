@@ -45,12 +45,17 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 	}
 	query := r.URL.Query()
 	for key, values := range query {
-		if (key != "modelGroup" && key != "method" && key != "computeBackend" && key != "maxTimeMs") || len(values) != 1 {
+		if (key != "modelGroup" && key != "method" && key != "computeBackend" && key != "maxTimeMs" && key != "unitContract") || len(values) != 1 {
 			sendError(w, "Invalid calculation options", 400)
 			return true
 		}
 	}
 	group, method := query.Get("modelGroup"), query.Get("method")
+	unitContract, unitErr := calculationUnitContractOption(query)
+	if unitErr != nil {
+		sendError(w, "Invalid input unit contract", 400)
+		return true
+	}
 	backend, backendErr := calculationBackendOption(query)
 	if backendErr != nil {
 		sendError(w, "Invalid compute backend", 400)
@@ -92,6 +97,9 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		return true
 	}
 	workerInput := map[string]any{"components": input.Components, "connections": input.Connections, "modelGroup": group, "method": method}
+	if unitContract != nil {
+		workerInput["unitContract"] = unitContract
+	}
 	if backend != "" {
 		workerInput["computeBackend"] = backend
 	}
@@ -131,6 +139,10 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 	}
 	proxyComputeResult(w, r, handler.workerURL, "/calculate", payload, func(status int, result []byte) bool {
 		if !allowed() {
+			return false
+		}
+		if status >= 200 && status < 300 && !confirmsRequestedUnitContract(payload, result) {
+			sendError(w, "Worker did not confirm requested input unit contract", 502)
 			return false
 		}
 		if status >= 200 && status < 300 && !confirmsCalculationLimits(result, limits) {

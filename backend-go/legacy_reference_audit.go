@@ -8,10 +8,8 @@ import (
 	"github.com/lib/pq"
 )
 
-// Fixed legacy relationships only: no claim about external files, arbitrary
-// extension tables or modern authorization. NULL is reported separately from
-// a non-NULL reference whose target is absent.
-func auditLegacyReferences(ctx context.Context, tx *sql.Tx, schema string) (map[string]*int64, error) {
+// Inspect only physical tables in the exact requested schema.
+func legacyAuditColumns(ctx context.Context, tx *sql.Tx, schema string) (map[string]bool, error) {
 	columns := map[string]bool{}
 	rows, err := tx.QueryContext(ctx, `SELECT c.table_name,c.column_name FROM information_schema.columns c
 		JOIN pg_namespace n ON n.nspname=c.table_schema JOIN pg_class t ON t.relnamespace=n.oid AND t.relname=c.table_name
@@ -29,6 +27,15 @@ func auditLegacyReferences(ctx context.Context, tx *sql.Tx, schema string) (map[
 	}
 	err = rows.Err()
 	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	return columns, nil
+}
+
+// Fixed legacy relationships only: NULL and absent targets are separate checks.
+func auditLegacyReferences(ctx context.Context, tx *sql.Tx, schema string) (map[string]*int64, error) {
+	columns, err := legacyAuditColumns(ctx, tx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +90,13 @@ func auditLegacyReferences(ctx context.Context, tx *sql.Tx, schema string) (map[
 		{"branchResults.fromSchemeMismatch", "calculation_branch_results", "from_component_id", "scheme_components"},
 		{"branchResults.toSchemeMismatch", "calculation_branch_results", "to_component_id", "scheme_components"},
 	} {
-		if err := check(r.code, `SELECT count(*) FROM `+qualified(r.result)+` r JOIN `+qualified("calculation_results")+` c ON c.id=r.calculation_id JOIN `+qualified(r.target)+` t ON t.id=r.`+pq.QuoteIdentifier(r.targetColumn)+` WHERE c.scheme_id<>t.scheme_id`,
+		if err := check(r.code, `SELECT count(*) FROM `+qualified(r.result)+` r WHERE EXISTS (SELECT 1 FROM `+qualified("calculation_results")+` c JOIN `+qualified(r.target)+` t ON t.id=r.`+pq.QuoteIdentifier(r.targetColumn)+` WHERE c.id=r.calculation_id AND c.scheme_id<>t.scheme_id)`,
 			r.result+".calculation_id", r.result+"."+r.targetColumn, "calculation_results.id", "calculation_results.scheme_id", r.target+".id", r.target+".scheme_id"); err != nil {
 			return nil, err
 		}
 	}
 	for _, column := range []string{"from_component_id", "to_component_id"} {
-		if err := check("scheme_connections."+column+".schemeMismatch", `SELECT count(*) FROM `+qualified("scheme_connections")+` c JOIN `+qualified("scheme_components")+` t ON t.id=c.`+pq.QuoteIdentifier(column)+` WHERE c.scheme_id<>t.scheme_id`,
+		if err := check("scheme_connections."+column+".schemeMismatch", `SELECT count(*) FROM `+qualified("scheme_connections")+` c WHERE EXISTS (SELECT 1 FROM `+qualified("scheme_components")+` t WHERE t.id=c.`+pq.QuoteIdentifier(column)+` AND c.scheme_id<>t.scheme_id)`,
 			"scheme_connections."+column, "scheme_connections.scheme_id", "scheme_components.id", "scheme_components.scheme_id"); err != nil {
 			return nil, err
 		}

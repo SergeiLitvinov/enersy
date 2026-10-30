@@ -294,9 +294,15 @@ func executeLegacyOwnerMap(ctx context.Context, db *sql.DB, url string, plan leg
 func checkLegacyOwnerBindings(before legacyOwnerInventory, plan legacyOwnerMap) error {
 	users, schemes := map[string]bool{}, map[string]legacyOwnerRow{}
 	for _, row := range before.Users {
+		if users[row.ID] {
+			return fmt.Errorf("legacy owner inventory has duplicate legacy user IDs")
+		}
 		users[row.ID] = true
 	}
 	for _, row := range before.Schemes {
+		if _, exists := schemes[row.ID]; exists {
+			return fmt.Errorf("legacy owner inventory has duplicate legacy scheme IDs")
+		}
 		schemes[row.ID] = row
 	}
 	for i, c := range plan.Changes {

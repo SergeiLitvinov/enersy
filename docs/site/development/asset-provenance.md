@@ -296,3 +296,82 @@ python -B scripts/security/update-julia-notices.py \
 Maintenance теперь передаёт конфигурацию в `collect_julia_licenses.jl --facts CONFIG`. Для офлайн `--facts FILE` требуется снимок с теми же reviewed bindings, библиотечными и архивными SHA; старые raw-факты без привязки, дубли и несовпадения отклоняются до download/перезаписи индекса. Режим Julia `--facts` без CONFIG остаётся инструментом исследования: выбор по умолчанию в таком снимке не служит доказательством установленного варианта. При ошибке subprocess оператор получает stderr SDK-проверки вместо одной общей строки exit status.
 
 Проверено в Docker: 81 утверждение Julia, 8 Python maintenance-тестов, реальный сбор SDK и ещё 7 проверок отдельного платформенного индекса с привязкой. В реальном отчёте — 38 sameBytes / 0 differentBytes, одна `appliedArtifactPlatformBindings` для LLVM и одна оставшаяся `artifactSelectionDiagnostics` для LLD. Число package-notice пробелов осталось 11 из 33 пакетов. Совпадение 38 пар не является проверкой всех SDK-исполняемых файлов, всех исходников LLVM, лицензий ОС или других платформ; LLD и MozillaCACerts остаются отдельными задачами. BASE-08 не закрыт.
+
+### Исполняемый LLD: охват отчёта и расхождение упаковки {#lld-executable-coverage}
+
+Сбор фактов теперь отдельно возвращает `executables`, итоговый инвентарь — `sdkExecutables` и `sdkExecutableCoverage`. Проверяются только существующие SDK-пути LLD (`libexec/julia`, `tools`, `bin`, включая `.exe`); системный PATH не просматривается. Файлы читаются для SHA-256 и размера, но не запускаются. Ссылка за пределы SDK, повреждённая ссылка или каталог вместо файла завершают сбор ошибкой. Ссылки внутри SDK сохраняют путь продукта, чтобы alias не скрывал проверяемую точку входа. Это ограниченный охват LLD, а не перечень всех исполняемых файлов Julia/ОС.
+
+Статусы `not_compared`, `byte_identical`, `different_bytes` относятся к comparisons действующего reviewed-индекса и точному SHA установленного файла. Отсутствие comparison явно остаётся пробелом; старый comparison с другим SDK SHA не доказывает происхождение нового файла. Maintenance умеет сравнивать такие продукты с регулярными файлами объявленного архива, не извлекая и не выполняя бинарники. Для совместимости они сохраняются в существующем поле `libraryComparisons`; `sdkLibraries` и прежний счётчик 38 сравнений не смешиваются с неподтверждённым охватом исполняемых файлов.
+
+Для текущего amd64 SDK выполнена отдельная статическая проверка:
+
+| Файл | Размер, байт | SHA-256 |
+| --- | ---: | --- |
+| SDK `libexec/julia/lld` | 7515760 | `ea38ae21454bd2fe3b6585bdf7ceb561f8dbdf0ee7369f3559d462cc4034dd58` |
+| `tools/lld` обычного `llvm_version=20` архива | 7511664 | `e77fae23ddbc6dfcf2a1a79ff8cbf61138ec95ed7ae95bb493c30a85bd2aedfc` |
+| `tools/lld` выбранного по умолчанию `20.asserts` архива | 8411600 | `a81f3c1f683258a6d05d9616c568b5a7997a58db2b35ddb532e3a3bd5670379f` |
+
+Обычный архив взят по URL/SHA из `LLD_jll/StdlibArtifacts.toml`: `LLD.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz`, SHA-256 `96052dfa6bfbc41930fac40b163fa47558819f7ba8ab2feed962f7e8f0743081`. Оба исследованных архива проверены по объявленной контрольной сумме. У SDK и обычного артефакта совпадают build ID `12b4cbeec24b1ed58ffa477d791125dfafc19b34`, содержимое `.text` (4893985 байт, SHA-256 `f49067f5217afed6f04811c5a1250a6f0cc8c3400c7d54f9c1a716eac53feed1`) и `.rodata` (193824 байт, SHA-256 `944d11fdddc3b87e0d4f3a2ac2460f454dcec04ce7aafa641daa39b99b8b76bd`). Различаются `.dynamic`, `.dynstr`, `.symtab`; остальные секции совпадают по размеру, типу, флагам и содержимому. GNU readelf показывает в архиве `RPATH=$ORIGIN/../lib`, в SDK — `RUNPATH=$ORIGIN/../../lib/julia`.
+
+Это свидетельство согласуется с перепаковкой обычного варианта с изменением ELF-путей. Само по себе оно **не доказывает** полную цепочку сборки или побайтовую тождественность: build ID после редактирования ELF может сохраниться. LLD-binding с требованием `sameBytes` не добавлен, файл SDK не изменён. В действующем reviewed-индексе LLD остаётся без executable comparison; реальный отчёт теперь явно показывает `not_compared`, а прежняя диагностика неуказанного `llvm_version` сохраняется. Дальнейшее воспроизведение преобразования приведено ниже; включение его доказательств в reviewed-индекс требует отдельного контракта и не должно ослаблять LLVM-проверку.
+
+Проверено в Docker: 95 утверждений Julia и 9 Python maintenance-тестов; реальный инвентарь получил указанные SHA/размер LLD и `not_compared`, сохранив 38 sameBytes / 0 differentBytes и 11 неполных package-notice записей. Тесты проверяют чтение без исполнения, отказы для внешних/повреждённых ссылок и каталогов, различение отсутствующего, несовпадающего и устаревшего сравнения. BASE-08 остаётся открытым.
+
+### Воспроизводимая перепаковка LLD {#lld-repackaging-proof}
+
+В исходниках точного SDK-коммита Julia `45b6d15e34bbd2003a31acce0b1847b63dad029c` найдено объяснение изменения файла. [Makefile](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/Makefile#L558) включает LLD в `JL_PRIVATE_TOOLS`, копирует его в приватный libexec и задаёт путь к приватным библиотекам через patchelf. [Make.inc](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/Make.inc#L1322) использует `--set-rpath`; для amd64 нет дополнительного ARM64 page-size параметра. Обычный вариант LLD выбирается веткой `LLVM_ASSERTIONS=0` в [deps/llvm.mk](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/llvm.mk#L370). [Версия patchelf](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/patchelf.version) — 0.17.2; её архив проверяется по SHA-512 из [deps/checksums/patchelf](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/checksums/patchelf).
+
+Добавлен maintenance-инструмент `scripts/security/verify-julia-lld-packaging.py`. Он проверяет точные runtime/version/commit/triplet, UUID и metadata SHA LLD_jll, SHA/размер установленного LLD, объявление ordinary-архива в фактическом `StdlibArtifacts.toml`, SHA архива и его регулярного `tools/lld`. После проверки исходников patchelf по закреплённому SHA-512 он собирает инструмент в одноразовом Docker-контейнере без сети и выполняет на **копии** артефакта:
+
+```sh
+patchelf --set-rpath '$ORIGIN/../../lib/julia' lld
+```
+
+Получено точное совпадение результата с установленным SDK: 7515760 байт, SHA-256 `ea38ae21454bd2fe3b6585bdf7ceb561f8dbdf0ee7369f3559d462cc4034dd58`. Это воспроизведение полных байтов файла, а не только сравнение секций ELF/build ID. Исходный архивный `tools/lld` по-прежнему имеет другой SHA, и `sameBytes` для исходного файла нельзя менять на true. JSON-отчёт отдельно фиксирует `sameBytesAfterRepackaging`, входной/выходной SHA, операцию, источник инструмента и content-addressed ID фактически использованных SDK/builder-образов. Перед запуском теги образов разрешаются в ID; контекст сборки приложения и сам SDK не изменяются.
+
+Из корня проекта, после подготовки Docker:
+
+```sh
+docker compose --profile numerics-check build numerics-check
+docker compose build julia-compute
+mkdir -p .cache
+python -B scripts/security/verify-julia-lld-packaging.py > .cache/lld-packaging-verification.json
+```
+
+Python 3.12+ нужен только для сопровождения; приложение запускается через Docker/Compose. При первой проверке инструмент загружает два закреплённых архива в `.cache/julia-license-artifacts`, последующие используют проверяемый кэш. Компилятор работает внутри существующего `enersy-numerics-check`, с лимитами 2 CPU / 1 GiB / 300 секунд, временные файлы удаляются после проверки. Сам LLD не исполняется; запускается только собранный patchelf. Для другой платформы/SDK/метаданных/байтов требуется новый разбор, автоматического переноса подтверждения нет.
+
+Проверка выполнена на реальных Docker-образах, итоговый SHA совпал. Набор maintenance-тестов на этом этапе расширен до 13 методов и прошёл в Docker, включая отказы при смене SDK, metadata, архива, типа файла, повторном архивном продукте, неверном результате и symlink. Первоначально эта проверка запускалась отдельно и release-инвентарь сохранял `not_compared` для LLD. Последующее включение доказательства в отчёт сборки описано ниже.
+
+### LLD в проверяемом индексе и отчёте сборки {#lld-reviewed-binding}
+
+В `julia-notice-sources.json` добавлена отдельная LLD-привязка к тому же точному amd64 SDK, UUID/версии/metadata SHA, отсутствующему `llvm_version=20`, обычному архиву `96052dfa…` и фактическому SDK SHA `ea38ae21…`. Её `repackagingProof` указывает на `packaging/lld-julia-1.13.2-linux-amd64.json` в корне notice-источников, SHA-256 `1b56bee1fecd191d2fd3c7695586a2c5b46812c702b10a5efdf06c7cecfec853`. JSON получен реальным воспроизведением выше и хранится отдельно от текстов лицензий. SHA-256 обновлённого корневого индекса — `429e2b511adaf4192c998205b5f8d40bb46463435dfbda419f2f355e105ed5fb`.
+
+Сборщик проверяет checksum, размер и замкнутую схему доказательства; runtime, пути и SHA связываются с текущими SDK-фактами и artifact comparison. Сейчас допускается только описанное преобразование LLD с patchelf 0.17.2 и точным `--set-rpath`. Для любого другого продукта, инструмента или операции требуется отдельная реализация/проверка. Прямые привязки, включая LLVM, по-прежнему требуют побайтового совпадения. Удаление LLD-доказательства не превращает несовпадение в допустимое прямое сравнение.
+
+Итоговый отчёт содержит `reviewedRepackagingProofs` с источником, SHA и содержимым подтверждения, а `sdkExecutableCoverage` помечает LLD как `reviewed_repackaging`. Сырой comparison сохраняет **sameBytes=false**: 39 сравнений, 38 sameBytes / 1 differentBytes. Единственное различие объяснено отдельным доказательством, а не вычтено из счётчика. Неразрешённых variant-тегов в `artifactSelectionDiagnostics` для текущего SDK нет; активны две точные привязки (LLVM и LLD). Неполнота package notices осталась прежней: 11 из 33 пакетов.
+
+Maintenance проверяет доказательство до загрузок и записи индекса, затем требует совпадения фактического SHA архивного продукта с исходным SHA доказательства. Конечная Docker-сборка повторно проверяет сохранённое подтверждение, текущий SDK и записанные comparisons. Она не компилирует patchelf при каждом build: воспроизведение выполняется отдельной maintenance-командой и при новом SDK/преобразовании требует повторного разбора. ID образов в подтверждении описывают исходный проверенный прогон; последующие образы связываются с ним через точные байты SDK-файла, а не через совпадение изменяемого тега.
+
+Проверены реальный сбор SDK, 126 утверждений Julia и 14 Python maintenance-тестов в Docker. Они включают подмену доказательства/выходного SHA/metadata/операции, отсутствие исходного comparison, смену пути/URL, неверную отметку sameBytes, изменённую длину SDK и отказ до download. Сам SDK и численные алгоритмы не изменялись. Проверка относится к LLD текущего Linux amd64 SDK; последующее подтверждение MozillaCACerts описано ниже, stdlib-атрибуция, другие платформы и прочие пункты BASE-08 остаются открытыми.
+
+### Встроенный набор Mozilla CA и MPL 2.0 {#mozilla-ca-data-source}
+
+`MozillaCACerts_jll` в SDK Julia 1.13.2 — stub версии `2026.08.13`, UUID `14a3606d-f60d-562e-9121-12d972cd8159`. Он указывает на встроенный `share/julia/cert.pem`; `StdlibArtifacts.toml` у него отсутствует. [Рецепт Julia](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/libgit2.mk#L107) копирует датированный PEM из curl, проверяя его checksum; [версия](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/libgit2.version) и [SHA-512](https://github.com/JuliaLang/julia/blob/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/checksums/cacert-2026-08-13.pem/sha512) закреплены тем же SDK-коммитом.
+
+Встроенный PEM побайтно сопоставлен с `share/cacert.pem` из upstream-архива `MozillaCACerts.v2026.8.13.any.tar.gz`, выбранного по [Artifacts.toml коммита 06fc762](https://github.com/JuliaBinaryWrappers/MozillaCACerts_jll.jl/blob/06fc76288b6a900849623937359b2549772de748/Artifacts.toml). Это отдельно проверенный внешний источник, а не вымышленное SDK-описание артефакта. [curl указывает MPL 2.0](https://curl.se/docs/caextract.html#license) для преобразованного PEM; полный оригинальный `share/licenses/MozillaCACerts/MPL2` из того же архива сохранён и включён в словарь уведомлений отчёта.
+
+| Проверяемый объект | Значение |
+| --- | --- |
+| PEM в SDK и архиве | 188900 байт |
+| SHA-256 PEM | `f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9` |
+| SHA-256 архива | `a8d0b666170c0d0da90c0dc347d959ca88172f32b5e59617fd760899dfd77be0` |
+| SHA-256 полного MPL2 | `1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5` |
+| SHA-256 reviewed data-record | `5593a454c527f42f14bfb495ba91ab1f2178ec7eb7b18c4dc8bb9e10c0d99f83` |
+
+Конфигурация `sdkDataSources` связывает data-record с точным runtime triplet. Факты SDK содержат `dataProducts`: UUID/версию компонента, SHA его `Project.toml` и stub, путь, размер и SHA-256/SHA-512 данных. Сборщик читает файлы и не импортирует stub. В reviewed-записи сохранены внешний commit/metadata, Git blob идентичности, объявленные архив/tree SHA, исходный checksum Julia, сравнение продуктов и полное лицензионное уведомление. Source metadata/checksum-файлы сохраняются отдельно от текстов лицензий; сеть при проверке конечной сборки не нужна.
+
+Новые поля итогового отчёта — `sdkDataProducts` и `reviewedSdkDataSources`. В raw `sdkNoticeGaps` MozillaCACerts по-прежнему имеет `no_artifact_metadata`, но дополнен `reviewedDataSource=true`. Поэтому отсутствие SDK-метаданных не маскируется и не приравнивается к отсутствию проверенного внешнего источника. Сравнение данных учитывается отдельно от 39 бинарных comparisons LLVM/LLD и прочих библиотек. Набор содержит прежние 33 locked-пакета и 11 неполных package-notice записей: MozillaCACerts здесь относится к дополнительному составу SDK, а не добавляется фиктивно в Manifest.
+
+SHA-256 текущего корневого индекса — `727676a0b18422b98016a1480ee175a489ecc5eb929abac16a308f5720c7201c`; `429e2b51…` выше относится к этапу LLD до добавления CA-ссылки. Maintenance сверяет data-record и файлы до загрузок/записи индекса; Docker-сборка повторяет проверку реальных SDK-байтов и уведомлений. Повреждённая лицензия, Git blob/checksum, иной runtime/stub, продукт/размер, пустой либо неподдержанный источник блокируют отчёт. Другой SDK/platform не наследует подтверждение автоматически.
+
+В Docker прошли 168 утверждений Julia и 15 Python maintenance-тестов, а реальный SDK-инвентарь подтвердил один data-source с MPL 2.0 и совпадающими SHA-256/SHA-512. Эти проверки подтверждают происхождение встроенного файла и включение уведомления. Они не обновляют системное или Julia-хранилище доверия, не проверяют актуальность/доверенность сертификатов и не определяют эффективный CA-path при переопределениях окружения. Общая совместимость лицензий, атрибуция остальных компонентов и BASE-08 остаются открытыми.

@@ -1,0 +1,42 @@
+{
+  "formatVersion": 1,
+  "scope": "julia-sdk-reviewed-data-source",
+  "originKind": "reviewed-upstream-jll",
+  "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+  "juliaVersion": "1.13.2",
+  "juliaCommit": "45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "componentName": "MozillaCACerts_jll",
+  "componentUUID": "14a3606d-f60d-562e-9121-12d972cd8159",
+  "componentVersion": "2026.08.13",
+  "projectSha256": "30e24d5cdafcfad4bae5cc159981233865d9bd41092a99bc20703712a7ee94b3",
+  "sdkBytes": 188900,
+  "sdkFile": "share/julia/cert.pem",
+  "sdkSha256": "f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9",
+  "sdkSha512": "5d9a91833fddac0f48bad1167d46dbcd882c43dc8ed1aba675b70aa444f8cbe74ae002c357b71a1d9771c60a0c01122c3531039da910a0242c50c9bad1b7b7e0",
+  "stubSha256": "5ac550c92529101bf5b099b68f845923510a511429ba1f3841b66d53f630b5e3",
+  "archiveUrl": "https://github.com/JuliaBinaryWrappers/MozillaCACerts_jll.jl/releases/download/MozillaCACerts-v2026.8.13+0/MozillaCACerts.v2026.8.13.any.tar.gz",
+  "archiveSha256": "a8d0b666170c0d0da90c0dc347d959ca88172f32b5e59617fd760899dfd77be0",
+  "archiveBytes": 114430,
+  "artifactFile": "share/cacert.pem",
+  "artifactSha256": "f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9",
+  "artifactSha512": "5d9a91833fddac0f48bad1167d46dbcd882c43dc8ed1aba675b70aa444f8cbe74ae002c357b71a1d9771c60a0c01122c3531039da910a0242c50c9bad1b7b7e0",
+  "artifactBytes": 188900,
+  "metadataFile": "data/mozilla-cacerts-2026-08-13/Artifacts.toml",
+  "metadataUrl": "https://raw.githubusercontent.com/JuliaBinaryWrappers/MozillaCACerts_jll.jl/06fc76288b6a900849623937359b2549772de748/Artifacts.toml",
+  "metadataSha256": "88fc1179adadc90c8fda3b08ce2ac753548f1c6e481f69c0567a2d2f41d5f3d7",
+  "metadataGitBlobSha1": "e696032188db684244d272639030b15f5382240a",
+  "artifactTreeSha1": "309f8b4916803ad070d215273d39eef1b6ca4440",
+  "checksumFile": "data/mozilla-cacerts-2026-08-13/sha512.txt",
+  "checksumUrl": "https://raw.githubusercontent.com/JuliaLang/julia/45b6d15e34bbd2003a31acce0b1847b63dad029c/deps/checksums/cacert-2026-08-13.pem/sha512",
+  "checksumSha256": "092abb70bdda23c222b5b3f2f73042bd1acb3fa16f974b277cfbe1e897f7fc03",
+  "checksumGitBlobSha1": "0516413b9c8213543c056be910a1197753c6ad17",
+  "licenseExpression": "MPL-2.0",
+  "noticeFiles": [
+    {
+      "archivePath": "share/licenses/MozillaCACerts/MPL2",
+      "file": "artifacts/a8d0b666170c0d0da90c0dc347d959ca88172f32b5e59617fd760899dfd77be0/share/licenses/MozillaCACerts/MPL2",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "bytes": 16725
+    }
+  ]
+}

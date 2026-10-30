@@ -11,7 +11,194 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/lib/pq"
 )
+
+func TestCatalogMapIdentityGatePostgres(t *testing.T) {
+	database := migrationTestDatabase(t)
+	tables := []string{"component_types", "equipment_models", "circuit_schemes", "scheme_components"}
+	for _, table := range tables {
+		if _, err := database.Exec(`CREATE TABLE ` + pq.QuoteIdentifier(table) + `(id int); INSERT INTO ` + pq.QuoteIdentifier(table) + ` VALUES(-7),(1)`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Unrelated legacy data must not change the scope of this map's gate.
+	if _, err := database.Exec(`CREATE TABLE users(id json); INSERT INTO users VALUES('{"private":"unrelated"}')`); err != nil {
+		t.Fatal(err)
+	}
+	var schema string
+	if err := database.QueryRow(`SELECT current_schema()`).Scan(&schema); err != nil {
+		t.Fatal(err)
+	}
+	check := func(target string) error {
+		tx, err := beginReadOnlyAudit(context.Background(), database)
+		if err != nil {
+			return err
+		}
+		defer rollbackTx(tx)
+		return checkCatalogMapIdentities(context.Background(), tx, target)
+	}
+	if err := check(schema); err != nil {
+		t.Fatal("unique legacy IDs rejected", err)
+	}
+	if err := check("absent_catalog_identity_schema"); err == nil {
+		t.Fatal("borrowed identity tables from search_path")
+	}
+	for _, table := range tables {
+		t.Run(table, func(t *testing.T) {
+			quoted := pq.QuoteIdentifier(table)
+			exec := func(query string) {
+				t.Helper()
+				if _, err := database.Exec(query); err != nil {
+					t.Fatal(err)
+				}
+			}
+			exec(`INSERT INTO ` + quoted + ` VALUES(NULL)`)
+			if err := check(schema); err == nil {
+				t.Fatal("NULL ID accepted")
+			}
+			exec(`DELETE FROM ` + quoted + ` WHERE id IS NULL`)
+			exec(`INSERT INTO ` + quoted + ` VALUES(1)`)
+			if err := check(schema); err == nil {
+				t.Fatal("duplicate ID accepted")
+			}
+			exec(`DELETE FROM ` + quoted + ` WHERE id=1; INSERT INTO ` + quoted + ` VALUES(1)`)
+			exec(`ALTER TABLE ` + quoted + ` RENAME COLUMN id TO missing_id`)
+			if err := check(schema); err == nil {
+				t.Fatal("missing ID column accepted")
+			}
+			exec(`ALTER TABLE ` + quoted + ` RENAME COLUMN missing_id TO id`)
+			exec(`ALTER TABLE ` + quoted + ` RENAME TO missing_identity_fixture`)
+			if err := check(schema); err == nil {
+				t.Fatal("missing identity table accepted")
+			}
+			exec(`ALTER TABLE missing_identity_fixture RENAME TO ` + quoted)
+			if err := check(schema); err != nil {
+				t.Fatal("restored identity rejected", err)
+			}
+		})
+	}
+}
+
+func TestCatalogMapDuplicateTargetIdentityPostgres(t *testing.T) {
+	database, url, path, plan := catalogMapFixture(t)
+	if _, err := database.Exec(`ALTER TABLE equipment_models DROP CONSTRAINT equipment_models_pkey CASCADE;
+DROP INDEX equipment_models_id_type_idx CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO equipment_models(id,component_type_id,model_name,manufacturer,description)
+SELECT id,component_type_id,'Ambiguous target ID fixture',manufacturer,description FROM equipment_models WHERE id=$1`, plan.Changes[0].ToModelID); err != nil {
+		t.Fatal(err)
+	}
+	report, err := auditCatalog(context.Background(), database, url, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan.SnapshotSHA256 = report.SnapshotSHA256
+	for _, apply := range []bool{false, true} {
+		if _, err := executeCatalogMap(context.Background(), database, url, path, plan, apply); err == nil || !strings.Contains(err.Error(), "unique IDs") {
+			t.Fatal("catalog map must reject an ambiguous target model ID with a fresh snapshot", apply, err)
+		}
+	}
+	var model, revision string
+	if err := database.QueryRow(`SELECT equipment_model_id::text,revision::text FROM scheme_components WHERE id=90001`).Scan(&model, &revision); err != nil || model != plan.Changes[0].FromModelID || revision != plan.Changes[0].ExpectedRevision {
+		t.Fatal("rejected ambiguous map changed binding or revision", model, revision, err)
+	}
+}
+
+func TestCatalogMapMissingParentsPostgres(t *testing.T) {
+	for parent, setup := range map[string]string{
+		"scheme": `ALTER TABLE scheme_components DROP CONSTRAINT scheme_components_scheme_id_fkey; DELETE FROM circuit_schemes WHERE id=90001`,
+		"type": `ALTER TABLE component_types DROP CONSTRAINT component_types_pkey CASCADE;
+DELETE FROM component_types WHERE id=(SELECT component_type_id FROM scheme_components WHERE id=90001)`,
+	} {
+		t.Run(parent, func(t *testing.T) {
+			database, url, path, plan := catalogMapFixture(t)
+			if _, err := database.Exec(setup); err != nil {
+				t.Fatal(err)
+			}
+			report, err := auditCatalog(context.Background(), database, url, path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan.SnapshotSHA256 = report.SnapshotSHA256
+			for _, apply := range []bool{false, true} {
+				if _, err := executeCatalogMap(context.Background(), database, url, path, plan, apply); err == nil {
+					t.Fatal("catalog map accepted a component with a missing parent", parent, apply)
+				}
+			}
+			if binary := os.Getenv("TEST_OPERATOR_BINARY"); binary != "" {
+				body, err := json.Marshal(plan)
+				if err != nil {
+					t.Fatal(err)
+				}
+				baseline, err := filepath.Abs(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, flag := range []string{"-check-catalog-map", "-apply-catalog-map"} {
+					cmd := exec.Command(binary, flag)
+					cmd.Env = append(os.Environ(), "PGOPTIONS=-c search_path="+plan.Schema, "MIGRATIONS_SOURCE="+url, "CATALOG_BASELINE_SOURCE="+baseline)
+					cmd.Stdin = bytes.NewReader(body)
+					var output, diagnostic bytes.Buffer
+					cmd.Stdout, cmd.Stderr = &output, &diagnostic
+					if err := cmd.Run(); err == nil || output.Len() != 0 {
+						t.Fatal("orphan parent emitted a successful CLI report", parent, flag, err, output.String())
+					}
+				}
+			}
+			var model, revision, value string
+			if err := database.QueryRow(`SELECT c.equipment_model_id::text,c.revision::text,p.param_value FROM scheme_components c
+JOIN scheme_component_params p ON p.scheme_component_id=c.id WHERE c.id=90001 AND p.param_key='p'`).Scan(&model, &revision, &value); err != nil ||
+				model != plan.Changes[0].FromModelID || revision != plan.Changes[0].ExpectedRevision || value != "10.500" {
+				t.Fatal("rejected orphan map changed source component", model, revision, value, err)
+			}
+		})
+	}
+}
+
+func TestCatalogMapOrphanParentRejectsWholeBatchPostgres(t *testing.T) {
+	database, url, path, plan := catalogMapFixture(t)
+	if _, err := database.Exec(`INSERT INTO circuit_schemes(id,name) VALUES(90002,'Disposable orphan batch fixture');
+INSERT INTO scheme_components(id,scheme_id,component_type_id,equipment_model_id)
+SELECT 90002,90002,component_type_id,equipment_model_id FROM scheme_components WHERE id=90001;
+INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES(90002,'p','20.125');
+ALTER TABLE scheme_components DROP CONSTRAINT scheme_components_scheme_id_fkey;
+DELETE FROM circuit_schemes WHERE id=90002`); err != nil {
+		t.Fatal(err)
+	}
+	second := plan.Changes[0]
+	second.ComponentID, second.SchemeID = "90002", "90002"
+	if err := database.QueryRow(`SELECT revision::text FROM scheme_components WHERE id=90002`).Scan(&second.ExpectedRevision); err != nil {
+		t.Fatal(err)
+	}
+	plan.Changes = append(plan.Changes, second)
+	report, err := auditCatalog(context.Background(), database, url, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan.SnapshotSHA256 = report.SnapshotSHA256
+	fingerprint := func() string {
+		t.Helper()
+		var value string
+		if err := database.QueryRow(`SELECT jsonb_build_object(
+'components',(SELECT jsonb_agg(to_jsonb(c) ORDER BY id) FROM scheme_components c),
+'params',(SELECT jsonb_agg(to_jsonb(p) ORDER BY id) FROM scheme_component_params p))::text`).Scan(&value); err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	before := fingerprint()
+	for _, apply := range []bool{false, true} {
+		if _, err := executeCatalogMap(context.Background(), database, url, path, plan, apply); err == nil {
+			t.Fatal("orphaned second change allowed batch", apply)
+		}
+		if after := fingerprint(); after != before {
+			t.Fatal("rejected batch changed valid or orphaned component")
+		}
+	}
+}
 
 func TestCatalogMapCLIPostgres(t *testing.T) {
 	binary := os.Getenv("TEST_OPERATOR_BINARY")

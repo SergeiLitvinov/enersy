@@ -31,13 +31,14 @@ type studyDocument struct {
 	Base           studyBase              `json:"base"`
 	Solver         studySolverOptions     `json:"solverOptions"`
 	Limits         []terminalVoltageLimit `json:"operatingLimits"`
+	UnitContract   *inputUnitContract     `json:"unitContract,omitempty"`
 }
 
 func positiveStudyNumber(value float64) bool {
 	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 func validateStudyDocument(doc studyDocument) error {
-	if doc.FormatVersion != 1 || !passportText(doc.Name, 200, true) || doc.ModelGroup != "three-phase" || doc.Method != "newton-raphson" ||
+	if !validInputUnitContract(doc.UnitContract) || doc.FormatVersion != 1 || !passportText(doc.Name, 200, true) || doc.ModelGroup != "three-phase" || doc.Method != "newton-raphson" ||
 		(doc.ComputeBackend != "julia" && doc.ComputeBackend != "julia-rust-jacobian") || doc.MaxTimeMS < 1 || doc.MaxTimeMS > 20000 ||
 		!positiveStudyNumber(doc.Base.Power) || !positiveStudyNumber(doc.Base.Voltage) || !positiveStudyNumber(doc.Solver.Tolerance) ||
 		doc.Solver.MaxIterations < 1 || doc.Solver.MaxIterations > 1000 || doc.Limits == nil || len(doc.Limits) > 1000 {
@@ -56,10 +57,14 @@ func validateStudyDocument(doc studyDocument) error {
 }
 
 func studyWorkerInput(input calculationInput, doc studyDocument, id, revision string) ([]byte, error) {
-	return json.Marshal(map[string]any{
+	payload := map[string]any{
 		"components": input.Components, "connections": input.Connections, "modelGroup": doc.ModelGroup, "method": doc.Method,
 		"computeBackend": doc.ComputeBackend, "executionOptions": map[string]int64{"max_time_ms": doc.MaxTimeMS},
 		"base": doc.Base, "solverOptions": doc.Solver, "operatingLimits": doc.Limits,
 		"studyReference": map[string]any{"formatVersion": 1, "id": id, "revision": revision},
-	})
+	}
+	if doc.UnitContract != nil {
+		payload["unitContract"] = doc.UnitContract
+	}
+	return json.Marshal(payload)
 }
