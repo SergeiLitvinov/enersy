@@ -1,5 +1,5 @@
 {
-  "capturedUtc": "2026-10-26T15:56:10.866742+00:00",
+  "capturedUtc": "2026-10-30T04:44:40.006331+00:00",
   "components": [
     {
       "artifacts": [
@@ -151,7 +151,10 @@
             }
           ],
           "status": "notices_collected",
-          "treeSha1": "65fb9e0c03eb3e4f804a782a77cd73bdf35d89a3"
+          "treeSha1": "65fb9e0c03eb3e4f804a782a77cd73bdf35d89a3",
+          "unboundPlatformTags": {
+            "llvm_version": "20.asserts"
+          }
         }
       ],
       "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
@@ -752,14 +755,14 @@
     {
       "artifacts": [
         {
-          "archiveBytes": 131251821,
-          "archiveSha256": "da934f7f9cadc20771d174ad9876b0e63137dad17738240754fa5c0c2f7bad4c",
-          "archiveUrl": "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v20.1.8+2/libLLVM.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version+20.asserts.tar.gz",
+          "archiveBytes": 107675586,
+          "archiveSha256": "7fbae13f564f99afb9f8cc9ce8f95631f2eebf5f8bc84a225d4c441d7e245131",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v20.1.8+2/libLLVM.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
           "libraryComparisons": [
             {
               "archivePath": "lib/libLLVM.so.20.1jl",
-              "artifactSha256": "748a7b44e1b2d47ce2597cbacdcd7173e316e5e70dbd6b4e18b44f7cf1c8fc66",
-              "sameBytes": false,
+              "artifactSha256": "af9c893f4421a12015a7129fddc9410485b661178598aa5b8be3853e0a1720bc",
+              "sameBytes": true,
               "sdkFile": "lib/julia/libLLVM.so.20.1jl",
               "sdkSha256": "af9c893f4421a12015a7129fddc9410485b661178598aa5b8be3853e0a1720bc"
             }
@@ -769,12 +772,26 @@
             {
               "archivePath": "share/licenses/libLLVM/LICENSE.TXT",
               "bytes": 15141,
-              "file": "artifacts/da934f7f9cadc20771d174ad9876b0e63137dad17738240754fa5c0c2f7bad4c/share/licenses/libLLVM/LICENSE.TXT",
+              "file": "artifacts/7fbae13f564f99afb9f8cc9ce8f95631f2eebf5f8bc84a225d4c441d7e245131/share/licenses/libLLVM/LICENSE.TXT",
               "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
             }
           ],
+          "platformBinding": {
+            "archiveSha256": "7fbae13f564f99afb9f8cc9ce8f95631f2eebf5f8bc84a225d4c441d7e245131",
+            "artifact": "libLLVM",
+            "artifactFile": "lib/libLLVM.so.20.1jl",
+            "componentUUID": "8f36deef-c2a5-5394-99ed-8e07531fb29a",
+            "componentVersion": "20.1.8+2",
+            "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",
+            "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+            "sdkFile": "lib/julia/libLLVM.so.20.1jl",
+            "sdkSha256": "af9c893f4421a12015a7129fddc9410485b661178598aa5b8be3853e0a1720bc",
+            "tags": {
+              "llvm_version": "20"
+            }
+          },
           "status": "notices_collected",
-          "treeSha1": "6c63b2ee04d67d951fc0e27d6b581301b266904c"
+          "treeSha1": "137c0f1dfb6fd9e801c5c7166d3130a4f85847d8"
         }
       ],
       "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",

@@ -1,6 +1,20 @@
 {
   "juliaVersion": "1.13.2",
   "juliaCommit": "45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "artifactPlatformBindings": [
+    {
+      "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "componentUUID": "8f36deef-c2a5-5394-99ed-8e07531fb29a",
+      "componentVersion": "20.1.8+2",
+      "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",
+      "artifact": "libLLVM",
+      "tags": { "llvm_version": "20" },
+      "archiveSha256": "7fbae13f564f99afb9f8cc9ce8f95631f2eebf5f8bc84a225d4c441d7e245131",
+      "sdkFile": "lib/julia/libLLVM.so.20.1jl",
+      "artifactFile": "lib/libLLVM.so.20.1jl",
+      "sdkSha256": "af9c893f4421a12015a7129fddc9410485b661178598aa5b8be3853e0a1720bc"
+    }
+  ],
   "thirdParty": {
     "url": "https://raw.githubusercontent.com/JuliaLang/julia/45b6d15e34bbd2003a31acce0b1847b63dad029c/THIRDPARTY.md",
     "gitBlobSha1": "7e3e5c604c13890df513e69e7858e88ac1e0f4b4"

@@ -1,9 +1,12 @@
 import importlib.util
+import copy
 import io
+import json
 import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("notice_updater", Path(__file__).with_name("update-julia-notices.py"))
 UPDATER = importlib.util.module_from_spec(SPEC)
@@ -11,6 +14,99 @@ SPEC.loader.exec_module(UPDATER)
 
 
 class JuliaNoticeMaintenanceTests(unittest.TestCase):
+    def test_offline_facts_require_the_same_bound_sdk_and_archive(self):
+        binding = {"runtimePlatform": "x86_64-linux-gnu", "componentUUID": "demo", "componentVersion": "1.0.0",
+            "metadataSha256": "a" * 64, "artifact": "Demo", "sdkFile": "lib/demo.so", "sdkSha256": "b" * 64,
+            "archiveSha256": "c" * 64}
+        reviewed = {"artifactPlatformBindings": [binding]}
+        artifact = {"name": "Demo", "platformBinding": binding, "selected": {"download": [{"sha256": "c" * 64}]}}
+        component = {"uuid": "demo", "version": "1.0.0", "metadataSha256": "a" * 64, "artifacts": [artifact]}
+        facts = {"platform": "x86_64-linux-gnu", "components": [component], "libraries": [{"file": "lib/demo.so", "sha256": "b" * 64}]}
+        UPDATER.verify_fact_bindings(facts, reviewed)
+        for field in ("missing", "library", "archive", "metadata", "duplicate"):
+            bad = copy.deepcopy(facts)
+            if field == "missing":
+                del bad["components"][0]["artifacts"][0]["platformBinding"]
+            elif field == "library":
+                bad["libraries"][0]["sha256"] = "d" * 64
+            elif field == "archive":
+                bad["components"][0]["artifacts"][0]["selected"]["download"][0]["sha256"] = "d" * 64
+            elif field == "metadata":
+                bad["components"][0]["metadataSha256"] = "d" * 64
+            else:
+                bad["components"][0]["artifacts"].append(copy.deepcopy(artifact))
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                UPDATER.verify_fact_bindings(bad, reviewed)
+        with self.assertRaises(ValueError):
+            UPDATER.verify_fact_bindings(facts, {})
+        with self.assertRaises(ValueError):
+            UPDATER.verify_fact_bindings(facts, {"artifactPlatformBindings": [binding, binding]})
+
+    def test_refresh_scoped_index_preserves_default_and_checks_before_downloads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            security = repo / "scripts/security"
+            output = security / "julia-notices"
+            output.mkdir(parents=True)
+            original = b'{"platform":"x86_64-linux-gnu"}\n'
+            (output / "index.json").write_bytes(original)
+            text = b"Original third-party attribution\n"
+            upstream = repo / "upstream.md"
+            upstream.write_bytes(text)
+            reviewed = {"juliaVersion": "1.13.2", "juliaCommit": "a" * 40,
+                "thirdParty": {"url": "https://raw.githubusercontent.com/JuliaLang/julia/" + "a" * 40 + "/THIRDPARTY.md",
+                    "gitBlobSha1": UPDATER.git_blob_hash(text)}}
+            (security / "julia-notice-sources.json").write_text(json.dumps(reviewed), encoding="utf-8")
+            facts = {"formatVersion": 1, "scope": "julia-sdk-notice-facts", "juliaVersion": "1.13.2",
+                "juliaCommit": "a" * 40, "platform": "aarch64-linux-gnu", "components": [], "libraries": []}
+            with patch.object(UPDATER, "download", return_value=upstream) as download:
+                with self.assertRaisesRegex(ValueError, "another platform"):
+                    UPDATER.refresh(repo, facts)
+                download.assert_not_called()
+                scoped = output / "platforms/aarch64-linux-gnu/index.json"
+                scoped.parent.mkdir(parents=True)
+                private = repo / "private.json"
+                private.write_bytes(b"Do not overwrite an unrelated file")
+                scoped.with_suffix(".json.part").symlink_to(private)
+                result = UPDATER.refresh(repo, facts, scoped_index=True)
+            self.assertEqual((output / "index.json").read_bytes(), original)
+            self.assertEqual(json.loads((output / "platforms/aarch64-linux-gnu/index.json").read_text()), result)
+            self.assertEqual((output / "runtime/THIRDPARTY.md").read_bytes(), text)
+            self.assertEqual(private.read_bytes(), b"Do not overwrite an unrelated file")
+            self.assertFalse(list(output.rglob(".index-*.part")))
+
+    def test_platform_indexes_do_not_replace_another_reviewed_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = b'{"platform":"x86_64-linux-gnu"}\n'
+            (root / "index.json").write_bytes(original)
+            self.assertEqual(UPDATER.source_index_path(root, "x86_64-linux-gnu"), root / "index.json")
+            with self.assertRaisesRegex(ValueError, "another platform"):
+                UPDATER.source_index_path(root, "aarch64-linux-gnu")
+            scoped = UPDATER.source_index_path(root, "aarch64-linux-gnu", scoped=True)
+            self.assertEqual(scoped, root / "platforms/aarch64-linux-gnu/index.json")
+            self.assertEqual((root / "index.json").read_bytes(), original)
+            scoped.parent.mkdir(parents=True)
+            scoped.write_text(json.dumps({"platform": "wrong-platform"}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "another platform"):
+                UPDATER.source_index_path(root, "aarch64-linux-gnu", scoped=True)
+
+    def test_platform_triplets_and_escaping_index_paths_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as outside:
+            root = Path(temporary)
+            for platform in (None, "", "..", "NUL", "host", "../host-linux", "host/linux", "host\\linux", "host-linux\n", "host:linux", "host-linux.", "a-" + "b" * 200):
+                with self.subTest(platform=platform), self.assertRaisesRegex(ValueError, "triplet"):
+                    UPDATER.source_index_path(root, platform, scoped=True)
+            (root / "platforms").symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "escapes"):
+                UPDATER.source_index_path(root, "aarch64-linux-gnu", scoped=True)
+            (root / "platforms").unlink()
+            (root / "platforms").mkdir()
+            (root / "index.json").write_text(json.dumps({"platform": "x86_64-linux-gnu"}), encoding="utf-8")
+            (root / "platforms/x86_64-linux-gnu").symlink_to(root, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "aliases"):
+                UPDATER.source_index_path(root, "x86_64-linux-gnu", scoped=True)
+
     def archive(self, root, entries):
         file = root / "source.tar.gz"
         with tarfile.open(file, "w:gz") as output:

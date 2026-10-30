@@ -8,10 +8,24 @@ on:
 
 jobs:
   go:
-    name: Go API Gateway
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: amd64, machine: x86_64, label: 'Go API Gateway' }
+          - { runner: ubuntu-24.04-arm, arch: arm64, machine: aarch64, label: 'Go API Gateway (arm64)' }
     steps:
       - uses: actions/checkout@v4
+      - name: Verify native runner architecture
+        run: |
+          test "$(uname -m)" = '${{ matrix.machine }}'
+          case "$(docker info --format '{{.Architecture}}')" in
+            ${{ matrix.arch }}|${{ matrix.machine }}) ;;
+            *) echo 'Docker daemon architecture differs from the runner matrix' >&2; exit 1 ;;
+          esac
       - name: Create runner-owned cache directories before Docker bind mounts
         run: mkdir -p .cache/go-mod .cache/go-build
       - name: Prepare locked Go dependencies
@@ -26,7 +40,7 @@ jobs:
           docker compose run --rm --no-deps --entrypoint cat go-api /usr/share/licenses/enersy/go-modules.json > .cache/go-module-notices.json
       - uses: actions/upload-artifact@v4
         with:
-          name: go-module-notices
+          name: go-module-notices-${{ matrix.arch }}
           path: .cache/go-module-notices.json
           if-no-files-found: error
       - name: Start isolated PostgreSQL
@@ -54,10 +68,24 @@ jobs:
         run: docker compose -f tests/integration/go-compose.yml down
 
   rust:
-    name: Rust/WASM
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: amd64, machine: x86_64, label: 'Rust/WASM' }
+          - { runner: ubuntu-24.04-arm, arch: arm64, machine: aarch64, label: 'Rust/WASM (arm64)' }
     steps:
       - uses: actions/checkout@v4
+      - name: Verify native runner architecture
+        run: |
+          test "$(uname -m)" = '${{ matrix.machine }}'
+          case "$(docker info --format '{{.Architecture}}')" in
+            ${{ matrix.arch }}|${{ matrix.machine }}) ;;
+            *) echo 'Docker daemon architecture differs from the runner matrix' >&2; exit 1 ;;
+          esac
       - name: Native numerical kernel tests and lint
         run: docker compose --profile numerics-check run --rm --no-deps --build numerics-check
       - name: Locked WASM build, host tests and lint
@@ -68,7 +96,7 @@ jobs:
           docker compose --profile rust-wasm-check run --rm --no-deps --entrypoint cat rust-wasm-check /usr/share/licenses/enersy/rust-wasm.json > .cache/rust-wasm-notices.json
       - uses: actions/upload-artifact@v4
         with:
-          name: rust-wasm-notices
+          name: rust-wasm-notices-${{ matrix.arch }}
           path: .cache/rust-wasm-notices.json
           if-no-files-found: error
       - name: Exact Rust 1.85.0 minimum, native tests and WASM release
