@@ -40,11 +40,12 @@ type goModule struct {
 }
 
 type moduleNotice struct {
-	Path          string       `json:"path"`
-	Version       string       `json:"version"`
-	Sum           string       `json:"sum,omitempty"`
-	Files         []noticeFile `json:"noticeFiles"`
-	MissingNotice bool         `json:"missingNotice"`
+	Path          string                 `json:"path"`
+	Version       string                 `json:"version"`
+	Sum           string                 `json:"sum,omitempty"`
+	Files         []noticeFile           `json:"noticeFiles"`
+	Nested        *sourceNoticeInventory `json:"nestedSource,omitempty"`
+	MissingNotice bool                   `json:"missingNotice"`
 }
 
 type sourceNoticeInventory struct {
@@ -65,6 +66,7 @@ type goLicenseReport struct {
 	Modules       []moduleNotice        `json:"modules"`
 	Toolchain     moduleNotice          `json:"toolchain"`
 	SDKSource     sourceNoticeInventory `json:"sdkSource"`
+	SDKOther      sourceNoticeInventory `json:"sdkOther"`
 	Notices       map[string]string     `json:"notices"`
 	Limitations   []string              `json:"limitations"`
 }
@@ -137,21 +139,21 @@ func readNotice(root, relative string, notices map[string]string) (noticeFile, e
 	return noticeFile{Name: filepath.ToSlash(relative), SHA256: hash}, nil
 }
 
-// This inventories all SDK src notices, including build tools and test data.
-// It deliberately makes no claim that these files are linked into the binary.
-func collectSDKSourceNotices(directory string, notices map[string]string) (sourceNoticeInventory, error) {
-	r := sourceNoticeInventory{Scope: "all-go-sdk-src-notice-files", Files: []noticeFile{}}
+// Collect named notice files conservatively. The inventory includes build tools
+// and tests; it does not claim that every source is linked into the binary.
+func collectTreeNotices(directory, subtree, scope, excludedTopDirectory string, notices map[string]string) (sourceNoticeInventory, error) {
+	r := sourceNoticeInventory{Scope: scope, Files: []noticeFile{}}
 	root, err := filepath.EvalSymlinks(directory)
 	if err != nil {
 		return r, err
 	}
-	source := filepath.Join(root, "src")
-	info, err := os.Stat(source)
+	source := filepath.Join(root, subtree)
+	info, err := os.Lstat(source)
 	if err != nil {
 		return r, err
 	}
-	if !info.IsDir() {
-		return r, fmt.Errorf("SDK src is not a directory")
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return r, fmt.Errorf("notice source is not a plain directory")
 	}
 	err = filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -166,13 +168,22 @@ func collectSDKSourceNotices(directory string, notices map[string]string) (sourc
 			if err != nil {
 				return err
 			}
-			// WalkDir does not descend into directory links. Refuse rather
-			// than silently reporting a partial SDK source inventory.
+			// WalkDir does not descend into directory links. Refuse partial inventories.
 			if info.IsDir() || !inside(root, target) {
-				return fmt.Errorf("SDK source contains a directory link or escaping link")
+				return fmt.Errorf("notice tree contains a directory link or escaping link")
 			}
 		}
-		if entry.IsDir() || !noticeFileName.MatchString(entry.Name()) {
+		if entry.IsDir() {
+			if excludedTopDirectory != "" && path == filepath.Join(root, excludedTopDirectory) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// A whole-tree scan supplements root notices; do not collect them twice.
+		if subtree == "" && filepath.Dir(path) == root {
+			return nil
+		}
+		if !noticeFileName.MatchString(entry.Name()) {
 			return nil
 		}
 		relative, err := filepath.Rel(root, path)
@@ -187,6 +198,18 @@ func collectSDKSourceNotices(directory string, notices map[string]string) (sourc
 		return nil
 	})
 	return r, err
+}
+
+func collectSDKSourceNotices(directory string, notices map[string]string) (sourceNoticeInventory, error) {
+	return collectTreeNotices(directory, "src", "all-go-sdk-src-notice-files", "", notices)
+}
+
+func collectSDKOtherNotices(directory string, notices map[string]string) (sourceNoticeInventory, error) {
+	return collectTreeNotices(directory, "", "go-sdk-nested-notice-files-outside-src", "src", notices)
+}
+
+func collectModuleNestedNotices(directory string, notices map[string]string) (sourceNoticeInventory, error) {
+	return collectTreeNotices(directory, "", "all-selected-module-nested-notice-files", "", notices)
 }
 
 func validateModule(selected *debug.Module, metadata goModule, cache string) error {
@@ -221,11 +244,11 @@ func goOutput(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
-	r := goLicenseReport{FormatVersion: 2, Scope: "go-binary-module-notices", CapturedUTC: time.Now().UTC(), Modules: []moduleNotice{}, Notices: map[string]string{}, Limitations: []string{
-		"Module-level notices, not a source-file licensing or license compatibility decision",
+	r := goLicenseReport{FormatVersion: 3, Scope: "go-binary-module-notices", CapturedUTC: time.Now().UTC(), Modules: []moduleNotice{}, Notices: map[string]string{}, Limitations: []string{
+		"Named notice files, not a source-file licensing or license compatibility decision",
 		"SDK source notices include all src subdirectories, build tools and test data, not a list of code linked into the binary",
-		"Source-file embedded attributions, notices outside SDK src/root, license compatibility and operating-system packages require separate review",
-		"Only modules selected in this binary; plugins and other build variants require separate inventories",
+		"Source-file embedded attributions, notices with unrecognized names, embedded archives, license compatibility and operating-system packages require separate review",
+		"All nested notices of selected modules include tests and unused source, not a list of linked code; plugins and other build variants require separate inventories",
 	}}
 	info, err := buildinfo.ReadFile(binary)
 	if err != nil {
@@ -302,7 +325,11 @@ func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
 		if err != nil {
 			return r, fmt.Errorf("%s: %w", selected.Path, err)
 		}
-		r.Modules = append(r.Modules, moduleNotice{Path: selected.Path, Version: selected.Version, Sum: selected.Sum, Files: files, MissingNotice: len(files) == 0})
+		nested, err := collectModuleNestedNotices(metadata.Dir, r.Notices)
+		if err != nil {
+			return r, fmt.Errorf("%s: %w", selected.Path, err)
+		}
+		r.Modules = append(r.Modules, moduleNotice{Nested: &nested, Path: selected.Path, Version: selected.Version, Sum: selected.Sum, Files: files, MissingNotice: len(files) == 0})
 	}
 	sort.Slice(r.Modules, func(i, j int) bool { return r.Modules[i].Path < r.Modules[j].Path })
 	files, err := collectNotices(env["GOROOT"], r.Notices)
@@ -311,6 +338,10 @@ func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
 	}
 	r.Toolchain = moduleNotice{Path: "go", Version: info.GoVersion, Files: files, MissingNotice: len(files) == 0}
 	r.SDKSource, err = collectSDKSourceNotices(env["GOROOT"], r.Notices)
+	if err != nil {
+		return r, err
+	}
+	r.SDKOther, err = collectSDKOtherNotices(env["GOROOT"], r.Notices)
 	if err != nil {
 		return r, err
 	}

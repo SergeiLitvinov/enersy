@@ -48,6 +48,13 @@ func TestParameterUnitsWorkerPostgres(t *testing.T) {
 	if _, err := database.ExecContext(ctx, `INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port) VALUES($1,$2,$3,'bottom','top')`, scheme, source, load); err != nil {
 		t.Fatal(err)
 	}
+	var busbar int
+	if err := database.QueryRowContext(ctx, `INSERT INTO scheme_components(scheme_id,component_type_id,pos_x,pos_y,rotation) SELECT $1,id,0,0,0 FROM component_types WHERE code='busbar' RETURNING id`, scheme).Scan(&busbar); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port) VALUES($1,$2,$3,'top','left')`, scheme, load, busbar); err != nil {
+		t.Fatal(err)
+	}
 	calculateProfile := func(strict bool) *httptest.ResponseRecorder {
 		response := httptest.NewRecorder()
 		path := fmt.Sprintf("/api/ees/calculate/%d", scheme)

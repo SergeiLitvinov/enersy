@@ -7,14 +7,15 @@ import (
 )
 
 type calculationComponent struct {
-	Revision       int64             `json:"-"` // Internal capture guard; provenance retains the wire revision.
-	ID             int               `json:"id"`
-	Type           string            `json:"type"`
-	X              float64           `json:"x"`
-	Y              float64           `json:"y"`
-	Rotation       int               `json:"rotation"`
-	Params         map[string]string `json:"params"`
-	ParameterUnits map[string]string `json:"parameterUnits,omitempty"`
+	Revision               int64                     `json:"-"` // Internal capture guard; provenance retains the wire revision.
+	ID                     int                       `json:"id"`
+	Type                   string                    `json:"type"`
+	X                      float64                   `json:"x"`
+	Y                      float64                   `json:"y"`
+	Rotation               int                       `json:"rotation"`
+	Params                 map[string]string         `json:"params"`
+	ParameterUnits         map[string]string         `json:"parameterUnits,omitempty"`
+	DeclaredParameterUnits *parameterUnitDeclaration `json:"declaredParameterUnits,omitempty"`
 }
 
 type calculationConnection struct {
@@ -67,7 +68,8 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	}
 	components, err := tx.QueryContext(ctx, `SELECT sc.id,ct.code,sc.pos_x,sc.pos_y,sc.rotation,sc.revision,
 	 COALESCE((SELECT jsonb_object_agg(param_key,param_value) FROM scheme_component_params
-	 WHERE scheme_component_id=sc.id),'{}'::jsonb)
+	 WHERE scheme_component_id=sc.id),'{}'::jsonb),
+ COALESCE((SELECT jsonb_object_agg(param_key,declared_unit) FROM scheme_component_params WHERE scheme_component_id=sc.id AND unit_format_version=1),'{}'::jsonb)
 	 FROM scheme_components sc JOIN component_types ct ON ct.id=sc.component_type_id WHERE sc.scheme_id=$1 ORDER BY sc.id`, schemeID)
 	if err != nil {
 		return input, err
@@ -75,12 +77,19 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 	defer components.Close()
 	for components.Next() {
 		var component calculationComponent
-		var params []byte
-		if err := components.Scan(&component.ID, &component.Type, &component.X, &component.Y, &component.Rotation, &component.Revision, &params); err != nil {
+		var params, declaredUnits []byte
+		if err := components.Scan(&component.ID, &component.Type, &component.X, &component.Y, &component.Rotation, &component.Revision, &params, &declaredUnits); err != nil {
 			return input, err
 		}
 		if err := json.Unmarshal(params, &component.Params); err != nil {
 			return input, err
+		}
+		var labels map[string]string
+		if err := json.Unmarshal(declaredUnits, &labels); err != nil {
+			return input, err
+		}
+		if len(labels) > 0 {
+			component.DeclaredParameterUnits = &parameterUnitDeclaration{1, labels}
 		}
 		input.Components = append(input.Components, component)
 	}
@@ -122,6 +131,14 @@ func readCalculationInputScope(ctx context.Context, database *sql.DB, schemeID i
 		component.ParameterUnits = map[string]string{}
 		for key := range component.Params {
 			if unit, ok := units[component.Type][key]; ok {
+				component.ParameterUnits[key] = unit
+			}
+		}
+	}
+	for i := range input.Components {
+		component := &input.Components[i]
+		if component.DeclaredParameterUnits != nil {
+			for key, unit := range component.DeclaredParameterUnits.Units {
 				component.ParameterUnits[key] = unit
 			}
 		}

@@ -104,6 +104,62 @@ jobs:
       - name: RustSec audit of both locked dependency sets
         run: docker compose --profile rust-audit run --rm --no-deps --build rust-audit
 
+  julia-sdk:
+    name: Julia SDK tests and notice inputs (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: amd64, machine: x86_64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64, machine: aarch64 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify native runner architecture
+        run: |
+          test "$(uname -m)" = '${{ matrix.machine }}'
+          case "$(docker info --format '{{.Architecture}}')" in
+            ${{ matrix.arch }}|${{ matrix.machine }}) ;;
+            *) echo 'Docker daemon architecture differs from the runner matrix' >&2; exit 1 ;;
+          esac
+      - name: Build pinned SDK input image without a release notice index
+        id: sdk-build
+        run: |
+          mkdir -p .cache/julia-sdk
+          docker build --platform 'linux/${{ matrix.arch }}' --target notice-input-runtime \
+            -f backend-julia/Dockerfile -t enersy-julia-sdk-check . 2>&1 | tee .cache/julia-sdk/build.log
+      - name: Verify runtime architecture and run all locked Julia package tests offline
+        run: |
+          docker run --rm --network none enersy-julia-sdk-check julia --project=. --startup-file=no -e '
+            using Pkg, SHA
+            @assert Sys.islinux()
+            @assert string(Sys.ARCH) == only(ARGS)
+            originals = Dict(file => read(file) for file in ("Project.toml", "Manifest.toml"))
+            println("Runtime: ", VERSION, " / ", Sys.ARCH, " / ", Base.GIT_VERSION_INFO.commit)
+            println("Manifest SHA-256: ", bytes2hex(sha256(originals["Manifest.toml"])))
+            Pkg.offline(true)
+            Pkg.test(; allow_reresolve=false)
+            @assert all(read(file) == bytes for (file, bytes) in originals)
+          ' '${{ matrix.machine }}' 2>&1 | tee .cache/julia-sdk/package-tests.log
+      - name: Capture actual SDK artifact declarations and product hashes
+        if: ${{ !cancelled() && steps.sdk-build.outcome == 'success' }}
+        run: |
+          docker run --rm --network none \
+            -v "$PWD/scripts/security/collect_julia_licenses.jl:/collect.jl:ro" \
+            -v "$PWD/scripts/security/julia-notice-sources.json:/notice-config.json:ro" \
+            enersy-julia-sdk-check julia --project=. --startup-file=no \
+            /collect.jl --facts /notice-config.json > .cache/julia-sdk/notice-facts.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: julia-sdk-inputs-${{ matrix.arch }}
+          path: .cache/julia-sdk/
+          if-no-files-found: error
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

@@ -272,6 +272,14 @@ test('current component creation and deletion still update the graph', async () 
   expect(state.components).toEqual([]);
 });
 
+test('new components retain acknowledged unit declarations before the next graph reload', async () => {
+  vi.mocked(api.addComponent).mockResolvedValue({ id: 103, success: true, revision: '2', params: { voltage_nom: '110.00' }, equipmentModelId: null,
+    declaredParameterUnits: { formatVersion: 1, units: { voltage_nom: 'kV' } } });
+  await act(async () => { await state.addComponent(item, 10, 20); });
+  expect(state.components[0].declaredParameterUnits?.units.voltage_nom).toBe('kV');
+  expect(state.components[0].params.voltage_nom).toBe('110.00');
+});
+
 test('old connection deletion cannot remove a reloaded connection', async () => {
   const reply = deferred<Awaited<ReturnType<typeof api.deleteConnection>>>();
   vi.mocked(api.deleteConnection).mockReturnValue(reply.promise);

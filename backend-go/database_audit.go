@@ -13,18 +13,20 @@ import (
 )
 
 type databaseAudit struct {
-	FormatVersion       int               `json:"formatVersion"`
-	Scope               string            `json:"scope"`
-	Status              string            `json:"status"`
-	ReadOnly            bool              `json:"readOnly"`
-	CapturedAt          time.Time         `json:"capturedAt"`
-	LatestSourceVersion string            `json:"latestSourceVersion"`
-	Version             *string           `json:"version"`
-	Dirty               *bool             `json:"dirty"`
-	Counts              map[string]*int64 `json:"counts"`
-	ReferenceChecks     map[string]*int64 `json:"referenceChecks"`
-	IdentityChecks      map[string]*int64 `json:"identityChecks"`
-	Findings            []string          `json:"findings"`
+	FormatVersion            int               `json:"formatVersion"`
+	Scope                    string            `json:"scope"`
+	Status                   string            `json:"status"`
+	ReadOnly                 bool              `json:"readOnly"`
+	CapturedAt               time.Time         `json:"capturedAt"`
+	LatestSourceVersion      string            `json:"latestSourceVersion"`
+	Version                  *string           `json:"version"`
+	Dirty                    *bool             `json:"dirty"`
+	Counts                   map[string]*int64 `json:"counts"`
+	ReferenceChecks          map[string]*int64 `json:"referenceChecks"`
+	IdentityChecks           map[string]*int64 `json:"identityChecks"`
+	DependencyChecks         map[string]*int64 `json:"dependencyChecks"`
+	DependencyReviewRequired bool              `json:"dependencyReviewRequired"`
+	Findings                 []string          `json:"findings"`
 }
 
 // Operator-only inventory. It neither applies migrations nor enrolls legacy checksums.
@@ -251,6 +253,20 @@ func auditDatabase(ctx context.Context, database *sql.DB, sourceURL string) (dat
 			break
 		}
 	}
+	r.DependencyChecks, err = auditLegacyDependencies(ctx, tx, schema)
+	if err != nil {
+		return r, err
+	}
+	// Incoming FK metadata is a migration-planning inventory, not a data
+	// integrity finding: extra constraints and NOT VALID are legal in fresh DBs.
+	// Keep its review signal separate from the existing integrity status.
+	for key, count := range r.DependencyChecks {
+		if count == nil || (!strings.HasSuffix(key, ".total") && *count > 0) {
+			r.DependencyReviewRequired = true
+			break
+		}
+	}
+
 	sort.Strings(r.Findings)
 	if len(r.Findings) == 0 {
 		r.Status = "no_findings_in_audited_scope"

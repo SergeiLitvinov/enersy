@@ -12,6 +12,12 @@ const component: EditorComponent = { id: 1, type: 'busbar', typeId: 1, revision:
   params: { u: '110', i: '2000', enabled: 'true' },
   paramTemplate: ['u', 'i', 'enabled'].map(key => ({ key, name: key, type: key === 'enabled' ? 'boolean' : 'number', default: '', unit: '' })) };
 const input = (key: string) => container.querySelector<HTMLInputElement>(`#param-1-${key}`)!;
+test('parameter editing displays an explicit instance unit instead of a changed template', async () => {
+  const declared = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { u: 'kV' } }, paramTemplate: [{ key: 'u', name: 'U', type: 'number', default: '', unit: 'V' }] };
+  await act(async () => root.render(<ComponentParams component={declared} onSave={save} />));
+  expect(container.querySelector('.param-unit')?.textContent).toBe('kV');
+  expect(input('u').value).toBe('110');
+});
 test('inspector identifies the fixed project passport version without converting its ID', async () => {
   await act(async () => root.render(<ComponentParams component={{ ...component, projectPassportVersionId: '9007199254740993' }} onSave={save} />));
   expect(container.textContent).toContain('версия #9007199254740993');

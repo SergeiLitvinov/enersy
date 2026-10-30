@@ -1,4 +1,5 @@
 import { SessionError } from './projects-api';
+import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { parseInputUnitContract, type InputUnitContract } from './input-unit-contract';
 import { parseCalculationResult, type CalculationResult } from './ees-api';
 import { parseCalculationProvenance, type CalculationProvenance } from './calculation-provenance';
@@ -18,7 +19,7 @@ export interface ArchiveInput {
   computeBackend?: ComputeBackendId;
   executionOptions?: { max_time_ms: number };
   modelGroup: string; method: string;
-  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string>; parameterUnits?: Record<string, string> }[];
+  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string>; parameterUnits?: Record<string, string>; declaredParameterUnits?: ParameterUnitDeclaration }[];
   connections: { from: number; to: number; fromPort: string; toPort: string }[];
 }
 export interface OpenCalculationArchive { metadata: CalculationArchive; input: ArchiveInput; result: CalculationResult; provenance?: CalculationProvenance }
@@ -46,9 +47,18 @@ export function parseArchiveMetadata(raw: unknown): CalculationArchive {
   return v as unknown as CalculationArchive;
 }
 export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>): ArchiveInput {
+  return parseCapturedInput(raw, metadata, true);
+}
+// A Study can capture data before physical validation. Keep incomplete unit
+// declarations inspectable, while successful calculation archives stay strict.
+export function parseCapturedStudyInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>): ArchiveInput {
+  return parseCapturedInput(raw, metadata, false);
+}
+function parseCapturedInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>, requireCompleteUnits: boolean): ArchiveInput {
   const v = record(raw);
-  const completeUnits = Object.prototype.hasOwnProperty.call(v, 'unitContract');
-  if (completeUnits) parseInputUnitContract(v.unitContract);
+  const hasUnitContract = Object.prototype.hasOwnProperty.call(v, 'unitContract');
+  if (hasUnitContract) parseInputUnitContract(v.unitContract);
+  const completeUnits = hasUnitContract && requireCompleteUnits;
   if (v.computeBackend !== undefined && !isComputeBackendId(v.computeBackend)) return fail();
   if (v.executionOptions !== undefined) {
     const execution = record(v.executionOptions);
@@ -67,6 +77,11 @@ export function parseArchiveInput(raw: unknown, metadata: Pick<CalculationArchiv
       if (completeUnits && (Object.keys(units).length !== Object.keys(params).length || !Object.values(units).every(unit => typeof unit === 'string' && unit.trim().length > 0))) return fail();
     } else if (completeUnits) {
       return fail();
+    }
+    if (c.declaredParameterUnits !== undefined) {
+      const declaration = parseParameterUnitDeclaration(c.declaredParameterUnits, params);
+      const captured = record(c.parameterUnits);
+      if (!Object.entries(declaration.units).every(([key, unit]) => captured[key] === unit)) return fail();
     }
     ids.add(c.id);
   }

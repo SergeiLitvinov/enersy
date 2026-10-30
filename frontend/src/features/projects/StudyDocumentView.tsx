@@ -6,6 +6,7 @@ export function StudyDocumentView({ document }: { document: StudyDocument }) {
     <dl className="study-facts">
       <div><dt>Профиль</dt><dd>Симметричный AC · Ньютон–Рафсон</dd></div>
       <div><dt>Движок</dt><dd>{backendLabel(document.computeBackend)}</dd></div>
+      <div><dt>Проверка единиц</dt><dd>{document.unitContract ? 'Полная декларация · AC v1' : 'Совместимость с прежними данными'}</dd></div>
       <div><dt>Базис мощности</dt><dd>{document.base.s_base_mva.toLocaleString('ru-RU')} МВА</dd></div>
       <div><dt>Базис напряжения</dt><dd>{document.base.v_base_kv.toLocaleString('ru-RU')} кВ · линейное RMS</dd></div>
       <div><dt>Допуск невязки</dt><dd>{document.solverOptions.tolerance} p.u.</dd></div>

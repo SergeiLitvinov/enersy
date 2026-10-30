@@ -15,15 +15,16 @@ import (
 )
 
 type createComponentRequest struct {
-	SchemeID                 int               `json:"schemeId"`
-	TypeID                   int               `json:"typeId"`
-	X                        float64           `json:"x"`
-	Y                        float64           `json:"y"`
-	Rotation                 int               `json:"rotation"`
-	Name                     string            `json:"name"`
-	EquipmentModelID         *int              `json:"equipmentModelId"`
-	ProjectPassportVersionID *int64            `json:"projectPassportVersionId,omitempty"`
-	Params                   map[string]string `json:"params"`
+	unitDeclaration          *parameterUnitDeclaration // Derived internally from an immutable passport; never decoded from JSON.
+	SchemeID                 int                       `json:"schemeId"`
+	TypeID                   int                       `json:"typeId"`
+	X                        float64                   `json:"x"`
+	Y                        float64                   `json:"y"`
+	Rotation                 int                       `json:"rotation"`
+	Name                     string                    `json:"name"`
+	EquipmentModelID         *int                      `json:"equipmentModelId"`
+	ProjectPassportVersionID *int64                    `json:"projectPassportVersionId,omitempty"`
+	Params                   map[string]string         `json:"params"`
 }
 
 type componentCreationError struct {
@@ -190,7 +191,16 @@ func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentReq
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		if _, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key]); err != nil {
+		unit, declared := "", false
+		if req.unitDeclaration != nil {
+			unit, declared = req.unitDeclaration.Units[key]
+		}
+		if declared {
+			_, err = tx.ExecContext(ctx, `INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value,unit_format_version,declared_unit) VALUES($1,$2,$3,1,$4)`, id, key, params[key], unit)
+		} else {
+			_, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key])
+		}
+		if err != nil {
 			return 0, nil, 0, err
 		}
 	}

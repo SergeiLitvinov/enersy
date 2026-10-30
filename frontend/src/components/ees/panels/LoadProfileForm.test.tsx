@@ -7,6 +7,12 @@ import { LoadProfileForm } from './LoadProfileForm';
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const save = vi.fn<(values: Readonly<Record<string, string>>) => Promise<void>>();
 const initial = { p: '10', q: '3', voltage_nom: '10' };
+test('the load editor displays declared labels without converting numeric strings', async () => {
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'MW', voltage_nom: 'kV' } }} />));
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('MW');
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')?.value).toBe('10');
+  expect(save).not.toHaveBeenCalled();
+});
 const render = async (params = initial, resets: Record<string, number> = {}) => { await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} parameterResets={resets} />)); };
 async function input(id: string, value: string) {
   const el = host.querySelector<HTMLInputElement>(`#load-5-${id}`)!;

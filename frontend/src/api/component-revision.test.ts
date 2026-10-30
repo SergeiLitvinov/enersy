@@ -60,6 +60,16 @@ test('creation validates the acknowledged snapshot rather than guessing its revi
   }
 });
 
+test('creation preserves copied instance units and rejects units unrelated to acknowledged values', () => {
+  const source = { success: true, id: 101, revision: '8', params: { power_nom: '10.00' }, equipmentModelId: null,
+    declaredParameterUnits: { formatVersion: 1, units: { power_nom: 'MVA' } } };
+  const created = parseCreatedComponent(source);
+  source.declaredParameterUnits.units.power_nom = 'W';
+  expect(created.declaredParameterUnits?.units.power_nom).toBe('MVA');
+  expect(created.params.power_nom).toBe('10.00');
+  expect(() => parseCreatedComponent({ ...source, declaredParameterUnits: { formatVersion: 1, units: { absent: 'MVA' } } })).toThrow();
+});
+
 test('selected pose and parameters share one PATCH and exact precondition', async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, revision: '11' }) });
   vi.stubGlobal('fetch', fetch);

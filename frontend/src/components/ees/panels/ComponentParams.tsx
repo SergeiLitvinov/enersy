@@ -1,3 +1,4 @@
+import { parameterUnitLabel } from '../../../api/parameter-unit-declaration';
 import React, { useState } from 'react';
 import { EditorComponent } from '../editor-utils';
 import { SwitchStateControl } from './SwitchStateControl';
@@ -44,7 +45,7 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
       {component.equipmentModelId != null && <p className="catalog-hint">Паспорт каталога #{component.equipmentModelId} · редактируется копия параметров экземпляра</p>}
       <p className="catalog-hint">Объект #{component.id} · {loadForm ? 'Профиль нагрузки применяется кнопкой; прочие поля сохраняются при выходе из поля.' : 'Текстовые значения сохраняются при выходе из поля.'} Подсказка не означает заданный параметр.</p>
       {switchKind && <SwitchStateControl kind={switchKind} params={component.params} onSave={onSave} />}
-      {loadForm && <LoadProfileForm componentId={component.id} params={component.params} onSave={loadForm} parameterResets={parameterResets} />}
+      {loadForm && <LoadProfileForm componentId={component.id} params={component.params} onSave={loadForm} parameterResets={parameterResets} unitDeclaration={component.declaredParameterUnits} />}
       {component.type === 'transformer' && <p className="catalog-hint">φ: от −180° до 180°; положительный угол — опережение НН на холостом ходу. Без значения ядро принимает 0° с допущением. Группа соединения и нейтраль этой моделью не определяются.</p>}
       {fields.filter(p => !(switchKind && p.key === 'status') && !(loadForm && loadProfileKeys.some(key => key === p.key))).map(p => (
         <div key={p.key} className="param-item">
@@ -52,7 +53,7 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
           <ParameterInput key={`${p.key}:${parameterResets?.[p.key] ?? 0}`} id={`param-${component.id}-${p.key}`}
             confirmed={component.params[p.key] ?? ''} boolean={p.type === 'boolean'} placeholder={p.default || 'Не задано'}
             onSave={value => onSave(p.key, value)} />
-          <span className="param-unit">{p.unit}</span>
+          <span className="param-unit">{parameterUnitLabel(component.declaredParameterUnits, p.key, p.unit)}</span>
         </div>
       ))}
       {!component.paramTemplate?.length && <p className="placeholder-text">Загрузка...</p>}

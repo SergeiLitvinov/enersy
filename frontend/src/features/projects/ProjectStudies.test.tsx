@@ -31,6 +31,21 @@ test('viewer reads exact historical version and frozen inputs without a live sch
   expect(host.textContent).toContain('Снимок версии 1'); expect(readProjectScheme).not.toHaveBeenCalled();
   expect(button('Создать новую версию')).toBeUndefined(); expect(button('Новое исследование')).toBeUndefined();
 });
+test('viewer sees the unit policy of each selected version without adopting the latest policy', async () => {
+  const strict = v('2');
+  strict.document.unitContract = { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' };
+  vi.mocked(readStudy).mockImplementation(async (_p, _s, _a, revision) => revision === '1' ? v() : strict);
+  const displayedPolicy = () => [...host.querySelectorAll('.study-facts dt')].find(dt => dt.textContent === 'Проверка единиц')?.nextElementSibling?.textContent;
+  await mount(); await open();
+  expect(displayedPolicy()).toBe('Полная декларация · AC v1');
+  await act(async () => button('Версия 1 · Версия-1').click());
+  expect(displayedPolicy()).toBe('Совместимость с прежними данными');
+  expect(readStudy).toHaveBeenLastCalledWith('8', v().id, expect.any(AbortSignal), '1');
+  await act(async () => button('Версия 2 · Версия-2').click());
+  expect(displayedPolicy()).toBe('Полная декларация · AC v1');
+  expect(readProjectScheme).not.toHaveBeenCalled();
+  expect(createStudy).not.toHaveBeenCalled();
+});
 test('deleted live source prevents a new capture but preserves readable history', async () => {
   await mount('8', 'owner'); await open(); vi.mocked(readProjectScheme).mockRejectedValue(new SessionError(404, 'Deleted'));
   await act(async () => button('Создать новую версию').click());

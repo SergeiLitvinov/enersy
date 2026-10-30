@@ -12,15 +12,17 @@ import (
 )
 
 type componentPatchRequest struct {
-	Pose   json.RawMessage `json:"pose"`
-	Params json.RawMessage `json:"params"`
+	Pose            json.RawMessage `json:"pose"`
+	Params          json.RawMessage `json:"params"`
+	UnitDeclaration json.RawMessage `json:"parameterUnitDeclaration"`
 }
 
 type componentPatch struct {
-	X, Y     *float64
-	Rotation *int
-	Name     *string
-	Params   map[string]string
+	X, Y            *float64
+	Rotation        *int
+	Name            *string
+	Params          map[string]string
+	UnitDeclaration *parameterUnitDeclaration
 }
 
 func (patch componentPatch) hasPose() bool {
@@ -109,6 +111,13 @@ func parseComponentPatch(request componentPatchRequest) (componentPatch, error) 
 			patch.Params[key] = value
 		}
 	}
+	if len(request.UnitDeclaration) > 0 {
+		declaration, err := parseParameterUnitDeclaration(request.UnitDeclaration, patch.Params)
+		if err != nil {
+			return patch, err
+		}
+		patch.UnitDeclaration = declaration
+	}
 	if !patch.hasPose() && len(patch.Params) == 0 {
 		return patch, fmt.Errorf("Выберите хотя бы одно изменяемое поле")
 	}
@@ -136,6 +145,13 @@ func applyComponentPatch(ctx context.Context, tx *sql.Tx, id int, patch componen
 		if _, err := tx.ExecContext(ctx, `INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value)
 		 VALUES($1,$2,$3) ON CONFLICT(scheme_component_id,param_key) DO UPDATE SET param_value=EXCLUDED.param_value`, id, key, patch.Params[key]); err != nil {
 			return err
+		}
+		if patch.UnitDeclaration != nil {
+			if unit, present := patch.UnitDeclaration.Units[key]; present {
+				if _, err := tx.ExecContext(ctx, `UPDATE scheme_component_params SET unit_format_version=1,declared_unit=$3 WHERE scheme_component_id=$1 AND param_key=$2`, id, key, unit); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil

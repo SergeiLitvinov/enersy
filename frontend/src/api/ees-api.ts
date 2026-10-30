@@ -1,3 +1,6 @@
+import { parseParameterUnitDeclaration } from './parameter-unit-declaration';
+export type { ParameterUnitDeclaration } from './parameter-unit-declaration';
+import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { readEquipmentModels, readEquipmentModelParams, readParameterTemplate } from './catalog-api';
 export {createStudy,appendStudyVersion,readStudy,listStudies,listStudyVersions,readStudyArtifact,parseStudyDocument,parseStudyVersion,StudyWriteError} from './studies-api';
 export type {StudyDocument,StudyVersion} from './studies-api';
@@ -83,6 +86,7 @@ export interface ComponentParam {
 }
 
 export interface SchemeComponent {
+  declaredParameterUnits?: ParameterUnitDeclaration;
   revision: string;
   equipmentModelId?: number | null;
   projectPassportVersionId?: string | null;
@@ -316,7 +320,10 @@ export async function getScheme(id: number): Promise<Scheme> {
   const response = await fetch(`${API_BASE}/schemes/${id}`);
   if (!response.ok) throw new Error('Failed to fetch scheme');
   const scheme: Scheme = await response.json();
-  for (const component of scheme.components ?? []) parseComponentRevision(component.revision);
+  for (const component of scheme.components ?? []) {
+    parseComponentRevision(component.revision);
+    if (component.declaredParameterUnits !== undefined) component.declaredParameterUnits = parseParameterUnitDeclaration(component.declaredParameterUnits, component.params);
+  }
   return scheme;
 }
 
@@ -369,6 +376,7 @@ export async function deleteComponent(id: number, revision: string): Promise<Com
 export interface ComponentPatch {
   pose?: Partial<Pick<SchemeComponent, 'x' | 'y' | 'rotation' | 'name'>>;
   params?: Record<string, string>;
+  parameterUnitDeclaration?: ParameterUnitDeclaration;
 }
 
 /** Atomically save only reviewed fields; the server preserves unselected values. */

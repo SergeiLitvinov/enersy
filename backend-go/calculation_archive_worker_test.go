@@ -67,11 +67,14 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 			if err := database.QueryRowContext(ctx, `SELECT id FROM component_types WHERE code='generator'`).Scan(&typeID); err != nil {
 				t.Fatal(err)
 			}
-			id, _, _, err := store.CreateComponent(ctx, token.Token, project, createComponentRequest{SchemeID: int(scheme), TypeID: typeID, Name: "Source", Y: 100, ProjectPassportVersionID: &version, Params: map[string]string{"p": "10"}})
+			created, err := store.CreateComponent(ctx, token.Token, project, createComponentRequest{SchemeID: int(scheme), TypeID: typeID, Name: "Source", Y: 100, ProjectPassportVersionID: &version, Params: map[string]string{"p": "10"}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			ids[i] = int64(id)
+			if created.DeclaredParameterUnits == nil || created.DeclaredParameterUnits.Units["p"] != "МВт" || created.Params["p"] != "10" {
+				t.Fatal("passport unit did not follow the explicit instance value", created)
+			}
+			ids[i] = int64(created.ID)
 			continue
 		}
 		if err := database.QueryRowContext(ctx, `INSERT INTO scheme_components(scheme_id,component_type_id,pos_x,pos_y,rotation)
@@ -83,6 +86,9 @@ func TestCalculationArchiveWorkerPostgres(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+	}
+	if _, err := database.ExecContext(ctx, `UPDATE component_params_template SET unit='W' WHERE component_type_id=(SELECT component_type_id FROM scheme_components WHERE id=$1) AND param_key='p'`, ids[0]); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := database.ExecContext(ctx, `INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port)
  VALUES($1,$2,$3,'bottom','left'),($1,$3,$4,'right','top')`, scheme, ids[0], ids[1], ids[2]); err != nil {

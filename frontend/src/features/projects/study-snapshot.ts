@@ -1,5 +1,5 @@
 import { readStudyArtifact, type StudyVersion } from '../../api/studies-api';
-import { parseArchiveInput, type ArchiveInput } from '../../api/calculation-archives-api';
+import { parseCapturedStudyInput, type ArchiveInput } from '../../api/calculation-archives-api';
 import { parseCalculationProvenance, type CalculationProvenance } from '../../api/calculation-provenance';
 import { parseTerminalVoltageLimits } from '../../api/operating-assessment';
 
@@ -18,7 +18,7 @@ export function parseStudySnapshot(raw: unknown, evidence: unknown, version: Stu
       execution.max_time_ms !== doc.maxTimeMs || JSON.stringify(parseTerminalVoltageLimits(value.operatingLimits)) !== JSON.stringify(doc.operatingLimits)) {
     throw new Error('Снимок не соответствует выбранной версии исследования');
   }
-  const input = parseArchiveInput(raw, doc);
+  const input = parseCapturedStudyInput(raw, doc);
   if (input.unitContract?.formatVersion !== doc.unitContract?.formatVersion || input.unitContract?.profile !== doc.unitContract?.profile) {
     throw new Error('Контракт единиц снимка не соответствует версии исследования');
   }

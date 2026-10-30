@@ -55,10 +55,11 @@ func TestProjectCalculationPostgres(t *testing.T) {
 	if err := database.QueryRowContext(ctx, `SELECT id FROM component_types WHERE code='busbar'`).Scan(&typeID); err != nil {
 		t.Fatal(err)
 	}
-	component, _, _, err := store.CreateComponent(ctx, tokens[0].Token, project, createComponentRequest{SchemeID: int(scheme), TypeID: typeID, Name: "Bus"})
+	createdComponent, err := store.CreateComponent(ctx, tokens[0].Token, project, createComponentRequest{SchemeID: int(scheme), TypeID: typeID, Name: "Bus"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	component := createdComponent.ID
 	type workerRequest struct {
 		body    []byte
 		headers http.Header

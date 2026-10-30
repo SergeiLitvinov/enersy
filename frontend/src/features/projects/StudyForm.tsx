@@ -1,11 +1,12 @@
 import { digestStudySource } from '../../api/study-source-revisions';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Dialog } from '../../components/ui/Dialog';
 import { readStudy, parseStudyDocument, StudyWriteError, type StudyDocument, type StudyVersion } from '../../api/studies-api';
 import { executeStudyIntent, type StudyIntentJournal } from './study-intent-journal';
 import { readProjectScheme, SessionError, type Project } from '../../api/projects-api';
 import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { StudyDocumentView } from './StudyDocumentView';
+import { AC_INPUT_UNIT_PROFILE } from '../../api/input-unit-contract';
 
 type LimitDraft = { component: string; terminal: string; min: string; max: string };
 type Attempt = { document: StudyDocument; command: string; expected?: string; topology: string; sourceDigest: string };
@@ -15,9 +16,11 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   onClose: () => void; onUnavailable?: () => void;
 }) {
   const initial = version?.document;
+  const unitPolicyHelp = useId();
   const [graph, setGraph] = useState(source);
   const [name, setName] = useState(initial?.name ?? '');
   const [backend, setBackend] = useState(initial?.computeBackend ?? 'julia');
+  const [completeUnits, setCompleteUnits] = useState(initial ? Boolean(initial.unitContract) : true);
   const [power, setPower] = useState(initial ? String(initial.base.s_base_mva) : '');
   const [voltage, setVoltage] = useState(initial ? String(initial.base.v_base_kv) : '');
   const [tolerance, setTolerance] = useState(String(initial?.solverOptions.tolerance ?? 1e-8));
@@ -37,7 +40,7 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   let document: StudyDocument | null = null;
   try {
     document = parseStudyDocument({ formatVersion: 1, name, modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: backend,
-      ...(initial?.unitContract ? { unitContract: initial.unitContract } : {}),
+      ...(completeUnits ? { unitContract: { formatVersion: 1, profile: AC_INPUT_UNIT_PROFILE } } : {}),
       maxTimeMs: Number(budget), base: { s_base_mva: Number(power), v_base_kv: Number(voltage) },
       solverOptions: { tolerance: Number(tolerance), max_iterations: Number(iterations) },
       operatingLimits: limits.map(l => ({ component_id: Number(l.component), terminal: Number(l.terminal), min_kv: Number(l.min), max_kv: Number(l.max) })) });
@@ -104,6 +107,13 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
           <label>Базис напряжения, кВ<input required type="number" step="any" value={voltage} onChange={e => setVoltage(e.target.value)} /></label>
         </div>
         <label>Вычислительный движок<select value={backend} onChange={e => setBackend(e.target.value as StudyDocument['computeBackend'])}><option value="julia">Julia</option><option value="julia-rust-jacobian">Julia + Rust · экспериментальный</option></select></label>
+        <label>Проверка единиц<select aria-describedby={unitPolicyHelp} value={completeUnits ? 'complete' : 'legacy'} onChange={e => setCompleteUnits(e.target.value === 'complete')}>
+          <option value="complete">Полная декларация · AC v1</option>
+          <option value="legacy">Совместимость с прежними данными</option>
+        </select></label>
+        <p id={unitPolicyHelp} className="projects-note">{completeUnits
+          ? 'Каждый сохранённый параметр должен иметь поддержанное обозначение единицы. Неполные и несовместимые декларации остановят расчёт. Значения не пересчитываются. Проверяются явно заданные единицы экземпляра; где их нет — обозначения текущего справочника. Достоверность исходных единиц отдельно не подтверждается.'
+          : 'Проверяются только переданные обозначения. Наличие и полнота единиц не гарантируются. Значения не пересчитываются.'} {version ? 'Выбор относится к новой версии исследования.' : 'Выбор сохранится в снимке исследования.'}</p>
         <details><summary>Параметры решателя · симметричный AC, Ньютон–Рафсон</summary><div className="study-form-grid">
           <label>Допуск невязки, p.u.<input required type="number" step="any" value={tolerance} onChange={e => setTolerance(e.target.value)} /></label>
           <label>Лимит итераций<input required type="number" min="1" max="1000" step="1" value={iterations} onChange={e => setIterations(e.target.value)} /></label>

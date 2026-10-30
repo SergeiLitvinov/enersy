@@ -95,6 +95,7 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 		t.Fatalf("creation %d %s", w.Code, w.Body)
 	}
 	var created struct {
+		Declaration              *parameterUnitDeclaration `json:"declaredParameterUnits"`
 		ID, Revision             string
 		ProjectPassportVersionID *string `json:"projectPassportVersionId"`
 		Params                   map[string]string
@@ -104,6 +105,9 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	}
 	if created.ProjectPassportVersionID == nil || *created.ProjectPassportVersionID != first.ID || len(created.Params) != 1 || created.Params["power_nom"] != "10.00" {
 		t.Fatalf("source copy not exact: %s", w.Body)
+	}
+	if created.Declaration == nil || created.Declaration.FormatVersion != 1 || created.Declaration.Units["power_nom"] != "МВА" {
+		t.Fatal("creation acknowledgement lost passport units", w.Body.String())
 	}
 	// Same account owns both projects: authorization to one does not permit
 	// silently binding its passport into another graph.
@@ -141,6 +145,7 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	}
 	var graph struct {
 		Components []struct {
+			Declaration              *parameterUnitDeclaration `json:"declaredParameterUnits"`
 			ID                       string
 			ProjectPassportVersionID *string `json:"projectPassportVersionId"`
 			Params                   map[string]string
@@ -162,6 +167,9 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 		}
 		if component.Params["power_nom"] != expected {
 			t.Fatal("old instance changed with passport update")
+		}
+		if component.Declaration == nil || component.Declaration.Units["power_nom"] != "МВА" {
+			t.Fatal("graph lost copied passport unit")
 		}
 	}
 	w = request(http.MethodPost, path+"/components/"+created.ID+"/params", `{"key":"power_nom","value":"15.00"}`, `"`+created.Revision+`"`)
@@ -239,6 +247,15 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	if w := request(http.MethodPost, path+"/components", body, ""); w.Code != 400 {
 		t.Fatal("changed units accepted")
 	}
+	currentInput, err := readCalculationInputScope(ctx, database, int(scheme), project, session.Token, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, component := range currentInput.Components {
+		if component.ParameterUnits["power_nom"] != "МВА" {
+			t.Fatal("template reinterpreted a copied passport value", component)
+		}
+	}
 	down, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261021001_component_passport_binding.down.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -274,6 +291,58 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	}
 	if _, err := database.ExecContext(ctx, `DELETE FROM projects WHERE id=$1`, project); err != nil {
 		t.Fatalf("project deletion with bound passports: %v", err)
+	}
+}
+
+func TestProjectPassportUnitCopyScopePostgres(t *testing.T) {
+	f := newStudyFixture(t)
+	ctx := context.Background()
+	var typeID int
+	if err := f.store.database.QueryRow(`SELECT id FROM component_types WHERE code='generator'`).Scan(&typeID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.database.Exec(`INSERT INTO component_params_template(component_type_id,param_key,param_name,param_type,unit) VALUES($1,'blank_unit_probe','Fixture','number','')`, typeID); err != nil {
+		t.Fatal(err)
+	}
+	doc := passportFixture()
+	doc.Parameters = map[string]passportParameter{"power_nom": {Value: "10.00", Unit: "МВА"}, "blank_unit_probe": {Value: "1.0000", Unit: ""}}
+	source, err := f.store.SavePassport(ctx, f.tokens[0].Token, f.project, studyCommand(8501), nil, doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, _ := strconv.ParseInt(source.ID, 10, 64)
+	req := createComponentRequest{SchemeID: f.scheme, TypeID: typeID, Name: "Unit-copy fixture", ProjectPassportVersionID: &version, Params: map[string]string{"power_nom": "12.00", "voltage_nom": "10.5"}}
+	created, err := f.store.CreateComponent(ctx, f.tokens[0].Token, f.project, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.DeclaredParameterUnits == nil || len(created.DeclaredParameterUnits.Units) != 1 || created.DeclaredParameterUnits.Units["power_nom"] != "МВА" || created.Params["power_nom"] != "12.00" {
+		t.Fatal(created)
+	}
+	var labels int
+	if err := f.store.database.QueryRow(`SELECT count(*) FROM scheme_component_params WHERE scheme_component_id=$1 AND unit_format_version IS NOT NULL`, created.ID).Scan(&labels); err != nil || labels != 1 {
+		t.Fatal("blank or extra-override unit was invented", labels, err)
+	}
+	var value string
+	if err := f.store.database.QueryRow(`SELECT param_value FROM scheme_component_params WHERE scheme_component_id=$1 AND param_key='blank_unit_probe'`, created.ID).Scan(&value); err != nil || value != "1.0000" {
+		t.Fatal("blank-unit parameter was lost or normalized", value, err)
+	}
+	// Force a late unit-storage failure in this disposable schema only. Nothing
+	// from this new component, including its copied values, may be committed.
+	if _, err := f.store.database.Exec(`ALTER TABLE scheme_component_params ADD CONSTRAINT reject_copied_unit CHECK(declared_unit<>'МВА') NOT VALID`); err != nil {
+		t.Fatal(err)
+	}
+	count := func() int {
+		t.Helper()
+		var n int
+		if err := f.store.database.QueryRow(`SELECT count(*) FROM scheme_components WHERE scheme_id=$1`, f.scheme).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	before := count()
+	if _, err := f.store.CreateComponent(ctx, f.tokens[0].Token, f.project, req); err == nil || count() != before {
+		t.Fatal("unit failure partly created a component", err)
 	}
 }
 

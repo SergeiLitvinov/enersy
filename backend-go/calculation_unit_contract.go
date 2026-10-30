@@ -72,6 +72,28 @@ func calculationUnitContractOption(query url.Values) (*inputUnitContract, error)
 	return &inputUnitContract{1, acInputUnitProfile}, nil
 }
 
+// Empty maps must remain explicit in a complete declaration (e.g. a busbar
+// without stored parameters). The legacy component encoding omits empty maps.
+func applyInputUnitContract(payload map[string]any, contract *inputUnitContract, components []calculationComponent) {
+	if contract == nil {
+		return
+	}
+	type completeUnitComponent struct {
+		calculationComponent
+		Units map[string]string `json:"parameterUnits"`
+	}
+	values := make([]completeUnitComponent, len(components))
+	for i, component := range components {
+		units := component.ParameterUnits
+		if units == nil {
+			units = map[string]string{}
+		}
+		values[i] = completeUnitComponent{component, units}
+	}
+	payload["unitContract"] = contract
+	payload["components"] = values
+}
+
 // A worker must acknowledge the exact selected profile and coverage. An older
 // worker's generic success must never be archived as a strict-unit result.
 func confirmsRequestedUnitContract(request, result []byte) bool {

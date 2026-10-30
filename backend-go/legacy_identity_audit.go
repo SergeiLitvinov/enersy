@@ -11,11 +11,15 @@ import (
 // Identity checks cover fixed legacy tables with surrogate id columns. They
 // never choose a surviving row, renumber IDs or infer account ownership.
 func auditLegacyIdentities(ctx context.Context, tx *sql.Tx, schema string) (map[string]*int64, error) {
-	return auditLegacyIdentityTables(ctx, tx, schema, []string{
+	return auditLegacyIdentityTables(ctx, tx, schema, legacyIdentityTables())
+}
+
+func legacyIdentityTables() []string {
+	return []string{
 		"users", "component_types", "component_params_template", "equipment_models", "equipment_model_params",
 		"circuit_schemes", "scheme_components", "scheme_component_params", "scheme_connections", "circuit_nodes",
 		"calculation_results", "calculation_node_results", "calculation_branch_results",
-	})
+	}
 }
 
 func auditLegacyIdentityTables(ctx context.Context, tx *sql.Tx, schema string, tables []string) (map[string]*int64, error) {

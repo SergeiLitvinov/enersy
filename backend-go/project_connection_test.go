@@ -56,11 +56,11 @@ func TestProjectConnectionsPostgres(t *testing.T) {
 		if i == 2 {
 			parent = int(sibling)
 		}
-		var err error
-		ids[i], _, _, err = store.CreateComponent(ctx, tokens[0].Token, project, createComponentRequest{SchemeID: parent, TypeID: typeID, Name: "Bus"})
+		created, err := store.CreateComponent(ctx, tokens[0].Token, project, createComponentRequest{SchemeID: parent, TypeID: typeID, Name: "Bus"})
 		if err != nil {
 			t.Fatal(err)
 		}
+		ids[i] = created.ID
 	}
 	if _, err := store.ChangeMember(ctx, tokens[0].Token, project, accounts[1], 0, "editor", false); err != nil {
 		t.Fatal(err)

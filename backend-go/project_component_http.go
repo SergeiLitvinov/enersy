@@ -101,7 +101,7 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			}
 			passport = &value
 		}
-		id, params, revision, err := store.CreateComponent(r.Context(), token, project, createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params})
+		created, err := store.CreateComponent(r.Context(), token, project, createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params})
 		if err != nil {
 			status, message := projectComponentCreationError(err)
 			componentWriteError(w, status, "component_creation_failed", message)
@@ -115,10 +115,14 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 		if passport != nil {
 			passportID = strconv.FormatInt(*passport, 10)
 		}
-		decimal := strconv.FormatInt(revision, 10)
+		decimal := strconv.FormatInt(created.Revision, 10)
 		w.Header().Set("ETag", `"`+decimal+`"`)
 		w.WriteHeader(201)
-		writeJSON(w, map[string]any{"id": strconv.Itoa(id), "revision": decimal, "params": params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true})
+		body := map[string]any{"id": strconv.Itoa(created.ID), "revision": decimal, "params": created.Params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true}
+		if created.DeclaredParameterUnits != nil {
+			body["declaredParameterUnits"] = created.DeclaredParameterUnits
+		}
+		writeJSON(w, body)
 		return true
 	}
 	id, err := intProjectID(parts[4])

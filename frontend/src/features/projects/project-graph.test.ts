@@ -3,6 +3,13 @@ import { parseProjectGraph } from './project-graph';
 import { getCompSize } from '../../components/ees/editor-utils';
 const component = {id:'1',typeId:'2',type:'busbar',name:'Bus',x:100,y:100,rotation:90,revision:'9007199254740993',equipmentModelId:null,params:{voltage_nom:'110'}};
 const graph = {id:'4',projectId:'9007199254740993',name:'Private graph',description:'',topologyRevision:'0',components:[component],connections:[]};
+test('reload keeps explicit instance labels without deriving them from the current catalog', () => {
+  const declaration = { formatVersion: 1, units: { voltage_nom: 'kV' } };
+  const parsed = parseProjectGraph({ ...graph, components: [{ ...component, declaredParameterUnits: declaration }] }, graph.projectId, graph.id);
+  expect(parsed.components[0].declaredParameterUnits).toEqual(declaration);
+  expect(parsed.components[0].params.voltage_nom).toBe('110');
+  expect(() => parseProjectGraph({ ...graph, components: [{ ...component, declaredParameterUnits: { ...declaration, units: { absent: 'kV' } } }] }, graph.projectId, graph.id)).toThrow();
+});
 test('renderer conversion preserves exact parent IDs and revisions', () => {
   const parsed = parseProjectGraph(graph,graph.projectId,graph.id);
   expect(parsed.projectId).toBe('9007199254740993');

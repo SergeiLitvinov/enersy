@@ -24,6 +24,8 @@ test('editing an existing strict-unit Study keeps its policy in the next immutab
 });
 const button = (s: string) => [...host.querySelectorAll('button')].find(b => b.textContent === s)!;
 const input = (label: string) => [...host.querySelectorAll('label')].find(l => l.textContent === label)!.querySelector('input')!;
+const unitPolicy = () => [...host.querySelectorAll('label')].find(l => l.firstChild?.textContent === 'Проверка единиц')!.querySelector('select')!;
+async function changeUnitPolicy(value: 'complete' | 'legacy') { await act(async () => { unitPolicy().value = value; unitPolicy().dispatchEvent(new Event('change', { bubbles: true })); }); }
 async function change(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
 // WebCrypto finishes outside React's update queue. Wait for dispatch (or the
 // storage failure) inside act before asserting the resulting rendered state.
@@ -40,13 +42,38 @@ test('new Study requires explicit physical bases and does not invent network par
   await submitAndWaitFor(() => expect(createStudy).toHaveBeenCalledOnce());
   expect(createStudy).toHaveBeenCalledOnce(); expect(createStudy).toHaveBeenCalledWith('8', '7', '3', expect.objectContaining({ name: 'Проверка', base: { s_base_mva: 100, v_base_kv: 10 } }), expect.any(String), expect.any(AbortSignal), {accountId:'1',sessionId:'2',projectId:'8'}, undefined, expect.stringMatching(/^v1:[0-9a-f]{64}$/));
   expect(saved).toHaveBeenCalledOnce();
+  expect(unitPolicy().value).toBe('complete');
+  expect(vi.mocked(createStudy).mock.calls[0][3].unitContract).toEqual({ formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' });
+});
+test('editing a legacy Study keeps compatibility until the user selects a complete declaration', async () => {
+  await mount(version());
+  expect(unitPolicy().value).toBe('legacy');
+  expect(host.textContent).toContain('Наличие и полнота единиц не гарантируются');
+  vi.mocked(appendStudyVersion).mockResolvedValue({ ...version(), revision: '2' });
+  await change('Название', 'Без смены профиля');
+  await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
+  expect(vi.mocked(appendStudyVersion).mock.calls[0][4]).not.toHaveProperty('unitContract');
+});
+test('switching a strict Study to compatibility changes only the next version', async () => {
+  const value = version();
+  value.document.unitContract = { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' };
+  await mount(value);
+  expect(unitPolicy().value).toBe('complete');
+  await changeUnitPolicy('legacy');
+  vi.mocked(appendStudyVersion).mockResolvedValue({ ...version(), revision: '2' });
+  await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
+  expect(vi.mocked(appendStudyVersion).mock.calls[0][4]).not.toHaveProperty('unitContract');
+  expect(value.document.unitContract?.profile).toBe('legacy-ac-three-phase-rms-v1');
 });
 test('uncertain save freezes intent and retries the same command and document', async () => {
   await mount(version()); await change('Название', 'Мой черновик');
+  await changeUnitPolicy('complete');
   vi.mocked(appendStudyVersion).mockRejectedValueOnce(new TypeError('network')).mockResolvedValueOnce({ ...version(), revision: '2' });
   await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
   expect(input('Название').closest('fieldset')!.disabled).toBe(true); expect(close).not.toHaveBeenCalled();
   expect(createStudyIntentJournal({ accountId: '1', sessionId: '2', projectId: '8' }).read()?.document.name).toBe('Мой черновик');
+  expect(unitPolicy().closest('fieldset')!.disabled).toBe(true);
+  expect(createStudyIntentJournal({ accountId: '1', sessionId: '2', projectId: '8' }).read()?.document.unitContract?.formatVersion).toBe(1);
   await act(async () => button('Повторить ту же команду').click());
   const calls = vi.mocked(appendStudyVersion).mock.calls;
   expect(calls).toHaveLength(2); expect(calls[1]).toEqual(calls[0]); expect(saved).toHaveBeenCalledOnce();
@@ -54,17 +81,20 @@ test('uncertain save freezes intent and retries the same command and document', 
 });
 test('CAS conflict preserves local settings; adopting latest revision requires a separate save', async () => {
   await mount(version()); await change('Название', 'Мой черновик');
+  await changeUnitPolicy('complete');
   vi.mocked(appendStudyVersion).mockRejectedValueOnce(new StudyWriteError(412, 'Conflict', 'study_revision_conflict')).mockResolvedValueOnce({ ...version(), revision: '4' });
   vi.mocked(readStudy).mockResolvedValue({ ...version(), revision: '3', document: { ...version().document, name: 'Чужие настройки' } });
   await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
   expect(appendStudyVersion).toHaveBeenCalledOnce(); expect(input('Название').value).toBe('Мой черновик');
   await act(async () => button('Сравнить с актуальной версией').click());
   expect(host.textContent).toContain('Чужие настройки'); expect(input('Название').value).toBe('Мой черновик');
+  expect(unitPolicy().value).toBe('complete');
   await act(async () => button('Продолжить с моими настройками после версии 3').click());
   expect(appendStudyVersion).toHaveBeenCalledOnce();
   await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledTimes(2));
   expect(vi.mocked(appendStudyVersion).mock.calls[1].slice(0, 5)).toEqual(['8', version().id, '3', '3', expect.objectContaining({ name: 'Мой черновик' })]);
   expect(vi.mocked(appendStudyVersion).mock.calls[1][5]).not.toBe(vi.mocked(appendStudyVersion).mock.calls[0][5]);
+  expect(vi.mocked(appendStudyVersion).mock.calls[1][4].unitContract?.formatVersion).toBe(1);
 });
 test('source hashing can finish later without dispatching early or accepting a second submit', async () => {
   const realDigest = crypto.subtle.digest.bind(crypto.subtle);

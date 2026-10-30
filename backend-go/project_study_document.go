@@ -63,8 +63,6 @@ func studyWorkerInput(input calculationInput, doc studyDocument, id, revision st
 		"base": doc.Base, "solverOptions": doc.Solver, "operatingLimits": doc.Limits,
 		"studyReference": map[string]any{"formatVersion": 1, "id": id, "revision": revision},
 	}
-	if doc.UnitContract != nil {
-		payload["unitContract"] = doc.UnitContract
-	}
+	applyInputUnitContract(payload, doc.UnitContract, input.Components)
 	return json.Marshal(payload)
 }

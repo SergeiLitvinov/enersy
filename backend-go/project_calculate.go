@@ -97,9 +97,7 @@ func (handler projectsHTTP) calculate(w http.ResponseWriter, r *http.Request) bo
 		return true
 	}
 	workerInput := map[string]any{"components": input.Components, "connections": input.Connections, "modelGroup": group, "method": method}
-	if unitContract != nil {
-		workerInput["unitContract"] = unitContract
-	}
+	applyInputUnitContract(workerInput, unitContract, input.Components)
 	if backend != "" {
 		workerInput["computeBackend"] = backend
 	}

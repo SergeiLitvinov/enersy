@@ -1,4 +1,5 @@
 import { ComponentWriteError, componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite } from './component-revision';
+import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { calculationErrorMessage, parseCalculationResult, type ComponentPatch, type CalculationResult } from './ees-api';
 import { archiveId } from './calculation-archives-api';
 import { requireSelectedBackend, type ComputeBackendId } from './compute-backends';
@@ -12,7 +13,7 @@ export interface ProjectComponentInput {
   typeId: string; equipmentModelId: string | null; x: number; y: number; rotation: number;
   name: string; params: Record<string, string>;
 }
-export interface ProjectCreatedComponent { success: true; id: string; revision: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> }
+export interface ProjectCreatedComponent { success: true; id: string; revision: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; declaredParameterUnits?: ParameterUnitDeclaration; params: Record<string, string> }
 export interface ProjectConnectionInput { from: string; to: string; fromPort: string; toPort: string }
 export interface ProjectConnectionAcknowledgement { success: true; id: string; commandId: string; deleted: boolean; topologyRevision: string }
 export interface ProjectCalculation {

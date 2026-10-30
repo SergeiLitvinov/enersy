@@ -1,11 +1,13 @@
+import { parameterUnitLabel, type ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
 import { useRef, useState, type FormEvent } from 'react';
 import { loadProfileDraft, loadProfileError, loadProfileKeys, loadProfileMode, loadProfilePatch, type LoadProfileKey } from '../../../domain/load-profile';
 import './LoadProfileForm.css';
 
-export function LoadProfileForm({ componentId, params, onSave, parameterResets = {} }: {
+export function LoadProfileForm({ componentId, params, onSave, parameterResets = {}, unitDeclaration }: {
   componentId: number; params: Readonly<Record<string, string>>;
   onSave: (values: Readonly<Record<string, string>>) => Promise<void>;
   parameterResets?: Readonly<Record<string, number>>;
+  unitDeclaration?: ParameterUnitDeclaration;
 }) {
   const confirmed = loadProfileDraft(params);
   const [state, setState] = useState(() => ({ confirmed, draft: { ...confirmed }, resets: { ...parameterResets }, conflicted: false }));
@@ -41,7 +43,7 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
     finally { pending.current = false; setBusy(false); }
   }
   const input = (key: LoadProfileKey, name: string, unit: string, hint?: string) => <label className="load-profile-field" htmlFor={`load-${componentId}-${key}`}>
-    <span>{name}<small>{unit}</small></span>
+    <span>{name}<small>{parameterUnitLabel(unitDeclaration, key, unit)}</small></span>
     <input id={`load-${componentId}-${key}`} inputMode="decimal" type="text" value={state.draft[key]} onChange={event => change(key, event.target.value)} />
     {hint && <small>{hint}</small>}
   </label>;

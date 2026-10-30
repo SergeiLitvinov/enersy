@@ -12,15 +12,17 @@ const options = () => ({ projectId, schemeId, name: 'Private', writable: true, s
 
 test('project passport identity is captured before dispatch and retained after graph synchronization', async () => {
   const passport = '9007199254740993';
+  const declaredParameterUnits = { formatVersion: 1, units: { power_nom: 'MVA' } };
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('0', [])))
-    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, projectPassportVersionId: passport, params: { power_nom: '10.00' } }, '1'))
-    .mockResolvedValueOnce(reply({ ...graph('1', [item('10')]), components: [{ ...item('10'), projectPassportVersionId: passport, params: { power_nom: '10.00' } }] }));
+    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, projectPassportVersionId: passport, declaredParameterUnits, params: { power_nom: '10.00' } }, '1'))
+    .mockResolvedValueOnce(reply({ ...graph('1', [item('10')]), components: [{ ...item('10'), projectPassportVersionId: passport, declaredParameterUnits, params: { power_nom: '10.00' } }] }));
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport(options()); await transport.getScheme(7);
   const capture = vi.fn(() => { expect(fetcher).toHaveBeenCalledTimes(1); });
   const created = await transport.addComponent(7, 1, 0, 0, 0, 'Источник', null, {}, capture, passport);
   expect(capture).toHaveBeenCalledWith(expect.objectContaining({ projectPassportVersionId: passport, equipmentModelId: null }));
   expect(created.projectPassportVersionId).toBe(passport);
+  expect(created.declaredParameterUnits).toEqual(declaredParameterUnits);
   expect(JSON.parse(fetcher.mock.calls[1][1].body).projectPassportVersionId).toBe(passport);
 });
 test('structural mutations serialize, verify the complete graph and advance only confirmed topology', async () => {

@@ -28,36 +28,44 @@ func lockProjectSchemeWrite(ctx context.Context, tx *sql.Tx, token string, proje
 	return tx.QueryRowContext(ctx, `SELECT id FROM circuit_schemes WHERE id=$1 AND project_id=$2 FOR UPDATE`, scheme, project).Scan(&id)
 }
 
-func (store projectStore) CreateComponent(ctx context.Context, token string, project int64, req createComponentRequest) (int, map[string]string, int64, error) {
+type projectComponentCreation struct {
+	ID                     int
+	Params                 map[string]string
+	Revision               int64
+	DeclaredParameterUnits *parameterUnitDeclaration
+}
+
+func (store projectStore) CreateComponent(ctx context.Context, token string, project int64, req createComponentRequest) (projectComponentCreation, error) {
 	if err := validateComponentCreation(req); err != nil {
-		return 0, nil, 0, err
+		return projectComponentCreation{}, err
 	}
 	tx, err := store.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
-		return 0, nil, 0, err
+		return projectComponentCreation{}, err
 	}
 	defer rollbackTx(tx)
 	if err := lockProjectSchemeWrite(ctx, tx, token, project, req.SchemeID); err != nil {
-		return 0, nil, 0, err
+		return projectComponentCreation{}, err
 	}
 	if req.ProjectPassportVersionID != nil {
 		if _, err := lockArchiveProject(ctx, tx, token, project, true); err != nil {
-			return 0, nil, 0, err
+			return projectComponentCreation{}, err
 		}
-		params, err := copyProjectPassport(ctx, tx, project, req)
+		copied, err := copyProjectPassport(ctx, tx, project, req)
 		if err != nil {
-			return 0, nil, 0, err
+			return projectComponentCreation{}, err
 		}
-		req.Params = params
+		req.Params = copied.Params
+		req.unitDeclaration = copied.Declaration
 	}
 	id, params, revision, err := createComponentInTx(ctx, tx, req)
 	if err != nil {
-		return 0, nil, 0, err
+		return projectComponentCreation{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, nil, 0, err
+		return projectComponentCreation{}, err
 	}
-	return id, params, revision, nil
+	return projectComponentCreation{ID: id, Params: params, Revision: revision, DeclaredParameterUnits: req.unitDeclaration}, nil
 }
 
 func (store projectStore) MutateComponent(ctx context.Context, token string, project int64, scheme, id int, expected int64, mutate func(*sql.Tx) error, deleting bool) (int64, error) {

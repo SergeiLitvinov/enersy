@@ -1,10 +1,17 @@
 import { expect, test } from 'vitest';
 import { parseStudySnapshot } from './study-snapshot';
+import { parseArchiveInput } from '../../api/calculation-archives-api';
 import type { StudyVersion } from '../../api/studies-api';
 const document: StudyVersion['document'] = { formatVersion: 1, name: 'AC', modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: 'julia', maxTimeMs: 20000, base: { s_base_mva: 100, v_base_kv: 10 }, solverOptions: { tolerance: 1e-8, max_iterations: 50 }, operatingLimits: [] };
 const version: StudyVersion = { status: 'captured', id: '9007199254740994', revision: '2', projectId: '8', schemeId: '7', schemeName: 'S', topologyRevision: '0', authorAccountId: '2', createdAt: '2026-10-25T00:00:00Z', inputSha256: 'a'.repeat(64), provenanceSha256: 'b'.repeat(64), inputBytes: 1, provenanceBytes: 1, document };
 const raw = () => ({ modelGroup: document.modelGroup, method: document.method, computeBackend: document.computeBackend, base: document.base, solverOptions: document.solverOptions, operatingLimits: [], executionOptions: { max_time_ms: 20000 }, studyReference: { formatVersion: 1, id: version.id, revision: version.revision }, components: [{ id: 4, type: 'load', x: 0, y: 0, rotation: 0, params: { p: '0.2' } }], connections: [] });
 const evidence = { formatVersion: 1, components: [{ id: '4', revision: '3', name: 'Нагрузка', source: 'instance' }] };
+test('captured instance declaration must agree with the effective frozen labels', () => {
+  const source = raw();
+  const component = { ...source.components[0], parameterUnits: { p: 'MW' }, declaredParameterUnits: { formatVersion: 1, units: { p: 'MW' } } };
+  expect(parseStudySnapshot({ ...source, components: [component] }, evidence, version).input.components[0].declaredParameterUnits?.units.p).toBe('MW');
+  expect(() => parseStudySnapshot({ ...source, components: [{ ...component, parameterUnits: { p: 'W' } }] }, evidence, version)).toThrow();
+});
 
 test('snapshot cannot add or drop the selected versioned unit policy', () => {
   const unitContract = { formatVersion: 1 as const, profile: 'legacy-ac-three-phase-rms-v1' as const };
@@ -13,8 +20,11 @@ test('snapshot cannot add or drop the selected versioned unit policy', () => {
   expect(parseStudySnapshot(value, evidence, strictVersion).input.unitContract).toEqual(unitContract);
   expect(() => parseStudySnapshot(raw(), evidence, strictVersion)).toThrow();
   expect(() => parseStudySnapshot(value, evidence, version)).toThrow();
-  expect(() => parseStudySnapshot({ ...value, components: raw().components }, evidence, strictVersion)).toThrow();
-  expect(() => parseStudySnapshot({ ...value, components: [{ ...value.components[0], parameterUnits: {} }] }, evidence, strictVersion)).toThrow();
+  expect(parseStudySnapshot({ ...value, components: raw().components }, evidence, strictVersion).input.components[0].parameterUnits).toBeUndefined();
+  const incomplete = { ...value, components: [{ ...value.components[0], parameterUnits: {} }] };
+  expect(parseStudySnapshot(incomplete, evidence, strictVersion).input.components[0].parameterUnits).toEqual({});
+  expect(() => parseArchiveInput(incomplete, document)).toThrow();
+  expect(() => parseArchiveInput({ ...value, components: raw().components }, document)).toThrow();
 });
 test('frozen input must match Study identity, options and component provenance', () => {
   expect(parseStudySnapshot(raw(), evidence, version).input.components[0].params.p).toBe('0.2');

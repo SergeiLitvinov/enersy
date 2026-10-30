@@ -1,3 +1,5 @@
+import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
+
 /** Lossless PostgreSQL BIGINT tokens; never convert these revisions to Number. */
 export function parseComponentRevision(value: unknown): string {
   if (typeof value !== 'string' || value.trim() !== value || !/^[1-9][0-9]{0,18}$/.test(value) ||
@@ -9,6 +11,7 @@ export function parseComponentRevision(value: unknown): string {
 
 export interface ComponentWriteResult { success: true; revision: string }
 export interface CreatedComponent extends ComponentWriteResult {
+  declaredParameterUnits?: ParameterUnitDeclaration;
   projectPassportVersionId?: string | null;
   id: number;
   params: Record<string, string>;
@@ -28,7 +31,8 @@ export function parseCreatedComponent(value: unknown): CreatedComponent {
     if (typeof parameter !== 'string') throw new Error('Некорректные параметры созданного оборудования');
     Object.defineProperty(params, key, { value: parameter, enumerable: true, writable: true, configurable: true });
   }
-  return { id: record.id, success: true, revision: parseComponentRevision(record.revision), params, equipmentModelId: record.equipmentModelId };
+  const declaredParameterUnits = record.declaredParameterUnits === undefined ? undefined : parseParameterUnitDeclaration(record.declaredParameterUnits, params);
+  return { ...(declaredParameterUnits ? { declaredParameterUnits } : {}), id: record.id, success: true, revision: parseComponentRevision(record.revision), params, equipmentModelId: record.equipmentModelId };
 }
 
 export class ComponentWriteError extends Error {

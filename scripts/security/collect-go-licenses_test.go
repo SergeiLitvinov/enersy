@@ -229,3 +229,108 @@ func TestActualSDKContainsVendoredSourceNotices(t *testing.T) {
 	}
 	t.Logf("Go %s: %d SDK src notices, %d distinct texts", runtime.Version(), len(r.Files), len(notices))
 }
+
+func TestNestedInventoriesKeepScopesAndRootEvidence(t *testing.T) {
+	root := t.TempDir()
+	texts := map[string]string{
+		"LICENSE":                "Root permission\r\n",
+		"src/vendor/NOTICE":      "Source permission\n",
+		"lib/time/LICENSE":       "\ufeffNested © author\r\nFull permission\r\n",
+		"misc/tools/COPYING.txt": "\ufeffNested © author\r\nFull permission\r\n",
+		"misc/notice.go":         "Not a named notice",
+	}
+	for name, text := range texts {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	notices := map[string]string{}
+	other, err := collectSDKOtherNotices(root, notices)
+	if err != nil || other.Scope != "go-sdk-nested-notice-files-outside-src" || len(other.Files) != 2 || len(notices) != 1 {
+		t.Fatalf("%+v %v", other, err)
+	}
+	if other.Files[0].Name != "lib/time/LICENSE" || other.Files[1].Name != "misc/tools/COPYING.txt" {
+		t.Fatal(other.Files)
+	}
+	for _, file := range other.Files {
+		if notices[file.SHA256] != texts[file.Name] || file.SHA256 != digest([]byte(texts[file.Name])) {
+			t.Fatal("nested notice bytes changed")
+		}
+	}
+	nested, err := collectModuleNestedNotices(root, notices)
+	if err != nil || nested.Scope != "all-selected-module-nested-notice-files" || len(nested.Files) != 3 {
+		t.Fatalf("%+v %v", nested, err)
+	}
+	// Finding a nested notice must not imply a missing root license is resolved.
+	if err := os.Remove(filepath.Join(root, "LICENSE")); err != nil {
+		t.Fatal(err)
+	}
+	files, err := collectNotices(root, notices)
+	if err != nil || len(files) != 0 {
+		t.Fatalf("root evidence invented: %v %v", files, err)
+	}
+}
+
+func TestNestedInventoriesRejectUnsafeEvidence(t *testing.T) {
+	for _, kind := range []string{"empty", "oversized", "invalid-utf8", "outside-file", "outside-directory", "inside-directory", "linked-src"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "lib")
+			if err := os.Mkdir(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "NOTICE")
+			var err error
+			switch kind {
+			case "empty":
+				err = os.WriteFile(path, nil, 0o600)
+			case "oversized":
+				err = os.WriteFile(path, []byte(strings.Repeat("a", maxNoticeBytes+1)), 0o600)
+			case "invalid-utf8":
+				err = os.WriteFile(path, []byte{0xff}, 0o600)
+			case "outside-file":
+				outside := filepath.Join(t.TempDir(), "private")
+				if err = os.WriteFile(outside, []byte("Private"), 0o600); err == nil {
+					err = os.Symlink(outside, path)
+				}
+			case "outside-directory":
+				err = os.Symlink(t.TempDir(), filepath.Join(dir, "external"))
+			case "inside-directory":
+				err = os.Symlink(dir, filepath.Join(root, "alias"))
+			case "linked-src":
+				err = os.Symlink(t.TempDir(), filepath.Join(root, "src"))
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, collect := range []func(string, map[string]string) (sourceNoticeInventory, error){collectSDKOtherNotices, collectModuleNestedNotices} {
+				if _, err := collect(root, map[string]string{}); err == nil {
+					t.Fatal("unsafe evidence accepted")
+				}
+			}
+			if kind == "linked-src" {
+				if _, err := collectSDKSourceNotices(root, map[string]string{}); err == nil {
+					t.Fatal("linked src accepted")
+				}
+			}
+		})
+	}
+}
+
+func TestActualSDKOtherNotices(t *testing.T) {
+	notices := map[string]string{}
+	r, err := collectSDKOtherNotices(runtime.GOROOT(), notices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range r.Files {
+		if strings.HasPrefix(file.Name, "src/") || !strings.Contains(file.Name, "/") || digest([]byte(notices[file.SHA256])) != file.SHA256 {
+			t.Fatal("wrong SDK scope or bytes")
+		}
+	}
+	t.Logf("Go %s: %d other SDK notices, %d distinct texts", runtime.Version(), len(r.Files), len(notices))
+}

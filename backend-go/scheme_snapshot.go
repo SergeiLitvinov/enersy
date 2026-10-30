@@ -53,7 +53,8 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 	compRows, err := tx.QueryContext(r.Context(), `
 			SELECT sc.id, ct.code, sc.pos_x, sc.pos_y, sc.rotation, sc.custom_name,
 			       sc.equipment_model_id, ct.id, sc.revision, sc.project_passport_version_id, COALESCE((SELECT jsonb_object_agg(param_key,param_value)
-			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb)
+			       FROM scheme_component_params WHERE scheme_component_id=sc.id), '{}'::jsonb),
+ COALESCE((SELECT jsonb_object_agg(param_key,declared_unit) FROM scheme_component_params WHERE scheme_component_id=sc.id AND unit_format_version=1),'{}'::jsonb)
 			FROM scheme_components sc
 			JOIN component_types ct ON sc.component_type_id = ct.id
 			WHERE sc.scheme_id = $1`, id)
@@ -73,8 +74,8 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 		var passportID sql.NullInt64
 		var typeID int
 		var revision int64
-		var paramsJSON []byte
-		if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &passportID, &paramsJSON); err != nil {
+		var paramsJSON, unitsJSON []byte
+		if err := compRows.Scan(&compID, &code, &x, &y, &rotation, &customName, &modelID, &typeID, &revision, &passportID, &paramsJSON, &unitsJSON); err != nil {
 			sendError(w, "Could not read scheme snapshot", http.StatusInternalServerError)
 			return
 		}
@@ -95,6 +96,14 @@ func serveSchemeSnapshot(w http.ResponseWriter, r *http.Request, database *sql.D
 			"id": compID, "type": code, "x": x, "y": y, "rotation": rotation, "name": cname,
 			"params": params, "equipmentModelId": equipmentModelID, "typeId": typeID, "revision": strconv.FormatInt(revision, 10),
 		})
+		var units map[string]string
+		if err := json.Unmarshal(unitsJSON, &units); err != nil {
+			sendError(w, "Invalid stored unit declaration", 500)
+			return
+		}
+		if len(units) > 0 {
+			components[len(components)-1]["declaredParameterUnits"] = parameterUnitDeclaration{1, units}
+		}
 		if project > 0 {
 			var value any
 			if passportID.Valid {

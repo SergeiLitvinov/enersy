@@ -1,6 +1,8 @@
+import type { ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
 import { ComponentParam } from './svg-components';
 
 export interface EditorComponent {
+  declaredParameterUnits?: ParameterUnitDeclaration;
   revision: string;
   equipmentModelId?: number | null;
   projectPassportVersionId?: string | null;

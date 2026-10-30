@@ -20,6 +20,22 @@ func TestStudyUnitContractWorkerPostgres(t *testing.T) {
 	f.doc.UnitContract = &inputUnitContract{1, acInputUnitProfile}
 	f.doc.Limits = []terminalVoltageLimit{}
 	ctx := context.Background()
+	var busbar int
+	if err := f.store.database.QueryRow(`INSERT INTO scheme_components(scheme_id,component_type_id,pos_x,pos_y,rotation) SELECT $1,id,0,0,0 FROM component_types WHERE code='busbar' RETURNING id`, f.scheme).Scan(&busbar); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.database.Exec(`INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port) VALUES($1,$2,$3,'top','left')`, f.scheme, f.load, busbar); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.database.QueryRow(`SELECT topology_revision FROM circuit_schemes WHERE id=$1`, f.scheme).Scan(&f.topology); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.database.Exec(`UPDATE scheme_component_params SET unit_format_version=1,declared_unit='MW' WHERE scheme_component_id=$1 AND param_key='p';`, f.load); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.database.Exec(`UPDATE component_params_template SET unit='W' WHERE component_type_id=(SELECT component_type_id FROM scheme_components WHERE id=$1) AND param_key='p'`, f.load); err != nil {
+		t.Fatal(err)
+	}
 	v, err := f.store.SaveStudy(ctx, f.tokens[0].Token, f.project, f.scheme, 0, 0, f.topology, studyCommand(8201), f.doc)
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +138,69 @@ func TestInputUnitContractAdmissionAndConfirmation(t *testing.T) {
 	}
 	if !confirmsRequestedUnitContract([]byte(`{}`), []byte(`{"success":true}`)) {
 		t.Fatal("legacy request changed")
+	}
+}
+
+func TestCompleteUnitEncodingPreservesEmptyDeclarations(t *testing.T) {
+	components := []calculationComponent{{ID: 1, Type: "busbar", Params: map[string]string{}}, {ID: 2, Type: "load", Params: map[string]string{"p": "1.2300"}, ParameterUnits: map[string]string{"p": "MW"}}}
+	for _, contract := range []*inputUnitContract{nil, {1, acInputUnitProfile}} {
+		payload := map[string]any{"components": components}
+		applyInputUnitContract(payload, contract, components)
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded struct {
+			Components []map[string]json.RawMessage `json:"components"`
+		}
+		if err := json.Unmarshal(body, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if contract == nil {
+			if _, exists := decoded.Components[0]["parameterUnits"]; exists {
+				t.Fatal("legacy encoding changed")
+			}
+		} else if string(decoded.Components[0]["parameterUnits"]) != "{}" || string(decoded.Components[1]["parameterUnits"]) != `{"p":"MW"}` {
+			t.Fatal("complete encoding lost empty declaration or existing labels", string(body))
+		}
+	}
+	if components[0].ParameterUnits != nil || components[1].Params["p"] != "1.2300" {
+		t.Fatal("encoding changed source values")
+	}
+}
+
+func TestStrictStudyCapturesIncompleteUnitsForInspectionPostgres(t *testing.T) {
+	f := newStudyFixture(t)
+	f.doc.UnitContract = &inputUnitContract{1, acInputUnitProfile}
+	if _, err := f.store.database.Exec(`INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES($1,'draft_parameter','1.2300')`, f.load); err != nil {
+		t.Fatal(err)
+	}
+	v, err := f.store.SaveStudy(context.Background(), f.tokens[0].Token, f.project, f.scheme, 0, 0, f.topology, studyCommand(8301), f.doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := strconv.ParseInt(v.ID, 10, 64)
+	_, frozen, err := f.store.ReadStudy(context.Background(), f.tokens[0].Token, f.project, id, 1, "input")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input struct {
+		Components []calculationComponent `json:"components"`
+	}
+	if err := json.Unmarshal(frozen, &input); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, component := range input.Components {
+		if component.ID == f.load {
+			found = component.Params["draft_parameter"] == "1.2300"
+			if _, invented := component.ParameterUnits["draft_parameter"]; invented {
+				t.Fatal("capture invented a unit for an unsupported draft parameter")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("incomplete draft could not be inspected in its frozen input")
 	}
 }
 

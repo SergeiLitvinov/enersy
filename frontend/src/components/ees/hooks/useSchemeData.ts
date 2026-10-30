@@ -148,10 +148,12 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
           : dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId, {}, capture, projectPassportVersionId));
       if (!isCurrent()) return;
       writes.current.seed(currentSchemeId, {
+        ...(r.declaredParameterUnits ? { declaredParameterUnits: r.declaredParameterUnits } : {}),
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
         x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, projectPassportVersionId: r.projectPassportVersionId,
       });
       setComponents(prev => [...prev, {
+        ...(r.declaredParameterUnits ? { declaredParameterUnits: r.declaredParameterUnits } : {}),
         id: r.id, revision: r.revision, type: item.code, typeId: item.id, name: item.name,
         x: wx, y: wy, rotation: 0, params: r.params, equipmentModelId: r.equipmentModelId, projectPassportVersionId: r.projectPassportVersionId, paramTemplate: params,
       }]);

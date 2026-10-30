@@ -817,9 +817,7 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 		"modelGroup":  modelGroup,
 		"method":      method,
 	}
-	if unitContract != nil {
-		workerInput["unitContract"] = unitContract
-	}
+	applyInputUnitContract(workerInput, unitContract, input.Components)
 	if backend != "" {
 		workerInput["computeBackend"] = backend
 	}
