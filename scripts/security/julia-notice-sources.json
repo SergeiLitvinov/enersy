@@ -33,6 +33,38 @@
         "file": "packaging/lld-julia-1.13.2-linux-amd64.json",
         "sha256": "1b56bee1fecd191d2fd3c7695586a2c5b46812c702b10a5efdf06c7cecfec853"
       }
+    },
+    {
+      "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "componentUUID": "8f36deef-c2a5-5394-99ed-8e07531fb29a",
+      "componentVersion": "20.1.8+2",
+      "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",
+      "artifact": "libLLVM",
+      "tags": {
+        "llvm_version": "20"
+      },
+      "archiveSha256": "d1914142ca42d0b1d4cf44270c6b53cbccb6abb051cdbd75c45ae83a2d24a727",
+      "sdkFile": "lib/julia/libLLVM.so.20.1jl",
+      "artifactFile": "lib/libLLVM.so.20.1jl",
+      "sdkSha256": "2da411a5b6b727f4503fc6f1155ec5ed8149e8bee28e93cb579739f8da3348e3"
+    },
+    {
+      "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "componentUUID": "d55e3150-da41-5e91-b323-ecfd1eec6109",
+      "componentVersion": "20.1.8+2",
+      "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
+      "artifact": "LLD",
+      "tags": {
+        "llvm_version": "20"
+      },
+      "archiveSha256": "18c398b99e7c5f06fbebca4f0dad38e16a9e2fb948f351f03220746fdcfd45fc",
+      "sdkFile": "libexec/julia/lld",
+      "artifactFile": "tools/lld",
+      "sdkSha256": "fa520989300f487e34b57c3f6672b1aa4d4c10cbc71353de291f28a111f82f21",
+      "repackagingProof": {
+        "file": "packaging/lld-julia-1.13.2-linux-arm64.json",
+        "sha256": "2052fed70499f491eb8f9ed39ed1576e2f6e152091fa4e50174c33ec1257d90e"
+      }
     }
   ],
   "thirdParty": {
@@ -44,6 +76,11 @@
       "runtimePlatform": "x86_64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
       "file": "data/mozilla-cacerts-2026-08-13-linux-amd64.json",
       "sha256": "5593a454c527f42f14bfb495ba91ab1f2178ec7eb7b18c4dc8bb9e10c0d99f83"
+    },
+    {
+      "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "file": "data/mozilla-cacerts-2026-08-13-linux-arm64.json",
+      "sha256": "10218a595bd065ff889095d044fdbc0e937a1fd6586a9151cfed3f201a343589"
     }
   ]
 }

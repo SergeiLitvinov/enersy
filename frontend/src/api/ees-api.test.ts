@@ -3,6 +3,16 @@ import { addComponent, addConnection, newConnectionCommandId, deleteConnection, 
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
+it('direct editor calculations request strict units and reject an unchecked success', async () => {
+  const result = { success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => result }); vi.stubGlobal('fetch', fetcher);
+  await expect(calculateScheme(1)).rejects.toThrow('не подтвердил проверку единиц');
+  expect(fetcher.mock.calls[0][0]).toContain('unitContract=legacy-ac-three-phase-rms-v1');
+  const confirmed = { ...result, input_unit_contract: { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1', validation_scope: 'request-declarations-only', component_count: 0, parameter_count: 0 } };
+  fetcher.mockResolvedValue({ ok: true, json: async () => confirmed });
+  expect(await calculateScheme(1)).toEqual(confirmed);
+});
+
 it('retains an explicit command key and payload when a connection request is repeated', async () => {
   const first = newConnectionCommandId(), second = newConnectionCommandId();
   expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

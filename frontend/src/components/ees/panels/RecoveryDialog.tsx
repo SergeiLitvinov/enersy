@@ -8,9 +8,12 @@ import type { SchemeTransport } from '../scheme-transport';
 const statusLabels: Record<ComponentComparisonRow['status'], string> = {
   pending: 'Можно сверить с исходной версией', server_changed: 'Изменено на сервере',
   already_applied: 'Уже совпадает', object_missing: 'Объект удалён',
+  unit_changed: 'Единица изменилась — требуется повторный ввод',
 };
 const display = (value: ComponentComparisonRow['base']) => value === undefined ? 'Не задано'
   : value === '' ? 'Пустая строка' : typeof value === 'boolean' ? value ? 'Да' : 'Нет' : String(value);
+const displayField = (row: ComponentComparisonRow, side: 'base' | 'local' | 'server') =>
+  `${display(row[side])}${row.units ? ` (${row.units[side] ?? 'единица не зафиксирована'})` : ''}`;
 
 export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, readScheme = getScheme }: { draft: ComponentDraft; onClose: () => void; readScheme?: SchemeTransport['getScheme'];
   onResolve?: (draft: ComponentDraft, server: SchemeComponent, fields: ReadonlySet<string>, mode: 'apply' | 'accept') => Promise<void>;
@@ -39,6 +42,7 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, r
     return () => { active = false; };
   }, [draft, request, readScheme]);
   const rows = compareComponentDraft(draft, server);
+  const selectedUnitChanged = rows.some(row => selected.has(row.key) && row.status === 'unit_changed');
   const hasDeletion = draft.intents.some(intent => intent.kind === 'delete');
   const perform = async (action: () => Promise<void>) => {
     if (saving) return;
@@ -49,7 +53,7 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, r
     finally { if (actionView.current === view) setSaving(false); }
   };
   const resolve = (mode: 'apply' | 'accept') => {
-    if (!server || !onResolve || !selected.size) return;
+    if (!server || !onResolve || !selected.size || (mode === 'apply' && selectedUnitChanged)) return;
     return perform(() => onResolve(draft, server, new Set(selected), mode));
   };
   const resolveDeletion = (mode: 'keep' | 'delete') => {
@@ -63,10 +67,11 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, r
       {!server && <p role="status">Объект отсутствует в актуальной схеме. Его восстановление требует отдельного решения.</p>}
       <div className="results-table-wrap"><table className="results-table recovery-table"><caption>Исходное состояние, ваши правки и сервер</caption>
         <thead><tr><th scope="col">Поле</th><th scope="col">База сравнения</th><th scope="col">Ваше</th><th scope="col">Сервер</th><th scope="col">Состояние</th></tr></thead>
-        <tbody>{rows.map(row => <tr key={row.key}><th scope="row"><label><input type="checkbox" aria-label={`Выбрать: ${row.label}`} checked={selected.has(row.key)} disabled={!onResolve || !server || row.key === 'delete' || saving} onChange={event => setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(row.key); else next.delete(row.key); return next; })} /> {row.label}</label></th><td>{display(row.base)}</td><td>{display(row.local)}</td><td>{display(row.server)}</td><td>{statusLabels[row.status]}</td></tr>)}</tbody>
+        <tbody>{rows.map(row => <tr key={row.key}><th scope="row"><label><input type="checkbox" aria-label={`Выбрать: ${row.label}`} checked={selected.has(row.key)} disabled={!onResolve || !server || row.key === 'delete' || saving} onChange={event => setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(row.key); else next.delete(row.key); return next; })} /> {row.label}</label></th><td>{displayField(row, 'base')}</td><td>{displayField(row, 'local')}</td><td>{displayField(row, 'server')}</td><td>{statusLabels[row.status]}</td></tr>)}</tbody>
       </table></div>
       {rows.length === 0 && <p>В журнале нет изменённых полей положения; подтверждение операции всё равно требует проверки.</p>}
       <p className="dialog-intro">Выберите поля. «Применить мои значения» сохранит их на сервере; «Принять серверные» снимет только выбранные локальные правки. Остальные сохранятся в журнале. Удаление разрешается отдельно.</p>
+      {rows.some(row => row.status === 'unit_changed') && <p className="result-notice">Единица параметра отличается от исходной. Применение прежнего значения заблокировано: примите серверное значение и заново введите параметр в актуальной единице. Автоматический пересчёт не выполняется. Если единица не зафиксирована, её историческое значение неизвестно.</p>}
       {hasDeletion && <section aria-label="Разрешение удаления" className="result-notice recovery-deletion">
         <p>Неподтверждённое удаление рассматривается отдельно. Правки полей останутся в журнале.</p>
         {server ? <>
@@ -78,6 +83,6 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, r
     </>}
     {actionError && <p role="alert">{actionError}</p>}
     {saving && <p role="status">Разрешение выбранных правок…</p>}
-    <div className="dialog-actions recovery-actions"><button className="tool-btn primary" disabled={busy || saving || !selected.size || !onResolve} onClick={() => { void resolve('apply'); }}>Применить мои значения</button><button className="tool-btn" disabled={busy || saving || !selected.size || !onResolve} onClick={() => { void resolve('accept'); }}>Принять серверные</button><button className="tool-btn" disabled={busy || saving} onClick={() => { setActionError(''); refresh(value => value + 1); }}>Обновить сравнение</button><button className="tool-btn" disabled={saving} onClick={onClose}>Оставить правки в журнале</button></div>
+    <div className="dialog-actions recovery-actions"><button className="tool-btn primary" disabled={busy || saving || !selected.size || !onResolve || selectedUnitChanged} onClick={() => { void resolve('apply'); }}>Применить мои значения</button><button className="tool-btn" disabled={busy || saving || !selected.size || !onResolve} onClick={() => { void resolve('accept'); }}>Принять серверные</button><button className="tool-btn" disabled={busy || saving} onClick={() => { setActionError(''); refresh(value => value + 1); }}>Обновить сравнение</button><button className="tool-btn" disabled={saving} onClick={onClose}>Оставить правки в журнале</button></div>
   </Dialog>;
 }

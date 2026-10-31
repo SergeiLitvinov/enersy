@@ -23,6 +23,7 @@ type editorDraftPayload struct {
 	Graph         []editorGraphDraft     `json:"graph"`
 }
 type editorComponentBase struct {
+	DeclaredParameterUnits   json.RawMessage   `json:"declaredParameterUnits,omitempty"`
 	ProjectPassportVersionID *string           `json:"projectPassportVersionId,omitempty"`
 	ID                       string            `json:"id"`
 	TypeID                   string            `json:"typeId"`
@@ -46,6 +47,7 @@ type editorComponentIntent struct {
 	Values json.RawMessage `json:"values,omitempty"`
 	Key    *string         `json:"key,omitempty"`
 	Value  *string         `json:"value,omitempty"`
+	Unit   json.RawMessage `json:"unit,omitempty"`
 }
 type editorGraphDraft struct {
 	Intent editorGraphIntent `json:"intent"`
@@ -135,11 +137,16 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 		if validateComponentPose(*base.X, *base.Y, base.Name) != nil || *base.Rotation < math.MinInt32 || *base.Rotation > math.MaxInt32 {
 			return payload, errEditorDraftPayload
 		}
+		if len(base.DeclaredParameterUnits) != 0 {
+			if _, err := parseParameterUnitDeclaration(base.DeclaredParameterUnits, base.Params); err != nil {
+				return payload, errEditorDraftPayload
+			}
+		}
 		seen[draft.ComponentID] = true
 		for _, intent := range draft.Intents {
 			switch intent.Kind {
 			case "pose":
-				if len(intent.Values) == 0 || intent.Key != nil || intent.Value != nil {
+				if len(intent.Values) == 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 {
 					return payload, errEditorDraftPayload
 				}
 				patch := componentPatchRequest{Pose: intent.Values}
@@ -150,8 +157,14 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 				if len(intent.Values) != 0 || intent.Key == nil || intent.Value == nil || validateComponentParameter(*intent.Key, *intent.Value) != nil {
 					return payload, errEditorDraftPayload
 				}
+				if len(intent.Unit) != 0 {
+					var unit string
+					if json.Unmarshal(intent.Unit, &unit) != nil || !validParameterUnitLabel(unit) {
+						return payload, errEditorDraftPayload
+					}
+				}
 			case "delete":
-				if len(intent.Values) != 0 || intent.Key != nil || intent.Value != nil {
+				if len(intent.Values) != 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 {
 					return payload, errEditorDraftPayload
 				}
 			default:
@@ -212,7 +225,7 @@ func unambiguousDraftJSON(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	fields := map[string]bool{}
-	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision", " ") {
+	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision declaredParameterUnits units unit", " ") {
 		fields[field] = true
 	}
 	var value func(int, bool) bool
@@ -238,7 +251,7 @@ func unambiguousDraftJSON(data []byte) bool {
 					return false
 				}
 				seen[name] = true
-				if !value(depth+1, !parameters && name == "params") {
+				if !value(depth+1, !parameters && (name == "params" || name == "units")) {
 					return false
 				}
 			}

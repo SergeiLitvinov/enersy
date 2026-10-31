@@ -1,0 +1,17 @@
+{
+  "formatVersion": 2,
+  "components": [
+    {
+      "componentId": "101",
+      "base": {
+        "id": "101", "typeId": "1", "type": "generator", "equipmentModelId": null,
+        "revision": "9007199254740993", "name": "Generator", "x": 0, "y": 0, "rotation": 0,
+        "params": {"p": "10"},
+        "declaredParameterUnits": {"formatVersion": 1, "units": {"p": "МВт"}}
+      },
+      "intents": [{"kind": "parameter", "key": "p", "value": "10000000", "unit": "Вт"}],
+      "reason": "Lost acknowledgement of value and unit"
+    }
+  ],
+  "graph": []
+}

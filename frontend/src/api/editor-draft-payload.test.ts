@@ -5,6 +5,24 @@ import { encodeEditorDraftPayload, parseEditorDraftPayload, type EditorDraftPayl
 // Read JSON as data: Vite's JSON-to-object transform changes the __proto__ key.
 const fixture: EditorDraftPayload = JSON.parse(fixtureJSON);
 const copy = (): EditorDraftPayload => JSON.parse(JSON.stringify(fixture));
+
+test('unit declarations round-trip without inferring legacy labels and reject malformed metadata', () => {
+  expect(parseEditorDraftPayload(copy()).components[0].base).not.toHaveProperty('declaredParameterUnits');
+  const source = copy();
+  source.components[0].base.declaredParameterUnits = { formatVersion: 1, units: { voltage_nom: 'кВ', __proto__: 'unused' } };
+  // Only enumerable own keys are data; no inherited unit labels are captured.
+  const result = parseEditorDraftPayload(source);
+  expect(result.components[0].base.declaredParameterUnits).toEqual({ formatVersion: 1, units: { voltage_nom: 'кВ' } });
+  source.components[0].base.declaredParameterUnits.units.voltage_nom = 'В';
+  expect(result.components[0].base.declaredParameterUnits?.units.voltage_nom).toBe('кВ');
+  expect(parseEditorDraftPayload(JSON.parse(encodeEditorDraftPayload(result)))).toEqual(result);
+  for (const raw of [null, undefined, {}, { formatVersion: 2, units: { voltage_nom: 'кВ' } }, { formatVersion: 1, units: {} },
+    { formatVersion: 1, units: { absent: 'В' } }, { formatVersion: 1, units: { voltage_nom: ' ' } },
+    { formatVersion: 1, units: { voltage_nom: '\ud800' } }, { formatVersion: 1, units: { voltage_nom: 'В' }, extra: true }]) {
+    const value = copy(); Object.assign(value.components[0].base, { declaredParameterUnits: raw });
+    expect(() => parseEditorDraftPayload(value)).toThrow();
+  }
+});
 test('shared Go/TypeScript wire fixture preserves all intent kinds, historical CAS and independent copies', () => {
   const source = copy(), parsed = parseEditorDraftPayload(source);
   expect(parsed).toEqual(fixture);

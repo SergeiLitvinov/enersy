@@ -18,6 +18,21 @@ test('parameter editing displays an explicit instance unit instead of a changed 
   expect(container.querySelector('.param-unit')?.textContent).toBe('kV');
   expect(input('u').value).toBe('110');
 });
+
+test('dirty parameter text is never saved under a newly declared unit, even if server number matches it', async () => {
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { u: 'кВ' } } };
+  await act(async () => root.render(<ComponentParams component={source} onSave={save} />));
+  await type('u', '220');
+  await act(async () => root.render(<ComponentParams component={{ ...source, params: { ...source.params, u: '220' }, declaredParameterUnits: { formatVersion: 1, units: { u: 'В' } } }} onSave={save} />));
+  expect(input('u').value).toBe('220');
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица изменилась');
+  await type('u', '330'); await act(async () => { input('u').focus(); input('u').blur(); });
+  expect(save).not.toHaveBeenCalled();
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Вернуть сохранённое значение')!.click());
+  expect(input('u').value).toBe('220'); expect(container.querySelector('[role=alert]')).toBeNull();
+  await type('u', '330'); await act(async () => { input('u').focus(); input('u').blur(); });
+  expect(save).toHaveBeenCalledWith('u', '330');
+});
 test('inspector identifies the fixed project passport version without converting its ID', async () => {
   await act(async () => root.render(<ComponentParams component={{ ...component, projectPassportVersionId: '9007199254740993' }} onSave={save} />));
   expect(container.textContent).toContain('версия #9007199254740993');

@@ -1,6 +1,8 @@
 using Test, SHA, JSON, Pkg
 include("collect_julia_licenses.jl")
 const JN = JuliaNoticeInventory
+const NOTICE_TEST_SOURCES = isempty(ARGS) ? joinpath(@__DIR__,"julia-notices") : only(ARGS)
+isdir(NOTICE_TEST_SOURCES) || error("Notice test source directory not found: $(NOTICE_TEST_SOURCES)")
 
 @testset "Bundled SDK data fingerprints do not execute certificate stubs" begin
     mktempdir() do root
@@ -31,90 +33,96 @@ const JN = JuliaNoticeInventory
 end
 
 @testset "Mozilla CA data uses reviewed upstream provenance, not SDK artifact metadata" begin
-    sources = joinpath(@__DIR__,"julia-notices")
-    reference = only(JSON.parsefile(joinpath(@__DIR__,"julia-notice-sources.json"))["sdkDataSources"])
-    record = JSON.parsefile(joinpath(sources,reference["file"]),Dict{String,Any})
-    product = Dict(key=>record[key] for key in ("componentName","componentUUID","componentVersion","projectSha256","stubSha256","sdkFile","sdkSha256","sdkSha512","sdkBytes"))
-    current = Dict("platform"=>record["runtimePlatform"],"juliaVersion"=>record["juliaVersion"],"juliaCommit"=>record["juliaCommit"],"dataProducts"=>[product])
-    config = Dict("sdkDataSources"=>[reference]); index = deepcopy(config)
-    notices = Dict{String,String}()
-    rows = JN.verify_sdk_data_sources(current,config,index,sources,notices)
-    @test length(rows) == 1
-    @test only(rows)["sameBytes"] === true
-    @test haskey(notices,only(record["noticeFiles"])["sha256"])
-    @test JN.sdk_data_references(config,"other-platform") == []
-    @test isempty(JN.verify_sdk_data_sources(current,Dict(),Dict(),sources,Dict{String,String}()))
-    @test_throws ErrorException JN.verify_sdk_data_sources(current,config,Dict(),sources,Dict{String,String}())
-    @test_throws ErrorException JN.sdk_data_references(Dict("sdkDataSources"=>[reference,reference]),current["platform"])
-    for key in ("componentVersion","projectSha256","stubSha256","sdkSha256","sdkSha512","sdkBytes")
-        changed = deepcopy(current); changed["dataProducts"][1][key] = "wrong"
-        @test_throws ErrorException JN.verify_sdk_data_sources(changed,config,index,sources,Dict{String,String}())
-    end
-    mktempdir() do root
-        for relative in [reference["file"],record["metadataFile"],record["checksumFile"],only(record["noticeFiles"])["file"]]
-            target = joinpath(root,relative); mkpath(dirname(target)); cp(joinpath(sources,relative),target)
+    sources = NOTICE_TEST_SOURCES
+    references = JSON.parsefile(joinpath(@__DIR__,"julia-notice-sources.json"))["sdkDataSources"]
+    @test !isempty(references)
+    for reference in references
+        record = JSON.parsefile(joinpath(sources,reference["file"]),Dict{String,Any})
+        product = Dict(key=>record[key] for key in ("componentName","componentUUID","componentVersion","projectSha256","stubSha256","sdkFile","sdkSha256","sdkSha512","sdkBytes"))
+        current = Dict("platform"=>record["runtimePlatform"],"juliaVersion"=>record["juliaVersion"],"juliaCommit"=>record["juliaCommit"],"dataProducts"=>[product])
+        config = Dict("sdkDataSources"=>[reference]); index = deepcopy(config)
+        notices = Dict{String,String}()
+        rows = JN.verify_sdk_data_sources(current,config,index,sources,notices)
+        @test length(rows) == 1
+        @test only(rows)["sameBytes"] === true
+        @test haskey(notices,only(record["noticeFiles"])["sha256"])
+        @test JN.sdk_data_references(config,"other-platform") == []
+        @test isempty(JN.verify_sdk_data_sources(current,Dict(),Dict(),sources,Dict{String,String}()))
+        @test_throws ErrorException JN.verify_sdk_data_sources(current,config,Dict(),sources,Dict{String,String}())
+        @test_throws ErrorException JN.sdk_data_references(Dict("sdkDataSources"=>[reference,reference]),current["platform"])
+        for key in ("componentVersion","projectSha256","stubSha256","sdkSha256","sdkSha512","sdkBytes")
+            changed = deepcopy(current); changed["dataProducts"][1][key] = "wrong"
+            @test_throws ErrorException JN.verify_sdk_data_sources(changed,config,index,sources,Dict{String,String}())
         end
-        file = joinpath(root,reference["file"])
-        write(file,"changed")
-        @test_throws ErrorException JN.verify_sdk_data_sources(current,config,index,root,Dict{String,String}())
-        for (key,value) in (("formatVersion",true),("scope","wrong"),("originKind","sdk-artifact"),("juliaCommit","0"^40),
-                ("componentUUID","00000000-0000-0000-0000-000000000000"),("artifactSha256","0"^64),("artifactSha512","0"^128),
-                ("artifactBytes",1),("archiveUrl","https://example.invalid/other"),("artifactTreeSha1","0"^40),
-                ("metadataUrl","https://example.invalid/Artifacts.toml"),("checksumUrl","https://example.invalid/sha512"),
-                ("metadataGitBlobSha1","0"^40),("checksumGitBlobSha1","0"^40),("metadataGitBlobSha1",nothing),("checksumGitBlobSha1",nothing),
-                ("artifactBytes",188900.0),("licenseExpression","MIT"),("noticeFiles",[]),("extra","unsupported"))
-            changed = deepcopy(record); changed[key] = value
-            write(file,JSON.json(changed))
-            changed_reference = deepcopy(reference); changed_reference["sha256"] = JN.file_digest(file)
-            settings = Dict("sdkDataSources"=>[changed_reference])
-            @test_throws ErrorException JN.verify_sdk_data_sources(current,settings,settings,root,Dict{String,String}())
+        mktempdir() do root
+            for relative in [reference["file"],record["metadataFile"],record["checksumFile"],only(record["noticeFiles"])["file"]]
+                target = joinpath(root,relative); mkpath(dirname(target)); cp(joinpath(sources,relative),target)
+            end
+            file = joinpath(root,reference["file"])
+            write(file,"changed")
+            @test_throws ErrorException JN.verify_sdk_data_sources(current,config,index,root,Dict{String,String}())
+            for (key,value) in (("formatVersion",true),("scope","wrong"),("originKind","sdk-artifact"),("juliaCommit","0"^40),
+                    ("componentUUID","00000000-0000-0000-0000-000000000000"),("artifactSha256","0"^64),("artifactSha512","0"^128),
+                    ("artifactBytes",1),("archiveUrl","https://example.invalid/other"),("artifactTreeSha1","0"^40),
+                    ("metadataUrl","https://example.invalid/Artifacts.toml"),("checksumUrl","https://example.invalid/sha512"),
+                    ("metadataGitBlobSha1","0"^40),("checksumGitBlobSha1","0"^40),("metadataGitBlobSha1",nothing),("checksumGitBlobSha1",nothing),
+                    ("artifactBytes",188900.0),("licenseExpression","MIT"),("noticeFiles",[]),("extra","unsupported"))
+                changed = deepcopy(record); changed[key] = value
+                write(file,JSON.json(changed))
+                changed_reference = deepcopy(reference); changed_reference["sha256"] = JN.file_digest(file)
+                settings = Dict("sdkDataSources"=>[changed_reference])
+                @test_throws ErrorException JN.verify_sdk_data_sources(current,settings,settings,root,Dict{String,String}())
+            end
+            cp(joinpath(sources,reference["file"]),file;force=true)
+            write(joinpath(root,only(record["noticeFiles"])["file"]),"Changed license")
+            @test_throws ErrorException JN.verify_sdk_data_sources(current,config,index,root,Dict{String,String}())
         end
-        cp(joinpath(sources,reference["file"]),file;force=true)
-        write(joinpath(root,only(record["noticeFiles"])["file"]),"Changed license")
-        @test_throws ErrorException JN.verify_sdk_data_sources(current,config,index,root,Dict{String,String}())
     end
 end
 
 @testset "Reviewed LLD repackaging preserves original byte mismatch" begin
-    sources = joinpath(@__DIR__,"julia-notices")
+    sources = NOTICE_TEST_SOURCES
     config = JSON.parsefile(joinpath(@__DIR__,"julia-notice-sources.json"),Dict{String,Any})
-    binding = only(filter(row->haskey(row,"repackagingProof"),config["artifactPlatformBindings"]))
-    original = JSON.parsefile(joinpath(sources,binding["repackagingProof"]["file"]),Dict{String,Any})
-    current = Dict("juliaVersion"=>original["juliaVersion"],"juliaCommit"=>original["juliaCommit"],"platform"=>original["platform"],
-        "executables"=>[Dict("file"=>original["sdkFile"],"sha256"=>original["sdkSha256"],"bytes"=>original["sdkBytes"],"component"=>"LLD_jll")])
-    comparison = Dict("sdkFile"=>binding["sdkFile"],"archivePath"=>binding["artifactFile"],"sdkSha256"=>binding["sdkSha256"],
-        "artifactSha256"=>original["artifactSha256"],"sameBytes"=>false)
-    artifact = Dict("archiveSha256"=>binding["archiveSha256"],"archiveUrl"=>original["archiveUrl"],"libraryComparisons"=>[comparison])
-    proof = JN.repackaging_proof(sources,binding,current)
-    @test proof["evidence"] == original
-    @test JN.verify_bound_comparison(sources,binding,current,artifact) === nothing
-    @test only(JN.executable_coverage(current["executables"],[comparison],[proof]))["comparisonStatus"] == "reviewed_repackaging"
-    @test comparison["sameBytes"] === false
-    for (key,value) in (("archiveUrl","https://example.invalid/other"),("archiveSha256","0"^64),("libraryComparisons",[]))
-        changed = deepcopy(artifact); changed[key] = value
-        @test_throws ErrorException JN.verify_bound_comparison(sources,binding,current,changed)
-    end
-    for (key,value) in (("sdkFile","bin/lld"),("archivePath","bin/lld"),("artifactSha256","0"^64),("sameBytes",true))
-        changed = deepcopy(artifact); changed["libraryComparisons"][1][key] = value
-        @test_throws ErrorException JN.verify_bound_comparison(sources,binding,current,changed)
-    end
-    unreviewed = deepcopy(binding); delete!(unreviewed,"repackagingProof")
-    @test_throws ErrorException JN.verify_bound_comparison(sources,unreviewed,current,artifact)
-    changed_current = deepcopy(current); changed_current["executables"][1]["bytes"] += 1
-    @test_throws ErrorException JN.repackaging_proof(sources,binding,changed_current)
-    mktempdir() do root
-        file = joinpath(root,binding["repackagingProof"]["file"])
-        mkpath(dirname(file))
-        write(file,"changed")
-        @test_throws ErrorException JN.repackaging_proof(root,binding,current)
-        for (key,value) in (("formatVersion",true),("scope","wrong"),("juliaCommit","0"^40),("componentUUID","00000000-0000-0000-0000-000000000000"),
-                ("sdkSha256","0"^64),("reproducedSha256","0"^64),("reproducedBytes",0),("sdkBytes",true),
-                ("sameBytesAfterRepackaging",false),("operation",["patchelf","--add-rpath","wrong"]),("tool",Dict()),
-                ("sdkImageId","latest"),("extra","not allowed"))
-            changed = deepcopy(original); changed[key] = value
-            write(file,JSON.json(changed))
-            changed_binding = deepcopy(binding); changed_binding["repackagingProof"]["sha256"] = JN.file_digest(file)
-            @test_throws ErrorException JN.repackaging_proof(root,changed_binding,current)
+    bindings = filter(row->haskey(row,"repackagingProof"),config["artifactPlatformBindings"])
+    @test !isempty(bindings)
+    for binding in bindings
+        original = JSON.parsefile(joinpath(sources,binding["repackagingProof"]["file"]),Dict{String,Any})
+        current = Dict("juliaVersion"=>original["juliaVersion"],"juliaCommit"=>original["juliaCommit"],"platform"=>original["platform"],
+            "executables"=>[Dict("file"=>original["sdkFile"],"sha256"=>original["sdkSha256"],"bytes"=>original["sdkBytes"],"component"=>"LLD_jll")])
+        comparison = Dict("sdkFile"=>binding["sdkFile"],"archivePath"=>binding["artifactFile"],"sdkSha256"=>binding["sdkSha256"],
+            "artifactSha256"=>original["artifactSha256"],"sameBytes"=>false)
+        artifact = Dict("archiveSha256"=>binding["archiveSha256"],"archiveUrl"=>original["archiveUrl"],"libraryComparisons"=>[comparison])
+        proof = JN.repackaging_proof(sources,binding,current)
+        @test proof["evidence"] == original
+        @test JN.verify_bound_comparison(sources,binding,current,artifact) === nothing
+        @test only(JN.executable_coverage(current["executables"],[comparison],[proof]))["comparisonStatus"] == "reviewed_repackaging"
+        @test comparison["sameBytes"] === false
+        for (key,value) in (("archiveUrl","https://example.invalid/other"),("archiveSha256","0"^64),("libraryComparisons",[]))
+            changed = deepcopy(artifact); changed[key] = value
+            @test_throws ErrorException JN.verify_bound_comparison(sources,binding,current,changed)
+        end
+        for (key,value) in (("sdkFile","bin/lld"),("archivePath","bin/lld"),("artifactSha256","0"^64),("sameBytes",true))
+            changed = deepcopy(artifact); changed["libraryComparisons"][1][key] = value
+            @test_throws ErrorException JN.verify_bound_comparison(sources,binding,current,changed)
+        end
+        unreviewed = deepcopy(binding); delete!(unreviewed,"repackagingProof")
+        @test_throws ErrorException JN.verify_bound_comparison(sources,unreviewed,current,artifact)
+        changed_current = deepcopy(current); changed_current["executables"][1]["bytes"] += 1
+        @test_throws ErrorException JN.repackaging_proof(sources,binding,changed_current)
+        mktempdir() do root
+            file = joinpath(root,binding["repackagingProof"]["file"])
+            mkpath(dirname(file))
+            write(file,"changed")
+            @test_throws ErrorException JN.repackaging_proof(root,binding,current)
+            for (key,value) in (("formatVersion",true),("scope","wrong"),("juliaCommit","0"^40),("componentUUID","00000000-0000-0000-0000-000000000000"),
+                    ("sdkSha256","0"^64),("reproducedSha256","0"^64),("reproducedBytes",0),("sdkBytes",true),
+                    ("sameBytesAfterRepackaging",false),("operation",["patchelf","--add-rpath","wrong"]),("tool",Dict()),
+                    ("sdkImageId","latest"),("extra","not allowed"))
+                changed = deepcopy(original); changed[key] = value
+                write(file,JSON.json(changed))
+                changed_binding = deepcopy(binding); changed_binding["repackagingProof"]["sha256"] = JN.file_digest(file)
+                @test_throws ErrorException JN.repackaging_proof(root,changed_binding,current)
+            end
         end
     end
 end

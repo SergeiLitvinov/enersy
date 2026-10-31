@@ -153,6 +153,19 @@ jobs:
             -v "$PWD/scripts/security/julia-notice-sources.json:/notice-config.json:ro" \
             enersy-julia-sdk-check julia --project=. --startup-file=no \
             /collect.jl --facts /notice-config.json > .cache/julia-sdk/notice-facts.json
+      - name: Build final image with the reviewed platform notice index
+        run: |
+          docker build --platform 'linux/${{ matrix.arch }}' \
+            -f backend-julia/Dockerfile -t enersy-julia-sdk-reviewed . \
+            2>&1 | tee .cache/julia-sdk/reviewed-image-build.log
+      - name: Verify packaged notice fixtures and export the final inventory
+        run: |
+          docker run --rm --network none enersy-julia-sdk-reviewed \
+            julia --project=. --startup-file=no /notice-tools/test_collect_julia_licenses.jl \
+            /usr/share/licenses/enersy/julia-notice-sources \
+            2>&1 | tee .cache/julia-sdk/reviewed-notice-tests.log
+          docker run --rm --network none --entrypoint cat enersy-julia-sdk-reviewed \
+            /usr/share/licenses/enersy/julia-modules.json > .cache/julia-sdk/reviewed-inventory.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -258,7 +271,10 @@ jobs:
           path: .cache/parameter-units-worker.log
           if-no-files-found: warn
       - name: Julia notice collector source and checksum checks
-        run: docker compose --profile julia-check run --rm --no-deps julia-check julia --project=. --startup-file=no /notice-tools/test_collect_julia_licenses.jl
+        run: >-
+          docker compose --profile julia-check run --rm --no-deps julia-check
+          julia --project=. --startup-file=no /notice-tools/test_collect_julia_licenses.jl
+          /usr/share/licenses/enersy/julia-notice-sources
       - name: Notice maintenance archive and path checks
         run: docker compose --profile notice-maintenance-check run --rm --no-deps notice-maintenance-check
       - name: Export Julia and SDK notice inventory

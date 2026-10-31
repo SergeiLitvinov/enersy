@@ -91,7 +91,7 @@ test('revoked scope signals unavailability; cancellation hides late responses wi
 test('calculation uses the loaded topology and forwards source only after response validation', async () => {
   const onCalculation = vi.fn();
   const source = { projectId, schemeId, topologyRevision: '9007199254740994', inputSha256: 'a'.repeat(64), archiveId: '9007199254740995' };
-  const result = { success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
+  const result = { input_unit_contract: { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1', validation_scope: 'request-declarations-only', component_count: 0, parameter_count: 0 }, success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph(source.topologyRevision))).mockResolvedValueOnce(new Response(JSON.stringify(result), { headers: {
     'X-Enersy-Project-Id': projectId, 'X-Enersy-Scheme-Id': schemeId, 'X-Enersy-Topology-Revision': source.topologyRevision, 'X-Enersy-Input-SHA256': source.inputSha256, 'X-Enersy-Archive-Id': source.archiveId,
   } }));

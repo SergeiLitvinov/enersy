@@ -65,6 +65,18 @@ function graphWith(components: api.SchemeComponent[], id = 2): api.Scheme {
 }
 const voltageTemplate: api.ComponentParam[] = [{key:'voltage_nom',name:'Voltage',type:'number',unit:'kV',default:'999'}];
 
+test('explicit value/unit save is one conditional patch and retains intent on a lost acknowledgement', async () => {
+  await act(async () => { state.setComponents([{ ...component, params: { voltage_nom: '110' } }]); });
+  const declaration = { formatVersion: 1 as const, units: { voltage_nom: 'В' } };
+  vi.mocked(api.patchComponent).mockResolvedValueOnce({ success: true, revision: '2' }).mockRejectedValueOnce(new Error('lost unit acknowledgement'));
+  await act(async () => { await state.saveComponentParams(101, { voltage_nom: '110000' }, declaration); });
+  expect(api.patchComponent).toHaveBeenNthCalledWith(1, 101, { params: { voltage_nom: '110000' }, parameterUnitDeclaration: declaration }, '1');
+  expect(state.components[0]).toMatchObject({ revision: '2', params: { voltage_nom: '110000' }, declaredParameterUnits: declaration });
+  await act(async () => { await expect(state.saveComponentParams(101, { voltage_nom: '110' }, { formatVersion: 1, units: { voltage_nom: 'кВ' } })).rejects.toThrow('lost unit'); });
+  expect(state.failedDrafts[0]).toMatchObject({ base: { declaredParameterUnits: declaration }, intents: [{ kind: 'parameter', key: 'voltage_nom', value: '110', unit: 'кВ' }] });
+  expect(state.components[0].declaredParameterUnits).toEqual(declaration);
+});
+
 test('a large graph reads each type once without filling instance values from template defaults',async()=>{
   const components=Array.from({length:1000},(_,i)=>({...component,id:i+1,params:{voltage_nom:String(i)}}));
   components.push({...component,id:2001,type:'load',params:{voltage_nom:''}});

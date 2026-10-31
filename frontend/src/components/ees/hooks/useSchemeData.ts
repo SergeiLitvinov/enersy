@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../../../api/ees-api';
+import { parseParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
 import { EditorComponent, EditorConnection } from '../editor-utils';
 import { ComponentLibraryItem } from '../svg-components';
 import { useNotify } from '../../NotificationProvider';
@@ -234,18 +235,21 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     } catch (error) { if (isCurrent()) { refreshRecovery(version => version + 1); notify(writeErrorMessage(error, 'Не удалось подтвердить сохранение параметра. Повторно загрузите исходную схему.'), 'error'); } }
   }, [components, currentSchemeId, captureView, notify, dataAPI]);
 
-  const saveComponentParams = useCallback(async (id: number, values: Readonly<Record<string, string>>) => {
+  const saveComponentParams = useCallback(async (id: number, values: Readonly<Record<string, string>>, declaration?: api.ComponentPatch['parameterUnitDeclaration']) => {
     const component = components.find(c => c.id === id);
     if (!component || !currentSchemeId) throw new Error('Выберите оборудование исходной схемы');
     const params = { ...values };
+    const parameterUnitDeclaration = declaration ? parseParameterUnitDeclaration(declaration, params) : undefined;
     if (!Object.keys(params).length) return;
     const isCurrent = captureView();
     try {
       const result = await writes.current.run(component, isCurrent,
-        revision => dataAPI.patchComponent(id, { params }, revision),
-        { schemeId: currentSchemeId, intent: Object.entries(params).map(([key, value]) => ({ kind: 'parameter', key, value })) });
+        revision => dataAPI.patchComponent(id, { params, ...(parameterUnitDeclaration ? { parameterUnitDeclaration } : {}) }, revision),
+        { schemeId: currentSchemeId, intent: Object.entries(params).map(([key, value]) => ({ kind: 'parameter', key, value,
+          ...(parameterUnitDeclaration && Object.prototype.hasOwnProperty.call(parameterUnitDeclaration.units, key) ? { unit: parameterUnitDeclaration.units[key] } : {}) })) });
       if (!result || !isCurrent()) throw new Error('Рабочий контекст изменился. Проверьте сохранение в исходной схеме.');
-      setComponents(prev => prev.map(c => c.id === id ? { ...c, revision: result.revision, params: { ...c.params, ...params } } : c));
+      setComponents(prev => prev.map(c => c.id === id ? { ...c, revision: result.revision, params: { ...c.params, ...params },
+        ...(parameterUnitDeclaration ? { declaredParameterUnits: { formatVersion: 1 as const, units: { ...c.declaredParameterUnits?.units, ...parameterUnitDeclaration.units } } } : {}) } : c));
     } catch (error) {
       if (isCurrent()) refreshRecovery(version => version + 1);
       throw error;

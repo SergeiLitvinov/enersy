@@ -8,6 +8,7 @@ import {useConnectionGeometry} from './hooks/useConnectionGeometry';
 import { useSchemeData } from './hooks/useSchemeData';
 import { useComputeBackends } from './hooks/useComputeBackends';
 import type { ComputeBackendId } from '../../api/compute-backends';
+import type { ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
 import { isCalculationBudget } from '../../api/calculation-execution';
 import type { TerminalVoltageLimit } from '../../api/operating-assessment';
 import { limitContextKey } from './limit-context';
@@ -208,9 +209,9 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     }
   }, [selectedComponent, saveComponentParam]);
 
-  const onSaveParams = useCallback(async (values: Readonly<Record<string, string>>) => {
+  const onSaveParams = useCallback(async (values: Readonly<Record<string, string>>, declaration?: ParameterUnitDeclaration) => {
     if (selectedComponent === null) throw new Error('Выберите оборудование');
-    await saveComponentParams(selectedComponent, values);
+    await saveComponentParams(selectedComponent, values, declaration);
   }, [selectedComponent, saveComponentParams]);
 
   // Keyboard

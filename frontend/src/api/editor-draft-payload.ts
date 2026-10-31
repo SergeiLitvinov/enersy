@@ -1,13 +1,16 @@
+import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
+
 /** Recovery data only. Decoding neither validates current topology nor sends commands. */
 export interface EditorDraftPose { x: number; y: number; rotation: number; name: string }
 export interface EditorDraftBase extends EditorDraftPose {
   projectPassportVersionId?: string | null;
   id: string; typeId: string; type: string; equipmentModelId: string | null;
   revision: string; params: Record<string, string>;
+  declaredParameterUnits?: ParameterUnitDeclaration;
 }
 export type EditorComponentIntent =
   | { kind: 'pose'; values: Partial<EditorDraftPose> }
-  | { kind: 'parameter'; key: string; value: string }
+  | { kind: 'parameter'; key: string; value: string; unit?: string }
   | { kind: 'delete' };
 export type EditorGraphIntent =
   | ({ kind: 'create-component'; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> } & EditorDraftPose)
@@ -96,8 +99,11 @@ function componentIntent(value: unknown): EditorComponentIntent {
   const kind = draftRecord(value).kind;
   if (kind === 'delete') { fields(value, ['kind']); return { kind }; }
   if (kind === 'parameter') {
-    const item = fields(value, ['kind', 'key', 'value']);
-    return { kind, key: text(item.key, 50, true), value: parameterValue(item.value) };
+    const item = fields(value, ['kind', 'key', 'value'], ['unit']);
+    const key = text(item.key, 50, true), parameter = parameterValue(item.value);
+    const unit = owns(item, 'unit') ? { unit: text(item.unit, 64, true) } : {};
+    if (unit.unit !== undefined) parseParameterUnitDeclaration({ formatVersion: 1, units: { [key]: unit.unit } }, { [key]: parameter });
+    return { kind, key, value: parameter, ...unit };
   }
   if (kind === 'pose') {
     const item = fields(value, ['kind', 'values']);
@@ -141,14 +147,17 @@ export function parseEditorDraftPayload(value: unknown): EditorDraftPayload {
     const componentId = draftId(entry.componentId);
     if (seen.has(componentId)) return invalid();
     seen.add(componentId);
-    const base = fields(entry.base, ['id', 'typeId', 'type', 'revision', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId']);
+    const base = fields(entry.base, ['id', 'typeId', 'type', 'revision', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId', 'declaredParameterUnits']);
     if (draftId(base.id) !== componentId) return invalid();
     const type = text(base.type, 50);
     if (!type) return invalid();
     const intents = array(entry.intents, 64).map(componentIntent);
     if (!intents.length) return invalid();
+    const baseParams = params(base.params);
+    const units = owns(base, 'declaredParameterUnits') ? { declaredParameterUnits: parseParameterUnitDeclaration(base.declaredParameterUnits, baseParams) } : {};
+    if (units.declaredParameterUnits) Object.values(units.declaredParameterUnits.units).forEach(unit => text(unit, 64, true));
     return { componentId, base: { id: componentId, typeId: draftId(base.typeId), type, revision: draftRevision(base.revision),
-      ...pose(base), ...passport(base), equipmentModelId: model(base.equipmentModelId), params: params(base.params) }, intents, reason: text(entry.reason, 1024) };
+      ...pose(base), ...passport(base), ...units, equipmentModelId: model(base.equipmentModelId), params: baseParams }, intents, reason: text(entry.reason, 1024) };
   });
   const graph = array(item.graph, 128).map(value => {
     const entry = fields(value, ['intent', 'reason']);

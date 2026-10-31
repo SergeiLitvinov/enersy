@@ -1,0 +1,6 @@
+.parameter-unit-form fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.parameter-unit-form legend { margin-bottom: 18px; color: var(--text-primary); font-weight: 600; }
+.parameter-unit-form label { display: grid; gap: 8px; margin-bottom: 16px; color: var(--text-primary); font-size: 12px; }
+.parameter-unit-form input, .parameter-unit-form select { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--border-color); border-radius: 8px; padding: 11px 12px; background: var(--bg-card); color: var(--text-primary); font: inherit; }
+.parameter-unit-form input:focus-visible, .parameter-unit-form select:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.parameter-unit-form .dialog-actions { flex-wrap: wrap; }

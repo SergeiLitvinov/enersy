@@ -10,18 +10,20 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
   unitDeclaration?: ParameterUnitDeclaration;
 }) {
   const confirmed = loadProfileDraft(params);
-  const [state, setState] = useState(() => ({ confirmed, draft: { ...confirmed }, resets: { ...parameterResets }, conflicted: false }));
+  const units = Object.fromEntries(loadProfileKeys.map(key => [key, parameterUnitLabel(unitDeclaration, key, '')]));
+  const [state, setState] = useState(() => ({ confirmed, draft: { ...confirmed }, units, resets: { ...parameterResets }, conflicted: false }));
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [failure, setFailure] = useState('');
   const pending = useRef(false);
-  if (loadProfileKeys.some(key => state.confirmed[key] !== confirmed[key] || (state.resets[key] ?? 0) !== (parameterResets[key] ?? 0))) {
+  if (loadProfileKeys.some(key => state.confirmed[key] !== confirmed[key] || state.units[key] !== units[key] || (state.resets[key] ?? 0) !== (parameterResets[key] ?? 0))) {
     const draft = { ...state.draft };
     let conflicted = state.conflicted;
     for (const key of loadProfileKeys) {
       const reset = (state.resets[key] ?? 0) !== (parameterResets[key] ?? 0);
       if (reset || draft[key] === state.confirmed[key]) draft[key] = confirmed[key];
+      else if (units[key] !== state.units[key]) conflicted = true;
       else if (confirmed[key] !== state.confirmed[key] && confirmed[key] !== draft[key]) conflicted = true;
     }
-    setState({ confirmed, draft, resets: { ...parameterResets }, conflicted });
+    setState({ confirmed, draft, units, resets: { ...parameterResets }, conflicted });
   }
   const mode = loadProfileMode(state.draft.zip_enabled);
   const dirty = loadProfileKeys.some(key => state.draft[key] !== state.confirmed[key]);
@@ -30,7 +32,7 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
     setState(previous => ({ ...previous, draft: { ...previous.draft, [key]: value } }));
     setMessage(''); setFailure('');
   };
-  const restore = () => { setState({ confirmed, draft: { ...confirmed }, resets: { ...parameterResets }, conflicted: false }); setMessage(''); setFailure(''); };
+  const restore = () => { setState({ confirmed, draft: { ...confirmed }, units, resets: { ...parameterResets }, conflicted: false }); setMessage(''); setFailure(''); };
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (pending.current || !dirty || invalid || state.conflicted) return;
@@ -68,7 +70,7 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
         <p className="load-profile-equation">P(U) = Pном · (pZ·u² + pI·u + pP)<br />Q(U) = Qном · (qZ·u² + qI·u + qP)<br />u = U / Uном</p>
       </> : <p>Мощность не зависит от напряжения. Применение PQ очищает сохранённые доли ZIP.</p>}
       <p>Положительные P и Q означают потребление. Настройки применяются целиком; до применения расчёт использует сохранённый профиль.</p>
-      {state.conflicted && <p role="alert">Сохранённые значения изменились во время редактирования. Сверьте их, вернув сохранённый профиль.</p>}
+      {state.conflicted && <p role="alert">Сохранённые значения или единицы изменились во время редактирования. Сверьте их, вернув сохранённый профиль.</p>}
       {invalid && <p className="load-profile-validation" role="status">{invalid}</p>}
       {failure && <p role="alert">{failure}</p>}
       {message && <p role="status">{message}</p>}

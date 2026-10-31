@@ -1,7 +1,20 @@
 import { expect, test } from 'vitest';
 import v1JSON from '../../../tests/fixtures/editor-draft-v1.json?raw';
 import v2JSON from '../../../tests/fixtures/editor-draft-v2.json?raw';
+import unitJSON from '../../../tests/fixtures/editor-draft-units-v2.json?raw';
 import { encodeStoredEditorDraftPayload, graphEntriesV2, parseEditorDraftPayloadV2, parseStoredEditorDraftPayload } from './editor-draft-phases';
+
+test('shared value/unit intent fixture retains original and intended units through both journal versions', () => {
+  const source = JSON.parse(unitJSON);
+  for (const formatVersion of [1, 2]) {
+    const payload = { ...source, formatVersion };
+    expect(parseStoredEditorDraftPayload(JSON.parse(encodeStoredEditorDraftPayload(payload)))).toEqual(payload);
+    for (const unit of [null, undefined, '', ' MW', 'MW\n', '\ud800', 1]) {
+      const invalid = JSON.parse(JSON.stringify(payload)); invalid.components[0].intents[0].unit = unit;
+      expect(() => parseStoredEditorDraftPayload(invalid)).toThrow();
+    }
+  }
+});
 
 test('both shared wire versions survive independent deep copies; mixed phases never infer CAS', () => {
   const v1 = JSON.parse(v1JSON), v2 = JSON.parse(v2JSON);

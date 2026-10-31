@@ -6,6 +6,32 @@ const draft: ComponentDraft = { schemeId: 1, componentId: 101, reason: 'conflict
   id: 101, revision: '1', type: 'busbar', typeId: 1, name: 'Bus', x: 0, y: 0, rotation: 0, params: { voltage: '110', empty: '' },
 }, intents: [{ kind: 'pose', values: { x: 10 } }, { kind: 'pose', values: { rotation: 90 } }, { kind: 'parameter', key: 'voltage', value: '220' }] };
 
+test('changed explicit units take priority over identical numbers and block only selected parameter writes', () => {
+  const source: ComponentDraft = { ...draft, base: { ...draft.base, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'кВ' } } } };
+  const server = { ...source.base, revision: '8', params: { voltage: '220' }, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'В' } } };
+  expect(compareComponentDraft(source, server)[2]).toMatchObject({ status: 'unit_changed', units: { base: 'кВ', local: 'кВ', server: 'В' } });
+  expect(() => prepareRecoveryPatch(source, server, new Set(['parameter:voltage']))).toThrow('Единица');
+  expect(prepareRecoveryPatch(source, server, new Set(['pose:x']))).toEqual({ revision: '8', patch: { pose: { x: 10 } } });
+  // No unit is invented for an old journal, even when a current server declares one.
+  expect(() => prepareRecoveryPatch(draft, server, new Set(['parameter:voltage']))).toThrow('Единица');
+  const without = { ...server, declaredParameterUnits: undefined };
+  expect(() => prepareRecoveryPatch(source, without, new Set(['parameter:voltage']))).toThrow('Единица');
+  expect(compareComponentDraft(source, source.base)[2].status).toBe('pending');
+});
+
+test('intentional value/unit edit is atomic and exact acknowledged pairs need no repeated write', () => {
+  const source: ComponentDraft = { ...draft, base: { ...draft.base, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'кВ' } } },
+    intents: [{ kind: 'parameter', key: 'voltage', value: '110000', unit: 'В' }] };
+  const selected = new Set(['parameter:voltage']);
+  expect(prepareRecoveryPatch(source, source.base, selected).patch).toEqual({ params: { voltage: '110000' }, parameterUnitDeclaration: { formatVersion: 1, units: { voltage: 'В' } } });
+  const applied = { ...source.base, revision: '8', params: { voltage: '110000' }, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'В' } } };
+  expect(compareComponentDraft(source, applied)[0].status).toBe('already_applied');
+  expect(prepareRecoveryPatch(source, applied, selected).patch).toBeUndefined();
+  expect(() => prepareRecoveryPatch(source, { ...applied, params: { voltage: '220000' } }, selected)).toThrow('Единица');
+  const repeated: ComponentDraft = { ...source, intents: [...source.intents, { kind: 'parameter', key: 'voltage', value: '220000' }] };
+  expect(prepareRecoveryPatch(repeated, source.base, selected).patch).toEqual({ params: { voltage: '220000' }, parameterUnitDeclaration: { formatVersion: 1, units: { voltage: 'В' } } });
+});
+
 test('recovery refuses a different project passport version even when all object fields match', () => {
   const bound = { ...draft, base: { ...draft.base, projectPassportVersionId: '9007199254740993' } };
   expect(() => prepareRecoveryPatch(bound, { ...bound.base, projectPassportVersionId: '9007199254740994' }, new Set(['pose:x']))).toThrow();

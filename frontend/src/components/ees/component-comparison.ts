@@ -8,12 +8,14 @@ export interface ComponentComparisonRow {
   base: string | number | boolean | undefined;
   local: string | number | boolean | undefined;
   server: string | number | boolean | undefined;
-  status: 'pending' | 'server_changed' | 'already_applied' | 'object_missing';
+  units?: { base: string | undefined; local: string | undefined; server: string | undefined };
+  unitEdit?: boolean;
+  status: 'pending' | 'server_changed' | 'already_applied' | 'object_missing' | 'unit_changed';
 }
 
 /** Three-way comparison includes only fields explicitly touched by local intents. */
 export function compareComponentDraft(draft: ComponentDraft, server?: SchemeComponent): ComponentComparisonRow[] {
-  const touched = new Map<string, { label: string; base: ComponentComparisonRow['base']; local: ComponentComparisonRow['local']; server: ComponentComparisonRow['server'] }>();
+  const touched = new Map<string, Omit<ComponentComparisonRow, 'key' | 'status'>>();
   const poseLabels = { x: 'Положение X', y: 'Положение Y', rotation: 'Поворот, °', name: 'Название' };
   const parameter = (params: Record<string, string> | undefined, key: string) => params && Object.prototype.hasOwnProperty.call(params, key) ? params[key] : undefined;
   for (const intent of draft.intents) {
@@ -22,16 +24,21 @@ export function compareComponentDraft(draft: ComponentDraft, server?: SchemeComp
         if (Object.prototype.hasOwnProperty.call(intent.values, field)) touched.set(`pose:${field}`, { label: poseLabels[field], base: draft.base[field], local: intent.values[field], server: server?.[field] });
       }
     } else if (intent.kind === 'parameter') {
-      touched.set(`parameter:${intent.key}`, { label: `Параметр ${intent.key}`, base: parameter(draft.base.params, intent.key), local: intent.value, server: parameter(server?.params, intent.key) });
+      const baseUnit = parameter(draft.base.declaredParameterUnits?.units, intent.key);
+      const previous = touched.get(`parameter:${intent.key}`);
+      touched.set(`parameter:${intent.key}`, { label: `Параметр ${intent.key}`, base: parameter(draft.base.params, intent.key), local: intent.value, server: parameter(server?.params, intent.key),
+        units: { base: baseUnit, local: intent.unit ?? previous?.units?.local ?? baseUnit, server: parameter(server?.declaredParameterUnits?.units, intent.key) },
+        ...(intent.unit === undefined && !previous?.unitEdit ? {} : { unitEdit: true }) });
     } else touched.set('delete', { label: 'Объект существует', base: true, local: false, server: Boolean(server) });
   }
   return [...touched].map(([key, row]) => ({ key, ...row, status: !server && key !== 'delete' ? 'object_missing'
-    : Object.is(row.local, row.server) ? 'already_applied'
+    : Object.is(row.local, row.server) && (!row.units || row.units.local === row.units.server) ? 'already_applied'
+    : row.units && row.units.base !== row.units.server ? 'unit_changed'
     : Object.is(row.base, row.server) ? 'pending' : 'server_changed' }));
 }
 
-/** Build a reviewed partial write against exactly the compared server revision. */
-export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeComponent | undefined, selected: ReadonlySet<string>): { revision: string; patch?: ComponentPatch } {
+/** Acceptance validates the same identity and selection without reinterpreting local values. */
+export function validateRecoverySelection(draft: ComponentDraft, server: SchemeComponent | undefined, selected: ReadonlySet<string>) {
   if (!server || server.id !== draft.componentId || server.typeId !== draft.base.typeId || server.type !== draft.base.type ||
     (server.equipmentModelId ?? null) !== (draft.base.equipmentModelId ?? null) ||
     (server.projectPassportVersionId ?? null) !== (draft.base.projectPassportVersionId ?? null)) {
@@ -40,15 +47,29 @@ export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeCompon
   const revision = parseComponentRevision(server.revision);
   const rows = new Map(compareComponentDraft(draft, server).map(row => [row.key, row]));
   if (selected.size === 0) throw new Error('Выберите поля для применения');
+  for (const key of selected) {
+    if (!rows.has(key) || key === 'delete') throw new Error('Удаление выполняется отдельно от изменения полей');
+  }
+  return { revision, rows };
+}
+
+/** Build a reviewed partial write against exactly the compared server revision. */
+export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeComponent | undefined, selected: ReadonlySet<string>): { revision: string; patch?: ComponentPatch } {
+  const { revision, rows } = validateRecoverySelection(draft, server, selected);
   const patch: ComponentPatch = {};
   for (const key of selected) {
     const row = rows.get(key);
     if (!row || key === 'delete') throw new Error('Удаление выполняется отдельно от изменения полей');
+    if (row.status === 'unit_changed') throw new Error('Единица параметра изменилась. Примите серверное значение и заново задайте параметр в актуальной единице.');
     if (row.status === 'already_applied') continue;
     if (key.startsWith('parameter:')) {
       if (typeof row.local !== 'string') throw new Error('Некорректное значение параметра');
       patch.params ??= {};
       Object.defineProperty(patch.params, key.slice('parameter:'.length), { value: row.local, enumerable: true, configurable: true, writable: true });
+      if (row.unitEdit && row.units?.local !== undefined) {
+        patch.parameterUnitDeclaration ??= { formatVersion: 1, units: {} };
+        Object.defineProperty(patch.parameterUnitDeclaration.units, key.slice('parameter:'.length), { value: row.units.local, enumerable: true, configurable: true, writable: true });
+      }
     } else {
       patch.pose ??= {};
       switch (key) {

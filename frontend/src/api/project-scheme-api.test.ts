@@ -111,9 +111,17 @@ test('aborted scope and invalid identifiers never dispatch; abortion during deco
   fetcher.mockResolvedValue({ ok: true, json: async () => { live.abort(); return { success: true, revision }; } });
   await expect(deleteProjectComponent(scope, '10', revision, live.signal)).rejects.toThrow();
 });
-const result = { success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
+const result = { input_unit_contract: { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1', validation_scope: 'request-declarations-only', component_count: 0, parameter_count: 0 }, success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
 const provenance = { 'X-Enersy-Project-Id': scope.projectId, 'X-Enersy-Scheme-Id': scope.schemeId,
   'X-Enersy-Topology-Revision': revision, 'X-Enersy-Input-SHA256': 'a'.repeat(64) };
+
+test('private direct calculation refuses success without strict-unit acknowledgement', async () => {
+  const { input_unit_contract: omitted, ...unchecked } = result;
+  expect(omitted).toBeDefined();
+  const fetcher = vi.fn().mockResolvedValue(reply(unchecked, revision, provenance)); vi.stubGlobal('fetch', fetcher);
+  await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal)).rejects.toThrow('не подтвердил проверку единиц');
+  expect(fetcher.mock.calls[0][0]).toContain('unitContract=legacy-ac-three-phase-rms-v1');
+});
 
 test('explicit operating limits use a body and must be confirmed before returning a project result',async()=>{
   const limits=[{component_id:2,terminal:1,min_kv:9.5,max_kv:10.5}];
@@ -136,7 +144,7 @@ test('time budget is carried in query, checked in reply and invalid values never
   const confirmed = { ...result, solver: { execution: { policy: 'cooperative-checkpoints-v1', max_time_ms: 5000, native_calls_interruptible: false, disconnect_cancels: false } } };
   fetcher.mockResolvedValue(reply(confirmed, revision, provenance));
   expect((await calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, undefined, 5000)).result).toEqual(confirmed);
-  expect(fetcher.mock.calls[1][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&maxTimeMs=5000`);
+  expect(fetcher.mock.calls[1][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&unitContract=legacy-ac-three-phase-rms-v1&maxTimeMs=5000`);
 });
 
 test('explicit backend reaches the project query and cannot silently fall back', async () => {
@@ -146,14 +154,14 @@ test('explicit backend reaches the project query and cannot silently fall back',
   const actual = { ...result, solver: { compute_backend: { id: 'julia', version: '0.1.0', julia_version: '1.10.12', jacobian: 'julia', linear_solver: 'umfpack' } } };
   fetcher.mockResolvedValue(reply(actual, revision, provenance));
   await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal, false, 'julia-rust-jacobian')).rejects.toThrow('не подтвердил');
-  expect(fetcher.mock.calls[0][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&computeBackend=julia-rust-jacobian`);
+  expect(fetcher.mock.calls[0][0]).toBe(`${base}/calculate?modelGroup=three-phase&method=newton-raphson&unitContract=legacy-ac-three-phase-rms-v1&computeBackend=julia-rust-jacobian`);
   expect(fetcher.mock.calls).toHaveLength(2);
 });
 test('calculation requires exact snapshot provenance and explicit query; request body is empty', async () => {
   const fetcher = vi.fn().mockResolvedValue(reply(result, revision, provenance)); vi.stubGlobal('fetch', fetcher);
   expect(await calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal)).toEqual({ result,
     source: { ...scope, topologyRevision: revision, inputSha256: 'a'.repeat(64) } });
-  expect(fetcher.mock.calls[0]).toEqual([`${base}/calculate?modelGroup=three-phase&method=newton-raphson`, expect.objectContaining({
+  expect(fetcher.mock.calls[0]).toEqual([`${base}/calculate?modelGroup=three-phase&method=newton-raphson&unitContract=legacy-ac-three-phase-rms-v1`, expect.objectContaining({
     method: 'POST', headers: { 'If-Match': `"${revision}"` }, credentials: 'same-origin', cache: 'no-store', signal,
   })]);
   expect(fetcher.mock.calls[0][1].body).toBeUndefined();

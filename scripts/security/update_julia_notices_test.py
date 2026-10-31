@@ -5,6 +5,8 @@ import json
 import tarfile
 import tempfile
 import unittest
+import subprocess
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,6 +16,65 @@ SPEC.loader.exec_module(UPDATER)
 PROOF_SPEC = importlib.util.spec_from_file_location("lld_packaging", Path(__file__).with_name("verify-julia-lld-packaging.py"))
 PROOF = importlib.util.module_from_spec(PROOF_SPEC)
 PROOF_SPEC.loader.exec_module(PROOF)
+
+
+class SdkImageReadTests(unittest.TestCase):
+    def test_arm64_facts_require_their_own_reviewed_product_identity(self):
+        target = PROOF.reviewed_target(PROOF.ARM64_PLATFORM)
+        facts = {"formatVersion": 1, "scope": "julia-sdk-notice-facts", "juliaVersion": PROOF.VERSION,
+            "juliaCommit": PROOF.COMMIT, "platform": target['platform'],
+            "components": [{"uuid": PROOF.UUID, "name": "LLD_jll", "version": "20.1.8+2", "metadataSha256": PROOF.METADATA_SHA}],
+            "executables": [{"file": PROOF.SDK_FILE, "sha256": target['sdkSha256'], "bytes": target['sdkBytes'], "component": "LLD_jll"}]}
+        self.assertEqual(PROOF.validate_facts(facts), target)
+        wrong = copy.deepcopy(facts); wrong['executables'][0]['sha256'] = PROOF.SDK_SHA
+        with self.assertRaisesRegex(ValueError, 'identity changed'):
+            PROOF.validate_facts(wrong)
+        wrong = copy.deepcopy(facts); wrong['platform'] = 'aarch64-other-unreviewed'
+        with self.assertRaisesRegex(ValueError, 'exact reviewed'):
+            PROOF.validate_facts(wrong)
+
+    def test_arm64_metadata_cannot_select_the_asserts_variant_or_amd64_archive(self):
+        target = PROOF.reviewed_target(PROOF.ARM64_PLATFORM)
+        data = ('[[LLD]]\narch="aarch64"\nos="linux"\nlibc="glibc"\ncxxstring_abi="cxx11"\nllvm_version="20"\n'
+            f'[[LLD.download]]\nurl="{target["archiveUrl"]}"\nsha256="{target["archiveSha256"]}"\n').encode()
+        with patch.object(PROOF, 'METADATA_SHA', UPDATER.sha256(data)):
+            PROOF.validate_metadata(data, target)
+            with self.assertRaisesRegex(ValueError, 'not declared'):
+                PROOF.validate_metadata(data)
+        changed = data.replace(b'"20"', b'"20.asserts"')
+        with patch.object(PROOF, 'METADATA_SHA', UPDATER.sha256(changed)), self.assertRaisesRegex(ValueError, 'not declared'):
+            PROOF.validate_metadata(changed, target)
+
+    def test_sdk_inputs_are_copied_from_a_container_that_is_never_started(self):
+        commands = []
+        def docker(command, **_options):
+            commands.append(command)
+            if command[1] == 'create':
+                return SimpleNamespace(stdout='a' * 64)
+            if command[1] == 'cp':
+                Path(command[-1]).write_bytes(b'metadata' if command[-1].endswith('StdlibArtifacts.toml') else b'lld')
+            return SimpleNamespace(stdout='')
+        with tempfile.TemporaryDirectory() as temporary, patch.object(PROOF.subprocess, 'run', side_effect=docker):
+            metadata, product = PROOF.copy_sdk_inputs('sha256:' + 'b' * 64, Path(temporary))
+            self.assertEqual(metadata, b'metadata')
+            self.assertEqual(product.read_bytes(), b'lld')
+        self.assertEqual([command[1] for command in commands], ['create', 'cp', 'cp', 'rm'])
+        self.assertEqual(commands[-1], ['docker', 'rm', 'a' * 64])
+
+    def test_sdk_copy_failure_still_removes_only_the_created_container(self):
+        commands = []
+        def docker(command, **_options):
+            commands.append(command)
+            if command[1] == 'create':
+                return SimpleNamespace(stdout='a' * 64)
+            if command[1] == 'cp':
+                raise subprocess.CalledProcessError(1, command)
+            return SimpleNamespace(stdout='')
+        with tempfile.TemporaryDirectory() as temporary, patch.object(PROOF.subprocess, 'run', side_effect=docker):
+            with self.assertRaises(subprocess.CalledProcessError):
+                PROOF.copy_sdk_inputs('sha256:' + 'b' * 64, Path(temporary))
+        self.assertEqual([command[1] for command in commands], ['create', 'cp', 'rm'])
+        self.assertEqual(commands[-1], ['docker', 'rm', 'a' * 64])
 
 
 class JuliaNoticeMaintenanceTests(unittest.TestCase):

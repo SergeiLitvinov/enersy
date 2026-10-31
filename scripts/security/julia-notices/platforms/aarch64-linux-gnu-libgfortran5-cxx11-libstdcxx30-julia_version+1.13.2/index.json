@@ -1,0 +1,941 @@
+{
+  "capturedUtc": "2026-10-31T05:15:11.582707+00:00",
+  "components": [
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 25558160,
+          "archiveSha256": "1f53f127e6cf9b339af73f165246c2d51d4f701dbebd17c28ff03470216a62e6",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/CompilerSupportLibraries_jll.jl/releases/download/CompilerSupportLibraries-v1.5.5+2/CompilerSupportLibraries.v1.5.5.aarch64-linux-gnu-libgfortran5.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libatomic.so.1.2.0",
+              "artifactSha256": "090ae096cd1dd366d3d031438b106f74ad992b066c0f2b3590213866ea88933b",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libatomic.so.1.2.0",
+              "sdkSha256": "090ae096cd1dd366d3d031438b106f74ad992b066c0f2b3590213866ea88933b"
+            },
+            {
+              "archivePath": "lib/libgcc_s.so.1",
+              "artifactSha256": "0878796c5a36528b5e505efe73d0c546e814aa15737f85212428a025e3807b79",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgcc_s.so.1",
+              "sdkSha256": "0878796c5a36528b5e505efe73d0c546e814aa15737f85212428a025e3807b79"
+            },
+            {
+              "archivePath": "lib/libgfortran.so.5.0.0",
+              "artifactSha256": "04845b31c73b986d5e4f814ce39524ce01a13f039ce5f76a67085b4f77c0cc9c",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgfortran.so.5.0.0",
+              "sdkSha256": "04845b31c73b986d5e4f814ce39524ce01a13f039ce5f76a67085b4f77c0cc9c"
+            },
+            {
+              "archivePath": "lib/libgomp.so.1.0.0",
+              "artifactSha256": "c8cac5a40516cfa91dd3da0a4ed260f3eeeaa525be013a0a8e137c4f185d1e3b",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgomp.so.1.0.0",
+              "sdkSha256": "c8cac5a40516cfa91dd3da0a4ed260f3eeeaa525be013a0a8e137c4f185d1e3b"
+            },
+            {
+              "archivePath": "lib/libssp.so.0.0.0",
+              "artifactSha256": "57e11f83929fe192cc16cffc26728a48a58d89bbfc0a3b0e90e1c0f33a8052a4",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libssp.so.0.0.0",
+              "sdkSha256": "57e11f83929fe192cc16cffc26728a48a58d89bbfc0a3b0e90e1c0f33a8052a4"
+            },
+            {
+              "archivePath": "lib/libstdc++.so.6.0.34",
+              "artifactSha256": "7a65a6748a08ae61498729249313a92ea528f8492ef670bb9bbbb045f16773a0",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libstdc++.so.6.0.34",
+              "sdkSha256": "7a65a6748a08ae61498729249313a92ea528f8492ef670bb9bbbb045f16773a0"
+            }
+          ],
+          "name": "CompilerSupportLibraries",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/CompilerSupportLibraries/GPL-3.0+",
+              "bytes": 35149,
+              "file": "artifacts/1f53f127e6cf9b339af73f165246c2d51d4f701dbebd17c28ff03470216a62e6/share/licenses/CompilerSupportLibraries/GPL-3.0+",
+              "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "3cd2fb12f766ee959993b19d1c546f9b1e3aa868"
+        }
+      ],
+      "metadataSha256": "c237f4ed4eaebd3fdff7f3a5fdacd034e7ae3b4627c4fa2ddf562d464f7d152d",
+      "name": "CompilerSupportLibraries_jll",
+      "uuid": "e66e0078-7015-5450-92f7-15fbd957f2ae",
+      "version": "1.5.5+2"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 448976,
+          "archiveSha256": "72853aa5ecc47d181261f652545c2370fb925f82ce182ed57e2c3d0dee63af13",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/GMP_jll.jl/releases/download/GMP-v6.3.0+2/GMP.v6.3.0.aarch64-linux-gnu-cxx11.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libgmp.so.10.5.0",
+              "artifactSha256": "04236c039b46e97f1b7873a121dee4ae5271473f235712214e796fd19eb266e7",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgmp.so.10.5.0",
+              "sdkSha256": "04236c039b46e97f1b7873a121dee4ae5271473f235712214e796fd19eb266e7"
+            },
+            {
+              "archivePath": "lib/libgmpxx.so.4.7.0",
+              "artifactSha256": "3a8e6a922d9e2a0bead461d5ce9768ee12ea7b2df2677ddd97a3fa0957e48632",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgmpxx.so.4.7.0",
+              "sdkSha256": "3a8e6a922d9e2a0bead461d5ce9768ee12ea7b2df2677ddd97a3fa0957e48632"
+            }
+          ],
+          "name": "GMP",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/GMP/COPYING",
+              "bytes": 35147,
+              "file": "artifacts/72853aa5ecc47d181261f652545c2370fb925f82ce182ed57e2c3d0dee63af13/share/licenses/GMP/COPYING",
+              "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+            },
+            {
+              "archivePath": "share/licenses/GMP/COPYING.LESSERv3",
+              "bytes": 7639,
+              "file": "artifacts/72853aa5ecc47d181261f652545c2370fb925f82ce182ed57e2c3d0dee63af13/share/licenses/GMP/COPYING.LESSERv3",
+              "sha256": "a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c"
+            },
+            {
+              "archivePath": "share/licenses/GMP/COPYINGv2",
+              "bytes": 18092,
+              "file": "artifacts/72853aa5ecc47d181261f652545c2370fb925f82ce182ed57e2c3d0dee63af13/share/licenses/GMP/COPYINGv2",
+              "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+            },
+            {
+              "archivePath": "share/licenses/GMP/COPYINGv3",
+              "bytes": 35150,
+              "file": "artifacts/72853aa5ecc47d181261f652545c2370fb925f82ce182ed57e2c3d0dee63af13/share/licenses/GMP/COPYINGv3",
+              "sha256": "e6037104443f9a7829b2aa7c5370d0789a7bda3ca65a0b904cdc0c2e285d9195"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "8a32fcdb0ec0bfcde80c4c8342034706d475cfa9"
+        }
+      ],
+      "metadataSha256": "dc10c487d11f8b63d84efa384dbcea5ae5db717dc99dc05d848bfbaa0f6fb355",
+      "name": "GMP_jll",
+      "uuid": "781609d7-10c4-51f6-84f2-b8444358ff6d",
+      "version": "6.3.0+2"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 6100649,
+          "archiveSha256": "18c398b99e7c5f06fbebca4f0dad38e16a9e2fb948f351f03220746fdcfd45fc",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LLD_jll.jl/releases/download/LLD-v20.1.8+2/LLD.v20.1.8.aarch64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "tools/lld",
+              "artifactSha256": "87313d2f984e19add754d22ea7bb08b8aea357b9202a304feb6bc8b12a3790d5",
+              "sameBytes": false,
+              "sdkFile": "libexec/julia/lld",
+              "sdkSha256": "fa520989300f487e34b57c3f6672b1aa4d4c10cbc71353de291f28a111f82f21"
+            }
+          ],
+          "name": "LLD",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LLD/LICENSE.TXT",
+              "bytes": 15141,
+              "file": "artifacts/18c398b99e7c5f06fbebca4f0dad38e16a9e2fb948f351f03220746fdcfd45fc/share/licenses/LLD/LICENSE.TXT",
+              "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+            }
+          ],
+          "platformBinding": {
+            "archiveSha256": "18c398b99e7c5f06fbebca4f0dad38e16a9e2fb948f351f03220746fdcfd45fc",
+            "artifact": "LLD",
+            "artifactFile": "tools/lld",
+            "componentUUID": "d55e3150-da41-5e91-b323-ecfd1eec6109",
+            "componentVersion": "20.1.8+2",
+            "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
+            "repackagingProof": {
+              "file": "packaging/lld-julia-1.13.2-linux-arm64.json",
+              "sha256": "2052fed70499f491eb8f9ed39ed1576e2f6e152091fa4e50174c33ec1257d90e"
+            },
+            "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+            "sdkFile": "libexec/julia/lld",
+            "sdkSha256": "fa520989300f487e34b57c3f6672b1aa4d4c10cbc71353de291f28a111f82f21",
+            "tags": {
+              "llvm_version": "20"
+            }
+          },
+          "status": "notices_collected",
+          "treeSha1": "b4e0dcd1eb3c8ca878945947ca09cacfced095aa"
+        }
+      ],
+      "metadataSha256": "dff41faf5c61448a636fbb845f240903475aba844a0bcb8daf7a4516e01916b8",
+      "name": "LLD_jll",
+      "uuid": "d55e3150-da41-5e91-b323-ecfd1eec6109",
+      "version": "20.1.8+2"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 65073,
+          "archiveSha256": "83d1afe1ad563917b03906ecd6caa6693bbd004e5c2eb3c3ae249513e8da8151",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LLVMLibUnwind_jll.jl/releases/download/LLVMLibUnwind-v19.1.4+0/LLVMLibUnwind.v19.1.4.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [],
+          "name": "LLVMLibUnwind",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LLVMLibUnwind/LICENSE.TXT",
+              "bytes": 15141,
+              "file": "artifacts/83d1afe1ad563917b03906ecd6caa6693bbd004e5c2eb3c3ae249513e8da8151/share/licenses/LLVMLibUnwind/LICENSE.TXT",
+              "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "c5c95bf339bdb6b90c4c1d983a043688283b1c28"
+        }
+      ],
+      "metadataSha256": "5027a8158558202869f2a004791ab910df05d463b568da11a75503b3271c42f6",
+      "name": "LLVMLibUnwind_jll",
+      "uuid": "47c5dbc3-30ba-59ef-96a6-123e260183d9",
+      "version": "19.1.4+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 871151,
+          "archiveSha256": "16e19a6131d0ec5f89081a24921d968ed564c88cd0cb9c0daade80b97a88ace3",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LibCURL_jll.jl/releases/download/LibCURL-v8.22.0+0/LibCURL.v8.22.0.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libcurl.so.4.8.0",
+              "artifactSha256": "086a48e67fa01586d4f7e755b426ad31530bcdd2f7f560c7703cbdbcb332f658",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libcurl.so.4.8.0",
+              "sdkSha256": "086a48e67fa01586d4f7e755b426ad31530bcdd2f7f560c7703cbdbcb332f658"
+            }
+          ],
+          "name": "LibCURL",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LibCURL/COPYING",
+              "bytes": 1088,
+              "file": "artifacts/16e19a6131d0ec5f89081a24921d968ed564c88cd0cb9c0daade80b97a88ace3/share/licenses/LibCURL/COPYING",
+              "sha256": "82f2f4427d6545ee5aaac4f0b80428da6cc8ba41c2cf5da3a03680ec327b9681"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "8dcf2259deda090efd2941e80e95dd386ed70ffe"
+        }
+      ],
+      "metadataSha256": "f8749893fac0bdaa29dec0e47c819893c5b5211113dcefdb87d5f75cd7895612",
+      "name": "LibCURL_jll",
+      "uuid": "deac9b47-8bc7-5906-a0fe-35ac56dc84c0",
+      "version": "8.22.0+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 852050,
+          "archiveSha256": "90777326c7be57609806edacabf1c31d1ff31e83eae3000304126a631d89bd06",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LibGit2_jll.jl/releases/download/LibGit2-v1.9.7+0/LibGit2.v1.9.7.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libgit2.so.1.9.7",
+              "artifactSha256": "27e40b60c98f0755e0adbfbcf42e295ec1514bdf4f0d3459545dbeb328d0ba97",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libgit2.so.1.9.7",
+              "sdkSha256": "27e40b60c98f0755e0adbfbcf42e295ec1514bdf4f0d3459545dbeb328d0ba97"
+            }
+          ],
+          "name": "LibGit2",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LibGit2/COPYING",
+              "bytes": 72970,
+              "file": "artifacts/90777326c7be57609806edacabf1c31d1ff31e83eae3000304126a631d89bd06/share/licenses/LibGit2/COPYING",
+              "sha256": "e0938121c0554985fe17196ac38fc590d149268e9c46e0c0e7a2eae1354fae71"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "272bca48fb8a63a6d74252a3ae8b79b9e3dc5eca"
+        }
+      ],
+      "metadataSha256": "36de151638e1d6ffc69edaa68ccfab972e4dc0571f72c0dc2189c4a02828a593",
+      "name": "LibGit2_jll",
+      "uuid": "e37daf67-58a4-590a-8e99-b0245dd2ffc5",
+      "version": "1.9.7+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 327418,
+          "archiveSha256": "60c0f0f8669deb1fc357c9d89b24b063a5ffa1ed76df94918a6c6db94fe15be5",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LibSSH2_jll.jl/releases/download/LibSSH2-v1.11.104+0/LibSSH2.v1.11.104.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libssh2.so.1.0.1",
+              "artifactSha256": "cba1c62d66c30c5c2ea0db9d537c5ba4915cca4c3080bc5c266028e971a84f6a",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libssh2.so.1.0.1",
+              "sdkSha256": "cba1c62d66c30c5c2ea0db9d537c5ba4915cca4c3080bc5c266028e971a84f6a"
+            }
+          ],
+          "name": "LibSSH2",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LibSSH2/COPYING",
+              "bytes": 1959,
+              "file": "artifacts/60c0f0f8669deb1fc357c9d89b24b063a5ffa1ed76df94918a6c6db94fe15be5/share/licenses/LibSSH2/COPYING",
+              "sha256": "f7f9633cf9ff2f1333f3d7ce46973a8716a4d2a2815ad56f30d437d5fea7bafe"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "d89b1e58364f9238db41a17c508b224b40159e64"
+        }
+      ],
+      "metadataSha256": "ef3e019348e3b3f9ded18f86295c83a4d36a42c8d2ef266846076dfa14d28882",
+      "name": "LibSSH2_jll",
+      "uuid": "29816b5a-b9ab-546f-933c-edad1886dfa8",
+      "version": "1.11.104+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 688655,
+          "archiveSha256": "8aad5131b85490d587257edee495f149a204ff91eb12f8e3349cadab21dd750a",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1+21/LibUV.v2.0.1.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libuv.so.2.0.0",
+              "artifactSha256": "85d2025b5959f8f884a9c4f73b58605bfbe073011dbbe29c5b16bc66e0b3fcb1",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libuv.so.2.0.0",
+              "sdkSha256": "85d2025b5959f8f884a9c4f73b58605bfbe073011dbbe29c5b16bc66e0b3fcb1"
+            }
+          ],
+          "name": "LibUV",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LibUV/LICENSE",
+              "bytes": 1079,
+              "file": "artifacts/8aad5131b85490d587257edee495f149a204ff91eb12f8e3349cadab21dd750a/share/licenses/LibUV/LICENSE",
+              "sha256": "16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "164d855ca28ab0f69d8d945a870eecac0651dd56"
+        }
+      ],
+      "metadataSha256": "0d8c3708a54524fceb3cfa24c9d581cf3e8d4c604b6e543f693516c1949d66c4",
+      "name": "LibUV_jll",
+      "uuid": "183b4373-6708-53ba-ad28-60e28bb38547",
+      "version": "2.0.1+21"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 1532043,
+          "archiveSha256": "929605b188b70c31e9cc214d84bb91975e845ddd9966339fab936a184c65bae1",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/LibUnwind_jll.jl/releases/download/LibUnwind-v1.8.3+1/LibUnwind.v1.8.3.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libunwind.so.8.2.0",
+              "artifactSha256": "b175636dae8a359fc80fa10353dcec486124d6bd0463602ad3fa274ca55f857b",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libunwind.so.8.2.0",
+              "sdkSha256": "b175636dae8a359fc80fa10353dcec486124d6bd0463602ad3fa274ca55f857b"
+            }
+          ],
+          "name": "LibUnwind",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/LibUnwind/COPYING",
+              "bytes": 1063,
+              "file": "artifacts/929605b188b70c31e9cc214d84bb91975e845ddd9966339fab936a184c65bae1/share/licenses/LibUnwind/COPYING",
+              "sha256": "6a0dbbdaec2b3136b7bf045586f4212bdf74e7af688bf9dfe9154607cf5ec156"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "7268102796432bb2e73879cc4860712c8b747d5a"
+        }
+      ],
+      "metadataSha256": "9a684aa1cc64f8bff22a14648c712e997a4a0830c15322c50550e513424f472e",
+      "name": "LibUnwind_jll",
+      "uuid": "745a5e78-f969-53e9-954f-d19f2f74f4e3",
+      "version": "1.8.3+1"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 890537,
+          "archiveSha256": "493fbec20febb8436c7aec12966093f984ed02bde539d679026896e86821cd54",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/MPFR_jll.jl/releases/download/MPFR-v4.2.2+0/MPFR.v4.2.2.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libmpfr.so.6.2.2",
+              "artifactSha256": "c98976bbe46a32f9518374f3f07e66d882ca86a2574f3d7b7ae7b9ab1509f6df",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libmpfr.so.6.2.2",
+              "sdkSha256": "c98976bbe46a32f9518374f3f07e66d882ca86a2574f3d7b7ae7b9ab1509f6df"
+            }
+          ],
+          "name": "MPFR",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/MPFR/COPYING",
+              "bytes": 35149,
+              "file": "artifacts/493fbec20febb8436c7aec12966093f984ed02bde539d679026896e86821cd54/share/licenses/MPFR/COPYING",
+              "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "901239fd71757ec14998654f65a6d1afb12308b7"
+        }
+      ],
+      "metadataSha256": "4f15b0e909ac3863d9c4d0ca841011d585d8d07379822f83152dce05b76ae414",
+      "name": "MPFR_jll",
+      "uuid": "3a97d323-0669-5f0c-9066-3539efd106a3",
+      "version": "4.2.2+0"
+    },
+    {
+      "artifacts": [],
+      "metadataSha256": null,
+      "name": "MozillaCACerts_jll",
+      "uuid": "14a3606d-f60d-562e-9121-12d972cd8159",
+      "version": "2026.08.13"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 7732770,
+          "archiveSha256": "7ee148d0cc14c62402f68286a1ed2732d42278aa9b651341c9fb6a2115ad7626",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/OpenBLAS_jll.jl/releases/download/OpenBLAS-v0.3.30+0/OpenBLAS.v0.3.30.aarch64-linux-gnu-libgfortran5.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libopenblas64_.0.3.30.so",
+              "artifactSha256": "4b3e2fc3277824ff3aa808e5a771d1ec6e0b7b297622065cf60123f8a1484c36",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libopenblas64_.0.3.30.so",
+              "sdkSha256": "4b3e2fc3277824ff3aa808e5a771d1ec6e0b7b297622065cf60123f8a1484c36"
+            }
+          ],
+          "name": "OpenBLAS",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/OpenBLAS/LICENSE",
+              "bytes": 1548,
+              "file": "artifacts/7ee148d0cc14c62402f68286a1ed2732d42278aa9b651341c9fb6a2115ad7626/share/licenses/OpenBLAS/LICENSE",
+              "sha256": "190b5a9c8d9723fe958ad33916bd7346d96fab3c5ea90832bb02d854f620fcff"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "59682c66d6158e87bab963d23a8f2e44a1626987"
+        }
+      ],
+      "metadataSha256": "fd683b914602e562e5dfb65a6a662bd30dcd0da9eb305b7f46efd17c476986c6",
+      "name": "OpenBLAS_jll",
+      "uuid": "4536629a-c528-5b80-bd46-f80d51c5b363",
+      "version": "0.3.30+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 379450,
+          "archiveSha256": "750eaed803679dcd4cbf29c47288c99be9005540154b9608defa674a332961b3",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/OpenLibm_jll.jl/releases/download/OpenLibm-v0.8.7+0/OpenLibm.v0.8.7.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libopenlibm.so.4.0",
+              "artifactSha256": "aae6e637275b12152883dc3215925f943075fad7284fd6349a3081d725c0b871",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libopenlibm.so.4.0",
+              "sdkSha256": "aae6e637275b12152883dc3215925f943075fad7284fd6349a3081d725c0b871"
+            }
+          ],
+          "name": "OpenLibm",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/OpenLibm/LICENSE.md",
+              "bytes": 5857,
+              "file": "artifacts/750eaed803679dcd4cbf29c47288c99be9005540154b9608defa674a332961b3/share/licenses/OpenLibm/LICENSE.md",
+              "sha256": "b1843fbf5b03f519a5f0a44fce751bdd1022ae7148614923f9d6293e17a18b17"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "cee5337e43cd849ff9284dd1aa8ed62452f76c8e"
+        }
+      ],
+      "metadataSha256": "624ff70ef506ba9a336d0ffa265186811e0826c4b01b411e32912da250052f0f",
+      "name": "OpenLibm_jll",
+      "uuid": "05823500-19ac-5b8b-9628-191a04bc5112",
+      "version": "0.8.7+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 3862859,
+          "archiveSha256": "8559d4bd8eda4e4b7cd99b66824d39f946d69ba90bb99899c258d2e8d10cea90",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/OpenSSL_jll.jl/releases/download/OpenSSL-v3.5.8+0/OpenSSL.v3.5.8.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libcrypto.so.3",
+              "artifactSha256": "c5e284e9e51ca3daa0f8a8109aac497e3f09d4d5b845fb242691456837ac0f9d",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libcrypto.so.3",
+              "sdkSha256": "c5e284e9e51ca3daa0f8a8109aac497e3f09d4d5b845fb242691456837ac0f9d"
+            },
+            {
+              "archivePath": "lib/libssl.so.3",
+              "artifactSha256": "09a2e818a572b2763615806a104b99bbb9b46a54f55f80505ad6163ec8354c8e",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libssl.so.3",
+              "sdkSha256": "09a2e818a572b2763615806a104b99bbb9b46a54f55f80505ad6163ec8354c8e"
+            }
+          ],
+          "name": "OpenSSL",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/OpenSSL/LICENSE.txt",
+              "bytes": 10175,
+              "file": "artifacts/8559d4bd8eda4e4b7cd99b66824d39f946d69ba90bb99899c258d2e8d10cea90/share/licenses/OpenSSL/LICENSE.txt",
+              "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "b9bf70ec6a5346bdb858ce7680e416aeda6a67cd"
+        }
+      ],
+      "metadataSha256": "75639048e1b0e9e65dc64ad64ac50b177d729f378350aacf651d32742c86a65e",
+      "name": "OpenSSL_jll",
+      "uuid": "458c3c95-2e84-50aa-8efc-19380b2a3a95",
+      "version": "3.5.8+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 2435207,
+          "archiveSha256": "f9e64af99d2008c6c12279be6aabd8f2d6de2b87dfaa49e4e62a002c2190bdd3",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/PCRE2_jll.jl/releases/download/PCRE2-v10.46.0+0/PCRE2.v10.46.0.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libpcre2-8.so.0.14.0",
+              "artifactSha256": "71848e488f0d4029e5dda21ed34d1e12f97305913bac540172d74d49ded2f5a4",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libpcre2-8.so.0.14.0",
+              "sdkSha256": "71848e488f0d4029e5dda21ed34d1e12f97305913bac540172d74d49ded2f5a4"
+            }
+          ],
+          "name": "PCRE2",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/PCRE2/COPYING",
+              "bytes": 97,
+              "file": "artifacts/f9e64af99d2008c6c12279be6aabd8f2d6de2b87dfaa49e4e62a002c2190bdd3/share/licenses/PCRE2/COPYING",
+              "sha256": "99272c55f3dcfa07a8a7e15a5c1a33096e4727de74241d65fa049fccfdd59507"
+            },
+            {
+              "archivePath": "share/licenses/PCRE2/LICENCE.md",
+              "bytes": 3867,
+              "file": "artifacts/f9e64af99d2008c6c12279be6aabd8f2d6de2b87dfaa49e4e62a002c2190bdd3/share/licenses/PCRE2/LICENCE.md",
+              "sha256": "9cf7ac6976099a1d856826d3ef1b093bd6b84489dc6100628ac79e740cf9885a"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "0fbd2cd254385317e15dd2f3ea652e2dbd157c96"
+        }
+      ],
+      "metadataSha256": "598e2951c2f41777fb709124acb36bfb9d01c9bac02061253f8d9caa970758a7",
+      "name": "PCRE2_jll",
+      "uuid": "efcefdf7-47ab-520b-bdef-62a2eaa19f15",
+      "version": "10.46.0+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 1640389,
+          "archiveSha256": "6a5a149e46f3e4d6135bd8526da3ff9b993ebdfe9d6b895fd88dfa72fb6dc2e4",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/SuiteSparse_jll.jl/releases/download/SuiteSparse-v7.10.1+0/SuiteSparse.v7.10.1.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libamd.so.3.3.3",
+              "artifactSha256": "25a9b19bb63f9dfc72ae0264d26eb08731aeda57aa60b381b17b3ab0e65fc2b1",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libamd.so.3.3.3",
+              "sdkSha256": "25a9b19bb63f9dfc72ae0264d26eb08731aeda57aa60b381b17b3ab0e65fc2b1"
+            },
+            {
+              "archivePath": "lib/libbtf.so.2.3.2",
+              "artifactSha256": "c1097bc81dd7495ca2fa81033878e60fe59a73ebbb6aa89f9c171b51ee3197ba",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libbtf.so.2.3.2",
+              "sdkSha256": "c1097bc81dd7495ca2fa81033878e60fe59a73ebbb6aa89f9c171b51ee3197ba"
+            },
+            {
+              "archivePath": "lib/libcamd.so.3.3.3",
+              "artifactSha256": "6b7cf7ef19357bdb60d3da856e43f9da6cd92a3ad5b74a1ca7f3b568ab240ef4",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libcamd.so.3.3.3",
+              "sdkSha256": "6b7cf7ef19357bdb60d3da856e43f9da6cd92a3ad5b74a1ca7f3b568ab240ef4"
+            },
+            {
+              "archivePath": "lib/libccolamd.so.3.3.4",
+              "artifactSha256": "18447e56bfefb5ae19ee21cfdf3565d2ec158002c7d9a4ea3f7648a5208f41d2",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libccolamd.so.3.3.4",
+              "sdkSha256": "18447e56bfefb5ae19ee21cfdf3565d2ec158002c7d9a4ea3f7648a5208f41d2"
+            },
+            {
+              "archivePath": "lib/libcholmod.so.5.3.1",
+              "artifactSha256": "95746e0e07fd77314397f00c755f13f2ca2ef9f1b6718609b591eddaac2b05fd",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libcholmod.so.5.3.1",
+              "sdkSha256": "95746e0e07fd77314397f00c755f13f2ca2ef9f1b6718609b591eddaac2b05fd"
+            },
+            {
+              "archivePath": "lib/libcolamd.so.3.3.4",
+              "artifactSha256": "dae6956a8349a85a3c1f8517b6edead1ade57411bc7d57d22199102b6960682d",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libcolamd.so.3.3.4",
+              "sdkSha256": "dae6956a8349a85a3c1f8517b6edead1ade57411bc7d57d22199102b6960682d"
+            },
+            {
+              "archivePath": "lib/libklu.so.2.3.5",
+              "artifactSha256": "4bee1c4607475cc1a618d47b372f86e6dfb2ed2c994e024f551aaaf16719f430",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libklu.so.2.3.5",
+              "sdkSha256": "4bee1c4607475cc1a618d47b372f86e6dfb2ed2c994e024f551aaaf16719f430"
+            },
+            {
+              "archivePath": "lib/libldl.so.3.3.2",
+              "artifactSha256": "5a21baab7eeccd3e9bf7866f3d0e8b1a35247cbd01bf8260143d1dd2c3066a76",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libldl.so.3.3.2",
+              "sdkSha256": "5a21baab7eeccd3e9bf7866f3d0e8b1a35247cbd01bf8260143d1dd2c3066a76"
+            },
+            {
+              "archivePath": "lib/librbio.so.4.3.4",
+              "artifactSha256": "89f314548518189d8de60b85a097f7229e5d8213e0711b7ac3cbf8494b6998ca",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/librbio.so.4.3.4",
+              "sdkSha256": "89f314548518189d8de60b85a097f7229e5d8213e0711b7ac3cbf8494b6998ca"
+            },
+            {
+              "archivePath": "lib/libspqr.so.4.3.4",
+              "artifactSha256": "9aa206e04f78ec08ed75f6a8e35b7d813a6368df53480adec6fb3787550b2f85",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libspqr.so.4.3.4",
+              "sdkSha256": "9aa206e04f78ec08ed75f6a8e35b7d813a6368df53480adec6fb3787550b2f85"
+            },
+            {
+              "archivePath": "lib/libsuitesparseconfig.so.7.10.1",
+              "artifactSha256": "ec7f4fb7af921ede7a836e9314bb530c34bd1119216ad8d029ca9d0be0c496bc",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libsuitesparseconfig.so.7.10.1",
+              "sdkSha256": "ec7f4fb7af921ede7a836e9314bb530c34bd1119216ad8d029ca9d0be0c496bc"
+            },
+            {
+              "archivePath": "lib/libumfpack.so.6.3.5",
+              "artifactSha256": "ab4db5e6b6930084f804ce6712858a41779b992af6619bed0ad7f55dcecfc949",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libumfpack.so.6.3.5",
+              "sdkSha256": "ab4db5e6b6930084f804ce6712858a41779b992af6619bed0ad7f55dcecfc949"
+            }
+          ],
+          "name": "SuiteSparse",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/SuiteSparse/LICENSE.txt",
+              "bytes": 54799,
+              "file": "artifacts/6a5a149e46f3e4d6135bd8526da3ff9b993ebdfe9d6b895fd88dfa72fb6dc2e4/share/licenses/SuiteSparse/LICENSE.txt",
+              "sha256": "c07f7bb69aa870c774bd01f040dabd179b7cc8c60021c2c56db9d63d37deabcb"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "d8fa126530702358beabe41c0134affc2343ee8e"
+        }
+      ],
+      "metadataSha256": "446ff3d63a86f219193d7e3cabf1e54aac6100948de02feacbf944a803a77414",
+      "name": "SuiteSparse_jll",
+      "uuid": "bea87d4a-7f5b-5778-9afe-8cc45184846c",
+      "version": "7.10.1+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 905432,
+          "archiveSha256": "5cffc1e0520c7e5d281650483a7118d3a3d2a8c9edc9222000ffdfdc3101e343",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/Zlib_jll.jl/releases/download/Zlib-v1.3.2+0/Zlib.v1.3.2.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libz.so.1.3.2",
+              "artifactSha256": "a3162ed869685d8911eee6e013d30feeaeb2b26724565c8379dcf965a4ca2cbc",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libz.so.1.3.2",
+              "sdkSha256": "a3162ed869685d8911eee6e013d30feeaeb2b26724565c8379dcf965a4ca2cbc"
+            }
+          ],
+          "name": "Zlib",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/Zlib/README",
+              "bytes": 5291,
+              "file": "artifacts/5cffc1e0520c7e5d281650483a7118d3a3d2a8c9edc9222000ffdfdc3101e343/share/licenses/Zlib/README",
+              "sha256": "4026d921213bb2e311d8d42b44ef53361c102d5d45ae32f93f8e52eaee8d068f"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "7c90e67e53d69c4456ab04e6f8791e1ed3ad6e9c"
+        }
+      ],
+      "metadataSha256": "98ef617c4f17c4ec18256afcbfe58d31f830ad867166957d500375e82ae4903c",
+      "name": "Zlib_jll",
+      "uuid": "83775a58-1f1d-513f-b197-d71354ab007a",
+      "version": "1.3.2+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 610011,
+          "archiveSha256": "1e89e257b90b25bfadb4376cf7909772bf60d060948a844fe52bf924825e8cb5",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/Zstd_jll.jl/releases/download/Zstd-v1.5.7+1/Zstd.v1.5.7.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libzstd.so.1.5.7",
+              "artifactSha256": "e889e932aa607122580842be45127323a8d72bdeb0960e5af5f68c6895e6ff77",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libzstd.so.1.5.7",
+              "sdkSha256": "e889e932aa607122580842be45127323a8d72bdeb0960e5af5f68c6895e6ff77"
+            }
+          ],
+          "name": "Zstd",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/Zstd/COPYING",
+              "bytes": 18091,
+              "file": "artifacts/1e89e257b90b25bfadb4376cf7909772bf60d060948a844fe52bf924825e8cb5/share/licenses/Zstd/COPYING",
+              "sha256": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505"
+            },
+            {
+              "archivePath": "share/licenses/Zstd/LICENSE",
+              "bytes": 1549,
+              "file": "artifacts/1e89e257b90b25bfadb4376cf7909772bf60d060948a844fe52bf924825e8cb5/share/licenses/Zstd/LICENSE",
+              "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "1bf4b481ad6ca36ef56a0da90606b08aaef44373"
+        }
+      ],
+      "metadataSha256": "5a709a8810a318c64685d1d6e4d014fc6f5e16079453a0fc6ac3ef6d8755eba5",
+      "name": "Zstd_jll",
+      "uuid": "3161d3a3-bdf6-5164-811a-617609db77b4",
+      "version": "1.5.7+1"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 7210,
+          "archiveSha256": "fd2147de47079f541abf1e740c89fd5428a83b23b42137b7d1ffa19d3e1c0076",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/dSFMT_jll.jl/releases/download/dSFMT-v2.2.5+2/dSFMT.v2.2.5.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libdSFMT.so",
+              "artifactSha256": "ad955fd65a08d97b28a9e1d86cb1cb9d7d48c6b646bd94083c8da6bf0892d92e",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libdSFMT.so",
+              "sdkSha256": "ad955fd65a08d97b28a9e1d86cb1cb9d7d48c6b646bd94083c8da6bf0892d92e"
+            }
+          ],
+          "name": "dSFMT",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/dSFMT/LICENSE.txt",
+              "bytes": 1697,
+              "file": "artifacts/fd2147de47079f541abf1e740c89fd5428a83b23b42137b7d1ffa19d3e1c0076/share/licenses/dSFMT/LICENSE.txt",
+              "sha256": "f28558971bbbcd9c947ea6603053a6ce077a481521503008628536bbb96755dd"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "7336cebf442e4c41f8d7f51c3276e63a58c620f7"
+        }
+      ],
+      "metadataSha256": "608499c0a1b677e79a234d72174f96ff5ec2699eaa321f420568a471ade10bb5",
+      "name": "dSFMT_jll",
+      "uuid": "05ff407c-b0c1-5878-9df8-858cc2e60c36",
+      "version": "2.2.5+2"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 103668027,
+          "archiveSha256": "d1914142ca42d0b1d4cf44270c6b53cbccb6abb051cdbd75c45ae83a2d24a727",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v20.1.8+2/libLLVM.v20.1.8.aarch64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libLLVM.so.20.1jl",
+              "artifactSha256": "2da411a5b6b727f4503fc6f1155ec5ed8149e8bee28e93cb579739f8da3348e3",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libLLVM.so.20.1jl",
+              "sdkSha256": "2da411a5b6b727f4503fc6f1155ec5ed8149e8bee28e93cb579739f8da3348e3"
+            }
+          ],
+          "name": "libLLVM",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/libLLVM/LICENSE.TXT",
+              "bytes": 15141,
+              "file": "artifacts/d1914142ca42d0b1d4cf44270c6b53cbccb6abb051cdbd75c45ae83a2d24a727/share/licenses/libLLVM/LICENSE.TXT",
+              "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+            }
+          ],
+          "platformBinding": {
+            "archiveSha256": "d1914142ca42d0b1d4cf44270c6b53cbccb6abb051cdbd75c45ae83a2d24a727",
+            "artifact": "libLLVM",
+            "artifactFile": "lib/libLLVM.so.20.1jl",
+            "componentUUID": "8f36deef-c2a5-5394-99ed-8e07531fb29a",
+            "componentVersion": "20.1.8+2",
+            "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",
+            "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+            "sdkFile": "lib/julia/libLLVM.so.20.1jl",
+            "sdkSha256": "2da411a5b6b727f4503fc6f1155ec5ed8149e8bee28e93cb579739f8da3348e3",
+            "tags": {
+              "llvm_version": "20"
+            }
+          },
+          "status": "notices_collected",
+          "treeSha1": "5c06d3e9b0d0816ad9b6e9391700c44ed4d5682d"
+        }
+      ],
+      "metadataSha256": "5006457835731b16310d939304efb50f5e5ba0e8f1c9161c2700d5f7bbfcfda8",
+      "name": "libLLVM_jll",
+      "uuid": "8f36deef-c2a5-5394-99ed-8e07531fb29a",
+      "version": "20.1.8+2"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 940082,
+          "archiveSha256": "9cca820658a7206b3324bf4fb309154bf2427c81ebd0f6a448a761183a553cdb",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/libblastrampoline_jll.jl/releases/download/libblastrampoline-v5.15.0+0/libblastrampoline.v5.15.0.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libblastrampoline.so.5",
+              "artifactSha256": "d787d0d9cea73be77ce202b0c15b3833bb1fa6180bde1319f1bea3728e4d9c4b",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libblastrampoline.so.5",
+              "sdkSha256": "d787d0d9cea73be77ce202b0c15b3833bb1fa6180bde1319f1bea3728e4d9c4b"
+            }
+          ],
+          "name": "libblastrampoline",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/libblastrampoline/LICENSE.md",
+              "bytes": 1117,
+              "file": "artifacts/9cca820658a7206b3324bf4fb309154bf2427c81ebd0f6a448a761183a553cdb/share/licenses/libblastrampoline/LICENSE.md",
+              "sha256": "5dbb3eb3160afaf436cd9177ad3d986644ca65328297328676462181798bbcbd"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "affa5ed9fbbe4c3dfc7e4ec84478923e78771f78"
+        }
+      ],
+      "metadataSha256": "4da7c3444839083892248eb4e41cdbc9e87e441cd166ff77688aa0235a2e87fb",
+      "name": "libblastrampoline_jll",
+      "uuid": "8e850b90-86db-534c-a0d3-1478176c7d93",
+      "version": "5.15.0+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 747239,
+          "archiveSha256": "4dc50a726d5427e78f97a3be54e10ed3f640d7589342ad72fa876d85e366fa11",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/nghttp2_jll.jl/releases/download/nghttp2-v1.70.0+0/nghttp2.v1.70.0.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [
+            {
+              "archivePath": "lib/libnghttp2.so.14.29.5",
+              "artifactSha256": "cdaf3cedcde70905d0232dd9b111ef050fe480f893324220fa7a7abcbfc3110d",
+              "sameBytes": true,
+              "sdkFile": "lib/julia/libnghttp2.so.14.29.5",
+              "sdkSha256": "cdaf3cedcde70905d0232dd9b111ef050fe480f893324220fa7a7abcbfc3110d"
+            }
+          ],
+          "name": "nghttp2",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/nghttp2/COPYING",
+              "bytes": 1156,
+              "file": "artifacts/4dc50a726d5427e78f97a3be54e10ed3f640d7589342ad72fa876d85e366fa11/share/licenses/nghttp2/COPYING",
+              "sha256": "6b94f3abc1aabd0c72a7c7d92a77f79dda7c8a0cb3df839a97890b4116a2de2a"
+            },
+            {
+              "archivePath": "share/licenses/nghttp2/LICENSE",
+              "bytes": 12,
+              "file": "artifacts/4dc50a726d5427e78f97a3be54e10ed3f640d7589342ad72fa876d85e366fa11/share/licenses/nghttp2/LICENSE",
+              "sha256": "f0518afc0a555337bac2f0fb37d33cdee6111983da69aaa504a1876beeddfde0"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "d2a077b2cd60daf79a36a8eb6384dbfd964b5b29"
+        }
+      ],
+      "metadataSha256": "1cfb9538438201492e8aca73e4585c4894fe5166139a33ed4af8ffd33a7748f7",
+      "name": "nghttp2_jll",
+      "uuid": "8e850ede-7688-5339-a07c-302acd2aaf8d",
+      "version": "1.70.0+0"
+    },
+    {
+      "artifacts": [
+        {
+          "archiveBytes": 730368,
+          "archiveSha256": "77932941fce1f4782c8d6e18cc281feb459c79a0efa2c73abdeceaf9db565142",
+          "archiveUrl": "https://github.com/JuliaBinaryWrappers/p7zip_jll.jl/releases/download/p7zip-v17.8.3+0/p7zip.v17.8.3.aarch64-linux-gnu.tar.gz",
+          "libraryComparisons": [],
+          "name": "p7zip",
+          "noticeFiles": [
+            {
+              "archivePath": "share/licenses/p7zip/License.txt",
+              "bytes": 6341,
+              "file": "artifacts/77932941fce1f4782c8d6e18cc281feb459c79a0efa2c73abdeceaf9db565142/share/licenses/p7zip/License.txt",
+              "sha256": "9ac2b4a97ab5d523965534d8b2d5868e511b39096d51fff458ab72c38b80fccc"
+            },
+            {
+              "archivePath": "share/licenses/p7zip/copying.txt",
+              "bytes": 27032,
+              "file": "artifacts/77932941fce1f4782c8d6e18cc281feb459c79a0efa2c73abdeceaf9db565142/share/licenses/p7zip/copying.txt",
+              "sha256": "1e7e6bae5a5bde32f1ae5a7c37a082d1ab03cf89354f7f936ac40be9e39a6531"
+            }
+          ],
+          "status": "notices_collected",
+          "treeSha1": "a4f43d5e112eba5cfed57bb5f4f2fee8ad573de1"
+        }
+      ],
+      "metadataSha256": "c6571dd37df04df2d71df05ca3c361e86bf772228ae1eb57ea1518bfa5ccd0df",
+      "name": "p7zip_jll",
+      "uuid": "3f19e933-33d8-53b3-aaab-bd5110c3b7a0",
+      "version": "17.8.3+0"
+    }
+  ],
+  "formatVersion": 1,
+  "juliaCommit": "45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "juliaVersion": "1.13.2",
+  "platform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+  "runtimeThirdParty": {
+    "bytes": 5407,
+    "file": "runtime/THIRDPARTY.md",
+    "gitBlobSha1": "7e3e5c604c13890df513e69e7858e88ac1e0f4b4",
+    "sha256": "7028c525d1a25e31c6c684ade567b3f6f1e408636c65c2d787fc8304e69df777",
+    "url": "https://raw.githubusercontent.com/JuliaLang/julia/45b6d15e34bbd2003a31acce0b1847b63dad029c/THIRDPARTY.md"
+  },
+  "scope": "julia-sdk-reviewed-notice-sources",
+  "sdkDataSources": [
+    {
+      "file": "data/mozilla-cacerts-2026-08-13-linux-arm64.json",
+      "runtimePlatform": "aarch64-linux-gnu-libgfortran5-cxx11-libstdcxx30-julia_version+1.13.2",
+      "sha256": "10218a595bd065ff889095d044fdbc0e937a1fd6586a9151cfed3f201a343589"
+    }
+  ]
+}

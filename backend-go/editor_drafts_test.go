@@ -165,11 +165,17 @@ func TestEditorDraftsPostgres(t *testing.T) {
 		return rec
 	}
 	path := base + "/" + workspace
-	check(tokens[0].Token, "PUT", path, draftFixture, `"0"`, 200)
+	unitFixture := strings.Replace(draftFixture, `"params":{"p":"10"}`, `"params":{"p":"10"},"declaredParameterUnits":{"formatVersion":1,"units":{"p":"МВт"}}`, 1)
+	unitFixture = strings.Replace(unitFixture, `"key":"p","value":"11"`, `"key":"p","value":"11","unit":"кВт"`, 1)
+	check(tokens[0].Token, "PUT", path, unitFixture, `"0"`, 200)
 	read := check(second.Token, "GET", path, "", "", 200)
 	var draft editorDraftView
 	if json.Unmarshal(read.Body.Bytes(), &draft) != nil || draft.Revision != "1" || read.Header().Get("ETag") != `"1"` || !strings.Contains(string(draft.Payload), "Private load") {
 		t.Fatal("owner draft lost payload/revision")
+	}
+	stored, err := decodeEditorDraft(draft.Payload)
+	if err != nil || !strings.Contains(string(stored.Components[0].Base.DeclaredParameterUnits), "МВт") || string(stored.Components[0].Intents[0].Unit) != `"кВт"` {
+		t.Fatal("stored journal lost original unit declarations", err)
 	}
 	check(tokens[1].Token, "GET", path, "", "", 404) // Shared editor cannot read owner's journal.
 	check(tokens[1].Token, "DELETE", path, "", `"1"`, 404)

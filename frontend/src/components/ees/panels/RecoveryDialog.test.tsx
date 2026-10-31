@@ -36,6 +36,25 @@ test('a late earlier comparison cannot replace the refreshed server version', as
 });
 
 const serverScheme: Scheme = { id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [{ ...draft.base, revision: '8', x: 100 }] };
+
+test('comparison shows original and current unit labels and marks changed units before matching numbers', async () => {
+  const source: ComponentDraft = { ...draft, base: { ...draft.base, params: { p: '10' }, declaredParameterUnits: { formatVersion: 1, units: { p: 'МВт' } } },
+    intents: [{ kind: 'parameter', key: 'p', value: '20' }] };
+  vi.mocked(getScheme).mockResolvedValue({ ...serverScheme, components: [{ ...source.base, revision: '8', params: { p: '20' },
+    declaredParameterUnits: { formatVersion: 1, units: { p: 'Вт' } } }] });
+  const resolve = vi.fn().mockResolvedValue(undefined);
+  await act(async () => root.render(<RecoveryDialog draft={source} onClose={() => {}} onResolve={resolve} />));
+  expect(container.textContent).toContain('10 (МВт)');
+  expect(container.textContent).toContain('20 (МВт)');
+  expect(container.textContent).toContain('20 (Вт)');
+  expect(container.textContent).toContain('Единица изменилась');
+  expect(container.textContent).not.toContain('Уже совпадает');
+  await chooseX();
+  expect(button('Применить мои значения').disabled).toBe(true);
+  expect(button('Принять серверные').disabled).toBe(false);
+  await act(async () => button('Принять серверные').click());
+  expect(resolve).toHaveBeenCalledWith(source, expect.objectContaining({ revision: '8' }), new Set(['parameter:p']), 'accept');
+});
 test('conflict recovery uses the supplied scheme scope and never reads the legacy scheme API',async () => {
   const readScheme=vi.fn().mockResolvedValue(serverScheme);
   await act(async () => root.render(<RecoveryDialog draft={draft} readScheme={readScheme} onClose={()=>{}} />));

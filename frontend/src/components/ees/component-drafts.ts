@@ -4,7 +4,7 @@ import { parseComponentRevision } from '../../api/component-revision';
 
 export type ComponentIntent =
   | { kind: 'pose'; values: Partial<ComponentPose> }
-  | { kind: 'parameter'; key: string; value: string }
+  | { kind: 'parameter'; key: string; value: string; unit?: string }
   | { kind: 'delete' };
 
 export interface ComponentDraft {
@@ -20,6 +20,7 @@ const copyComponent = (component: SchemeComponent): SchemeComponent => ({
   id: component.id, revision: component.revision, type: component.type, typeId: component.typeId,
   name: component.name, x: component.x, y: component.y, rotation: component.rotation,
   equipmentModelId: component.equipmentModelId, params: { ...component.params },
+  ...(component.declaredParameterUnits ? { declaredParameterUnits: { formatVersion: 1, units: { ...component.declaredParameterUnits.units } } } : {}),
   ...(component.projectPassportVersionId == null ? {} : { projectPassportVersionId: component.projectPassportVersionId }),
 });
 const copyIntent = (intent: ComponentIntent): ComponentIntent => intent.kind === 'pose'
@@ -82,7 +83,10 @@ export class ComponentDrafts {
     else {
       const next = copyComponent(previous);
       if (intent.kind === 'pose') Object.assign(next, intent.values);
-      else next.params = { ...next.params, [intent.key]: intent.value };
+      else {
+        next.params = { ...next.params, [intent.key]: intent.value };
+        if (intent.unit !== undefined) next.declaredParameterUnits = { formatVersion: 1, units: { ...next.declaredParameterUnits?.units, [intent.key]: intent.unit } };
+      }
       next.revision = revision;
       this.confirmed.set(ticket.key, next);
       // Confirmed edits become the base for remaining unacknowledged intents.
@@ -181,9 +185,21 @@ export class ComponentDrafts {
     for (const field of selected) {
       if (!field.startsWith('parameter:')) continue;
       const key = field.slice('parameter:'.length);
+      // An intent added during the request still belongs to the original value/unit pair.
+      const originalUnit = draft.base.declaredParameterUnits && Object.prototype.hasOwnProperty.call(draft.base.declaredParameterUnits.units, key)
+        ? draft.base.declaredParameterUnits.units[key] : undefined;
+      const serverUnit = server.declaredParameterUnits && Object.prototype.hasOwnProperty.call(server.declaredParameterUnits.units, key)
+        ? server.declaredParameterUnits.units[key] : undefined;
+      if (originalUnit !== serverUnit && [...draft.intents.values()].some(intent => intent.kind === 'parameter' && intent.key === key)) continue;
       if (Object.prototype.hasOwnProperty.call(server.params, key)) {
         Object.defineProperty(draft.base.params, key, { value: server.params[key], enumerable: true, writable: true, configurable: true });
       } else delete draft.base.params[key];
+      const units = { ...draft.base.declaredParameterUnits?.units };
+      if (server.declaredParameterUnits && Object.prototype.hasOwnProperty.call(server.declaredParameterUnits.units, key)) {
+        Object.defineProperty(units, key, { value: server.declaredParameterUnits.units[key], enumerable: true, writable: true, configurable: true });
+      } else delete units[key];
+      if (Object.keys(units).length) draft.base.declaredParameterUnits = { formatVersion: 1, units };
+      else delete draft.base.declaredParameterUnits;
     }
     // Baseline values may originate in different revisions until all fields are resolved.
     if (draft.intents.size === 0) this.pending.delete(review.key);

@@ -17,6 +17,21 @@ const graph = (revision = '0', connected = false) => ({ id: '7', projectId: '900
   connections: connected ? [link] : [] });
 const reply = (value: unknown, revision?: string) => new Response(JSON.stringify(value), { headers: revision ? { ETag: `"${revision}"` } : {} });
 
+test('restored unit evidence survives new server seeding, capture and independent workspaces', () => {
+  const original = fixture();
+  original.components[0].base.declaredParameterUnits = { formatVersion: 1, units: { voltage_nom: 'кВ' } };
+  const restored = restoreProjectEditorJournal(options(), original);
+  restored.queue.seed(7, { ...component(), revision: '99', declaredParameterUnits: { formatVersion: 1, units: { voltage_nom: 'В' } } });
+  const captured = captureEditorJournal(restored.queue, '7');
+  expect(captured.components[0].base.declaredParameterUnits?.units.voltage_nom).toBe('кВ');
+  captured.components[0].base.declaredParameterUnits!.units.voltage_nom = 'tampered';
+  original.components[0].base.declaredParameterUnits.units.voltage_nom = 'outside';
+  expect(captureEditorJournal(restored.queue, '7').components[0].base.declaredParameterUnits?.units.voltage_nom).toBe('кВ');
+  const old = restoreProjectEditorJournal(options(), fixture());
+  old.queue.seed(7, { ...component(), declaredParameterUnits: { formatVersion: 1, units: { voltage_nom: 'В' } } });
+  expect(captureEditorJournal(old.queue, '7').components[0].base).not.toHaveProperty('declaredParameterUnits');
+});
+
 test('component snapshot includes pending work, makes independent copies and only removes acknowledged intentions', async () => {
   const writes = new ComponentWrites(), original = component();
   writes.seed(7, original);

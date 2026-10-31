@@ -86,6 +86,9 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+.parameter-value-input { min-width: 0; }
+.parameter-value-input input { box-sizing: border-box; width: 100%; }
+.parameter-value-input [role="alert"] { display: block; margin-top: 8px; color: var(--text-primary); font-size: 11px; line-height: 1.5; }
 .terminal-inspector { padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
 .terminal-inspector h3 { font-size: 14px; margin: 16px 0 10px; }
 .terminal-card { border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px; padding: 12px; margin: 10px 0; }

@@ -1,7 +1,7 @@
 import type { ComponentPatch, SchemeComponent } from '../../api/ees-api';
 import { parseComponentRevision, type ComponentWriteResult } from '../../api/component-revision';
 import { ComponentDrafts, type ComponentDraft, type ComponentIntent } from './component-drafts';
-import { prepareRecoveryPatch } from './component-comparison';
+import { prepareRecoveryPatch, validateRecoverySelection } from './component-comparison';
 import { GraphWrites } from './graph-writes';
 
 export type ComponentPose = Pick<SchemeComponent, 'x' | 'y' | 'rotation' | 'name'>;
@@ -87,17 +87,21 @@ export class ComponentWrites {
     const fields = new Set(selected);
     this.activity++;
     const compared = { ...server, params: { ...server.params } };
+    if (server.declaredParameterUnits) compared.declaredParameterUnits = { formatVersion: 1, units: { ...server.declaredParameterUnits.units } };
     const entry = this.entry(compared);
     const result = entry.tail.then(async () => {
       if (!isCurrent()) return undefined;
       if (!this.drafts.isCurrentReview(draft)) throw new Error('Правки изменились. Повторно откройте сравнение.');
-      const prepared = prepareRecoveryPatch(draft, compared, fields);
+      const prepared: { revision: string; patch?: ComponentPatch } = apply
+        ? prepareRecoveryPatch(draft, compared, fields) : validateRecoverySelection(draft, compared, fields);
       const confirmed: SchemeComponent = { ...compared, params: { ...compared.params } };
       if (apply && prepared.patch) {
         const acknowledgement = await apply(prepared.patch, prepared.revision);
         confirmed.revision = parseComponentRevision(acknowledgement.revision);
         Object.assign(confirmed, prepared.patch.pose);
         confirmed.params = { ...confirmed.params, ...prepared.patch.params };
+        if (prepared.patch.parameterUnitDeclaration) confirmed.declaredParameterUnits = { formatVersion: 1,
+          units: { ...confirmed.declaredParameterUnits?.units, ...prepared.patch.parameterUnitDeclaration.units } };
       }
       this.drafts.resolveReviewed(draft, fields, confirmed);
       entry.revision = confirmed.revision;

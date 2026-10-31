@@ -1,6 +1,7 @@
 import { ComponentWriteError, componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite } from './component-revision';
 import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { calculationErrorMessage, parseCalculationResult, type ComponentPatch, type CalculationResult } from './ees-api';
+import { AC_INPUT_UNIT_PROFILE, requireInputUnitContract } from './input-unit-contract';
 import { archiveId } from './calculation-archives-api';
 import { requireSelectedBackend, type ComputeBackendId } from './compute-backends';
 import { isCalculationBudget, requireExecutionBudget } from './calculation-execution';
@@ -125,7 +126,7 @@ export async function calculateProjectScheme(scope: ProjectSchemeScope, expected
   if (maxTimeMs !== undefined && !isCalculationBudget(maxTimeMs)) throw new Error('Бюджет времени должен быть целым числом от 1 до 20000 мс');
   if (!method || !modelGroup) throw new Error('Выберите модель и метод расчёта');
   const revision = topology(expected);
-  const response = await send(`${path(scope)}/${archive ? 'archive-calculation' : 'calculate'}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, 'POST', signal, { 'If-Match': `"${revision}"` }, limits === undefined ? undefined : {operatingLimits:limits});
+  const response = await send(`${path(scope)}/${archive ? 'archive-calculation' : 'calculate'}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}&unitContract=${AC_INPUT_UNIT_PROFILE}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, 'POST', signal, { 'If-Match': `"${revision}"` }, limits === undefined ? undefined : {operatingLimits:limits});
   const data = await json(response, signal);
   if (data && typeof data === 'object' && 'success' in data && data.success === false) throw new Error(calculationErrorMessage(data));
   const inputSha256 = response.headers.get('X-Enersy-Input-SHA256');
@@ -138,5 +139,6 @@ export async function calculateProjectScheme(scope: ProjectSchemeScope, expected
   requireSelectedBackend(result.solver, backend);
   requireExecutionBudget(result.solver, maxTimeMs);
   requireOperatingLimits(result.operating_assessment, limits);
+  requireInputUnitContract(data);
   return { result, source: { ...scope, topologyRevision: revision, inputSha256, ...(saved ? { archiveId: saved } : {}) } };
 }

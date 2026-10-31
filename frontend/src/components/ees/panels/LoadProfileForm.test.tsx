@@ -13,6 +13,18 @@ test('the load editor displays declared labels without converting numeric string
   expect(host.querySelector<HTMLInputElement>('#load-5-p')?.value).toBe('10');
   expect(save).not.toHaveBeenCalled();
 });
+
+test('a unit-only update blocks dirty load profile text until explicit restoration', async () => {
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'МВт' } }} />));
+  await input('p', '12');
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'Вт' } }} />));
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')?.value).toBe('12');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('единицы');
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Вернуть сохранённый')!.click());
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')?.value).toBe('10');
+  expect(host.querySelector('[role=alert]')).toBeNull();
+});
 const render = async (params = initial, resets: Record<string, number> = {}) => { await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} parameterResets={resets} />)); };
 async function input(id: string, value: string) {
   const el = host.querySelector<HTMLInputElement>(`#load-5-${id}`)!;

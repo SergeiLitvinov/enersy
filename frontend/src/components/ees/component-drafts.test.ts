@@ -5,6 +5,67 @@ import { ComponentDrafts } from './component-drafts';
 
 const component: SchemeComponent = { id: 101, revision: '1', type: 'busbar', typeId: 1, name: 'Bus', x: 0, y: 0, rotation: 0, params: { voltage: '110' } };
 
+test('acknowledged value/unit edit seeds the correct unit for a later failed numeric intent', async () => {
+  const queue = new ComponentWrites(); queue.seed(1, component);
+  await queue.run(component, () => true, async () => ({ success: true, revision: '2' }),
+    { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '110000', unit: 'В' } });
+  await expect(queue.run(component, () => true, async () => { throw new Error('lost value'); },
+    { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '220000' } })).rejects.toThrow('lost value');
+  expect(queue.drafts.failed(1)[0].base).toMatchObject({ revision: '2', params: { voltage: '110000' }, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'В' } } });
+});
+
+test('recovery acknowledgement updates confirmed unit together with a deliberately changed value', async () => {
+  const queue = new ComponentWrites(); queue.seed(1, component);
+  const ticket = queue.drafts.record(1, component, { kind: 'parameter', key: 'voltage', value: '110000', unit: 'В' });
+  queue.drafts.fail(ticket, 'lost acknowledgement');
+  const apply = vi.fn().mockResolvedValue({ success: true, revision: '9' });
+  const result = await queue.recover(queue.drafts.failed(1)[0], { ...component, revision: '8' }, new Set(['parameter:voltage']), () => true, apply);
+  expect(apply).toHaveBeenCalledWith({ params: { voltage: '110000' }, parameterUnitDeclaration: { formatVersion: 1, units: { voltage: 'В' } } }, '8');
+  expect(result).toMatchObject({ revision: '9', params: { voltage: '110000' }, declaredParameterUnits: { units: { voltage: 'В' } } });
+  expect(queue.drafts.hasFailed(1)).toBe(false);
+});
+
+test('journal owns unit snapshots and retains original value/unit pair for new intents during acceptance', () => {
+  const source: SchemeComponent = { ...component, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'кВ' } } };
+  const drafts = new ComponentDrafts(); drafts.seed(1, source);
+  const ticket = drafts.record(1, source, { kind: 'parameter', key: 'voltage', value: '220' });
+  drafts.fail(ticket, 'conflict');
+  source.declaredParameterUnits!.units.voltage = 'tampered';
+  const review = drafts.failed(1)[0];
+  expect(review.base.declaredParameterUnits?.units.voltage).toBe('кВ');
+  const snapshot = drafts.snapshot(1); snapshot[0].base.declaredParameterUnits!.units.voltage = 'outside';
+  expect(drafts.snapshot(1)[0].base.declaredParameterUnits?.units.voltage).toBe('кВ');
+  drafts.record(1, source, { kind: 'parameter', key: 'voltage', value: '500' });
+  drafts.resolveReviewed(review, new Set(['parameter:voltage']), { ...component, revision: '8', params: { voltage: '220000' },
+    declaredParameterUnits: { formatVersion: 1, units: { voltage: 'В' } } });
+  expect(drafts.failed(1)[0]).toMatchObject({ base: { params: { voltage: '110' }, declaredParameterUnits: { units: { voltage: 'кВ' } } },
+    intents: [{ kind: 'parameter', key: 'voltage', value: '500' }] });
+});
+
+test('changed-unit recovery sends no write, retains journal, and permits explicit server acceptance', async () => {
+  const queue = new ComponentWrites();
+  const source: SchemeComponent = { ...component, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'кВ' } } };
+  queue.seed(1, source);
+  const ticket = queue.drafts.record(1, source, { kind: 'parameter', key: 'voltage', value: '220' });
+  queue.drafts.record(1, source, { kind: 'pose', values: { x: 10 } });
+  queue.drafts.fail(ticket, 'conflict');
+  const server: SchemeComponent = { ...source, revision: '8', params: { voltage: '220' }, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'В' } } };
+  const review = queue.drafts.failed(1)[0], apply = vi.fn();
+  await expect(queue.recover(review, server, new Set(['parameter:voltage']), () => true, apply)).rejects.toThrow('Единица');
+  expect(apply).not.toHaveBeenCalled();
+  expect(queue.drafts.isCurrentReview(review)).toBe(true);
+  await queue.recover(review, server, new Set(['parameter:voltage']), () => true);
+  expect(queue.drafts.failed(1)[0]).toMatchObject({ base: { params: { voltage: '220' }, declaredParameterUnits: { units: { voltage: 'В' } } },
+    intents: [{ kind: 'pose', values: { x: 10 } }] });
+  const accepted = queue.drafts.failed(1)[0];
+  const next = queue.drafts.record(1, source, { kind: 'parameter', key: 'voltage', value: '330' });
+  queue.drafts.fail(next, 'next conflict');
+  const current = queue.drafts.failed(1)[0];
+  queue.drafts.resolveReviewed(current, new Set(['parameter:voltage']), { ...server, declaredParameterUnits: undefined });
+  expect(queue.drafts.failed(1)[0].base.declaredParameterUnits).toBeUndefined();
+  expect(accepted.base.declaredParameterUnits?.units.voltage).toBe('В');
+});
+
 test('selection or unchanged mouseup creates neither a pose write nor an empty failed intent', async () => {
   const queue = new ComponentWrites();
   queue.seed(1, component);

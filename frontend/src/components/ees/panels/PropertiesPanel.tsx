@@ -6,6 +6,7 @@ import { TerminalInspector, ConnectionInspector } from './TerminalInspector';
 import type { EquipmentReference, ConnectionReference } from '../../../domain/equipment-terminals';
 import './PropertiesPanel.css';
 import { Icon } from '../../ui/Icon';
+import type { ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
 
 interface PropertiesPanelProps {
   selectedComponent: EditorComponent | undefined;
@@ -16,7 +17,7 @@ interface PropertiesPanelProps {
   onSelectConnection?: (id: number) => void;
   currentSchemeId?: number;
   onSaveParam: (k: string, v: string) => void | Promise<void>;
-  onSaveParams?: (values: Readonly<Record<string, string>>) => Promise<void>;
+  onSaveParams?: (values: Readonly<Record<string, string>>, declaration?: ParameterUnitDeclaration) => Promise<void>;
   parameterResets?: Readonly<Record<string, number>>;
 }
 
