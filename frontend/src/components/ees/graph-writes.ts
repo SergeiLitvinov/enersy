@@ -4,7 +4,7 @@ import { parseEditorDraftPayloadV2, type EditorGraphEntryV2 } from '../../api/ed
 import type { GraphDispatchCapture } from './scheme-transport';
 
 export type GraphIntent =
-  | { kind: 'create-component'; typeId: number; name: string; x: number; y: number; equipmentModelId: number | null; projectPassportVersionId?: string | null; rotation?: number; params?: Record<string, string> }
+  | { kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: number; name: string; x: number; y: number; equipmentModelId: number | null; projectPassportVersionId?: string | null; rotation?: number; params?: Record<string, string> }
   | { kind: 'create-connection'; commandId: string; from: number; to: number; fromPort: string; toPort: string }
   | { kind: 'delete-connection'; id: number };
 
@@ -55,6 +55,9 @@ export class GraphWrites {
             JSON.stringify(Object.entries(copied.params).sort()) === JSON.stringify(Object.entries(captured.params ?? {}).sort()));
       if (!matches || (entry.dispatch && JSON.stringify(entry.dispatch) !== JSON.stringify(copied))) throw new Error('Команда журнала не совпадает с отправляемым намерением');
       entry.dispatch = copied;
+      if (copied.kind === 'create-component' && captured.kind === 'create-component') {
+        captured.commandId = copied.commandId; captured.expectedTopologyRevision = copied.expectedTopologyRevision;
+      }
     };
     return this.track(schemeId, () => action(capture), error => {
       open = false;
@@ -84,25 +87,38 @@ export class GraphWrites {
   retryConnection(review: GraphReview, schemeId: number, failureId: number, isCurrent: () => boolean,
     action: (intent: Extract<GraphIntent, { kind: 'create-connection' }>) => Promise<{ id: number; success: boolean; commandId?: string }>,
     synchronize?: () => Promise<void>) {
+    const failure = this.reviews.get(review)?.failures.find(item => item.id === failureId);
+    if (failure && failure.intent.kind !== 'create-connection') throw new Error('Повтор поддержан только для создания связи с ключом команды');
+    return this.retryCreation(review, schemeId, failureId, isCurrent, intent => {
+      if (intent.kind !== 'create-connection') throw new Error('Ожидалась команда создания связи');
+      return action(intent);
+    }, synchronize);
+  }
+
+  retryCreation(review: GraphReview, schemeId: number, failureId: number, isCurrent: () => boolean,
+    action: (intent: Extract<GraphIntent, { kind: 'create-connection' | 'create-component' }>) => Promise<{ id: number; success: boolean; commandId?: string }>,
+    synchronize?: () => Promise<void>) {
     const captured = this.reviews.get(review);
     const failure = captured?.failures.find(item => item.id === failureId);
     if (!captured || captured.schemeId !== schemeId || captured.version !== this.schemeVersions.get(schemeId) ||
         this.pending.get(schemeId)?.size || !failure || !(this.errors.get(schemeId) ?? []).includes(failure) || !isCurrent()) {
       throw new Error('Сравнение устарело. Повторно сверьте исходную схему.');
     }
-    if (failure.intent.kind !== 'create-connection' || !failure.intent.commandId) {
-      throw new Error('Повтор поддержан только для создания связи с ключом команды');
+    if (failure.intent.kind === 'delete-connection' || !failure.intent.commandId ||
+        (failure.intent.kind === 'create-component' && (failure.intent.expectedTopologyRevision === undefined || !this.failureEntries.get(failure)?.dispatch))) {
+      throw new Error('Повтор поддержан только для создания с исходным UUID и ревизией');
     }
     if (this.failureEntries.get(failure)?.restoredUnprepared) {
       throw new Error('Исходная ревизия команды неизвестна. Примите серверную схему после сверки; новое соединение создавайте отдельным намерением.');
     }
-    const intent = { ...failure.intent };
+    const intent = failure.intent.kind === 'create-component' ? { ...failure.intent, params: { ...failure.intent.params } } : { ...failure.intent };
+    const commandId = failure.intent.commandId;
     this.reviews.delete(review);
     return this.track(schemeId, async () => {
       if (!isCurrent()) throw new Error('Рабочий контекст изменился до отправки команды');
       const acknowledgement = await action({ ...intent });
       if (acknowledgement.success !== true || !Number.isSafeInteger(acknowledgement.id) || acknowledgement.id <= 0 ||
-          acknowledgement.commandId !== intent.commandId.toLowerCase()) {
+          acknowledgement.commandId !== commandId.toLowerCase()) {
         throw new Error('Идентичность повторной команды не подтверждена');
       }
       // Keep the original intention and the calculation barrier until the view
@@ -189,7 +205,7 @@ export class GraphWrites {
    * This does not prove whether the original command ran and does not undo it.
    * It never removes unseen intentions or sends mutations to the server.
    */
-  acceptServer(review: GraphReview, schemeId: number, selected: ReadonlySet<number>): GraphSnapshot {
+  acceptServer(review: GraphReview, schemeId: number, selected: ReadonlySet<number>, onAccept?: (intent: GraphIntent) => void): GraphSnapshot {
     const captured = this.reviews.get(review);
     const failures = this.errors.get(schemeId) ?? [];
     if (!captured || captured.schemeId !== schemeId || captured.version !== this.schemeVersions.get(schemeId) ||
@@ -199,6 +215,7 @@ export class GraphWrites {
     if (!selected.size || [...selected].some(id => !captured.failures.some(failure => failure.id === id))) {
       throw new Error('Выберите рассмотренные изменения топологии');
     }
+    for (const failure of failures.filter(failure => selected.has(failure.id))) onAccept?.(copyIntent(failure.intent));
     const remaining = failures.filter(failure => !selected.has(failure.id));
     for (const failure of failures.filter(failure => selected.has(failure.id))) {
       const entry = this.failureEntries.get(failure); if (entry) this.journal.get(schemeId)?.delete(entry);

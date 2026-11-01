@@ -14,6 +14,7 @@ COPY docs ./docs
 COPY TODO.md ./
 COPY frontend/src ./frontend/src
 COPY backend-go ./backend-go
+COPY mcp-go ./mcp-go
 COPY backend-julia/src ./backend-julia/src
 COPY backend-julia/test ./backend-julia/test
 COPY backend-julia/benchmark ./backend-julia/benchmark

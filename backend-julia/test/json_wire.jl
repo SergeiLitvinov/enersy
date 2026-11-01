@@ -60,7 +60,15 @@ end
     before = JSON.parse(old_result)
     @test JSON.parse(EC.json_response(200, before).body) == before
     @test JSON.parse(current.body).success === true
-    @test same_wire_contract(before, JSON.parse(current.body))
+    # Topology v2 deliberately adds branch provenance. Preserve the frozen
+    # JSON3 bytes and compare the complete remaining v1 wire shape unchanged.
+    value = JSON.parse(current.body)
+    @test before.topology.schema_version == 1
+    @test value.topology.schema_version == 2
+    @test length(value.topology.branch_origins) == length(value.branches)
+    delete!(value.topology, "branch_origins")
+    value.topology.schema_version = 1
+    @test same_wire_contract(before, value)
 
     for fixture in JSON.parse(read(joinpath(directory, "json3-http-contract-v1.json")))
         response = handle_request(HTTP.Request("POST", "/solve", [], fixture.body))

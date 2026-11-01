@@ -13,7 +13,7 @@ export type EditorComponentIntent =
   | { kind: 'parameter'; key: string; value: string; unit?: string }
   | { kind: 'delete' };
 export type EditorGraphIntent =
-  | ({ kind: 'create-component'; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> } & EditorDraftPose)
+  | ({ kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> } & EditorDraftPose)
   | { kind: 'create-connection'; commandId: string; from: string; to: string; fromPort: string; toPort: string; expectedTopologyRevision: string }
   | { kind: 'delete-connection'; id: string; expectedTopologyRevision: string };
 export interface EditorDraftPayload {
@@ -121,8 +121,10 @@ function componentIntent(value: unknown): EditorComponentIntent {
 function graphIntent(value: unknown): EditorGraphIntent {
   const kind = draftRecord(value).kind;
   if (kind === 'create-component') {
-    const item = fields(value, ['kind', 'typeId', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId']);
-    return { kind, typeId: draftId(item.typeId), ...pose(item), ...passport(item), equipmentModelId: model(item.equipmentModelId), params: params(item.params) };
+    const item = fields(value, ['kind', 'typeId', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId', 'commandId', 'expectedTopologyRevision']);
+    const protectedCommand = owns(item, 'commandId') || owns(item, 'expectedTopologyRevision')
+      ? { commandId: draftUUID(item.commandId), expectedTopologyRevision: draftRevision(item.expectedTopologyRevision, true) } : {};
+    return { kind, ...protectedCommand, typeId: draftId(item.typeId), ...pose(item), ...passport(item), equipmentModelId: model(item.equipmentModelId), params: params(item.params) };
   }
   if (kind === 'create-connection') {
     const item = fields(value, ['kind', 'commandId', 'from', 'to', 'fromPort', 'toPort', 'expectedTopologyRevision']);
@@ -162,7 +164,7 @@ export function parseEditorDraftPayload(value: unknown): EditorDraftPayload {
   const graph = array(item.graph, 128).map(value => {
     const entry = fields(value, ['intent', 'reason']);
     const intent = graphIntent(entry.intent);
-    if (intent.kind === 'create-connection') {
+    if ((intent.kind === 'create-connection' || intent.kind === 'create-component') && intent.commandId) {
       if (commands.has(intent.commandId)) return invalid();
       commands.add(intent.commandId);
     }

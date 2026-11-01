@@ -21,6 +21,7 @@
     "vitest": "4.1.12"
   },
   "overrides": {
+    "minimatch@^10": "11.0.3",
     "source-map-js": "1.2.2"
   },
   "scripts": {

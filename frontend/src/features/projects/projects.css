@@ -9,7 +9,7 @@
 .projects-login { display: grid; gap: 14px; }
 .projects-login h2 { font-size: 20px; margin-bottom: 8px; }
 .projects-workspace label { font-size: 13px; font-weight: 600; }
-.projects-workspace input { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-canvas); color: var(--text-primary); }
+.projects-workspace input:not([type="checkbox"]):not([type="radio"]) { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-canvas); color: var(--text-primary); }
 .projects-login .primary { margin-top: 10px; min-height: 44px; }
 .projects-session { margin-top: 30px; margin-bottom: 24px; display: flex; gap: 18px; justify-content: space-between; flex-wrap: wrap; align-items: center; }
 .projects-session > span { display: flex; gap: 8px; align-items: center; color: var(--accent-blue); }

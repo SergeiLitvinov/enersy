@@ -8,11 +8,27 @@ import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { parseEditorDraftPayload, type EditorGraphIntent } from '../../api/editor-draft-payload';
 
 export type ProjectEditorTransportOptions = commands.ProjectSchemeScope & {
+  identity?: { accountId: string; sessionId: string };
   name: string; writable: boolean; signal: AbortSignal;
   onUnavailable?: () => void;
   onCalculation?: (source: commands.ProjectCalculation['source']) => void;
+  onPreparedEquipment?: (intent: Extract<EditorGraphIntent, { kind: 'create-component' }>) => void;
+  onResolvedEquipment?: (commandId: string) => void;
+  componentAttempts?: readonly Extract<EditorGraphIntent, { kind: 'create-component' }>[];
   connectionAttempts?: readonly Extract<EditorGraphIntent, { kind: 'create-connection' }>[];
 };
+function equipmentIntent(value: unknown): Extract<EditorGraphIntent, { kind: 'create-component' }> {
+  const intent = parseEditorDraftPayload({ formatVersion: 1, components: [], graph: [{ intent: value, reason: '' }] }).graph[0].intent;
+  if (intent.kind !== 'create-component') throw new Error('Ожидалась команда оборудования');
+  return intent;
+}
+function equipmentInput(intent: Extract<EditorGraphIntent, { kind: 'create-component' }>): commands.ProjectComponentInput {
+  return { typeId: intent.typeId, equipmentModelId: intent.equipmentModelId, x: intent.x, y: intent.y, rotation: intent.rotation,
+    name: intent.name, params: { ...intent.params }, ...(intent.projectPassportVersionId == null ? {} : { projectPassportVersionId: intent.projectPassportVersionId }) };
+}
+function equipmentIdentity(intent: Extract<EditorGraphIntent, { kind: 'create-component' }>): string {
+  return JSON.stringify({ ...intent, params: Object.entries(intent.params).sort(([a], [b]) => a.localeCompare(b)) });
+}
 function rendererId(value: string): number {
   if (!/^[1-9][0-9]*$/.test(value) || value.length > 10 || Number(value) > 2147483647) throw new Error('ID графа не поддержан текущим renderer');
   return Number(value);
@@ -30,6 +46,7 @@ function structure(graph: Pick<ProjectGraph, 'components' | 'connections'>): str
  */
 export function createProjectEditorTransport(options: ProjectEditorTransportOptions): SchemeTransport {
   const { projectId, schemeId, signal, writable, onUnavailable, onCalculation } = options;
+  const identity = options.identity ? Object.freeze({ ...options.identity }) : undefined;
   const scope = Object.freeze({ projectId, schemeId });
   const sid = rendererId(schemeId);
   let snapshot: ProjectGraph | null = null;
@@ -37,6 +54,12 @@ export function createProjectEditorTransport(options: ProjectEditorTransportOpti
   let uncertain = false;
   // Retain original CAS/payload only for commands whose outcome still needs review.
   const attempts = new Map<string, { expected: string; input: commands.ProjectConnectionInput }>();
+  const equipmentAttempts = new Map<string, Extract<EditorGraphIntent, { kind: 'create-component' }>>();
+  for (const entry of options.componentAttempts ?? []) {
+    const intent = parseEditorDraftPayload({ formatVersion: 1, components: [], graph: [{ intent: entry, reason: '' }] }).graph[0].intent;
+    if (intent.kind !== 'create-component' || !intent.commandId || intent.expectedTopologyRevision === undefined) throw new Error('Не подтверждена исходная команда оборудования');
+    equipmentAttempts.set(intent.commandId, intent);
+  }
   const restored = parseEditorDraftPayload({ formatVersion: 1, components: [], graph: (options.connectionAttempts ?? []).map(intent => ({ intent, reason: '' })) });
   for (const { intent } of restored.graph) {
     if (intent.kind !== 'create-connection') throw new Error('Некорректная попытка создания связи');
@@ -99,15 +122,38 @@ export function createProjectEditorTransport(options: ProjectEditorTransportOpti
       checkScheme(id);
       const before = current();
       const inputParams = { ...params };
-      await capture?.({ kind: 'create-component', typeId: graphId(typeId), x, y, rotation, name,
+      const commandId = catalog.newConnectionCommandId();
+      const intent = equipmentIntent({ kind: 'create-component', commandId, expectedTopologyRevision: before.topologyRevision,
+        typeId: graphId(typeId), x, y, rotation, name,
         ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
         equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: { ...inputParams } });
-      const created = await commands.createProjectComponent(scope, { typeId: graphId(typeId), x, y, rotation, name,
-        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
-        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: inputParams }, signal);
+      equipmentAttempts.set(commandId, intent);
+      // Persist the exact identity/CAS before any request can reach the API.
+      await capture?.({ ...intent, params: { ...inputParams } });
+      options.onPreparedEquipment?.(equipmentIntent(intent));
+      const input = equipmentInput(intent);
+      const created = await commands.createProjectComponent(scope, input, signal, { commandId, expectedTopologyRevision: before.topologyRevision, identity });
+      if (created.deleted) throw new Error('Команда относится к удалённому оборудованию. Сверьте схему');
       const cid = rendererId(created.id);
       await synchronize({ components: [...before.components, { id: cid, typeId, type: '', name, x, y, rotation, revision: created.revision, params: created.params }], connections: before.connections });
+      options.onResolvedEquipment?.(commandId);
+      equipmentAttempts.delete(commandId);
       return { ...created, id: cid, equipmentModelId: created.equipmentModelId === null ? null : rendererId(created.equipmentModelId) };
+    }),
+    completeComponentReplay: commandId => { options.onResolvedEquipment?.(commandId); equipmentAttempts.delete(commandId); },
+    retryComponentCreation: original => serialized(async () => {
+      write();
+      const intent = equipmentIntent(original);
+      const previous = intent.commandId ? equipmentAttempts.get(intent.commandId) : undefined;
+      if (!previous || previous.expectedTopologyRevision === undefined || equipmentIdentity(previous) !== equipmentIdentity(intent)) throw new Error('Исходная команда оборудования не подтверждена');
+      const { commandId, expectedTopologyRevision } = previous;
+      const input = equipmentInput(previous);
+      if (!commandId) throw new Error('Требуется UUID команды оборудования');
+      options.onPreparedEquipment?.(equipmentIntent(previous));
+      const ack = await commands.createProjectComponent(scope, input, signal, { commandId, expectedTopologyRevision, identity });
+      // The hook reads the full graph before resolving this journal entry,
+      // including the case where the acknowledged equipment was later deleted.
+      return { success: true, id: rendererId(ack.id), commandId };
     }),
     deleteComponent: (id, revision) => structural(async () => {
       const key = component(id), before = current();

@@ -23,11 +23,12 @@ RUN npm run build
 FROM builder AS check
 # Cross-language contract tests read these versioned sources directly. Keep the
 # check image self-contained; the production runtime still copies builder/dist.
-COPY frontend/eslint.config.mjs ./
+COPY frontend/eslint.config.mjs frontend/vitest.config.ts ./
 COPY backend-julia/src /backend-julia/src
+COPY backend-julia/test/reference/json-wire-v1/json3-worker-input-v1.json /backend-julia/test/reference/json-wire-v1/json3-worker-input-v1.json
 COPY tests/fixtures /tests/fixtures
 COPY database/migrations /database/migrations
-RUN npm run typecheck && npm run lint && npm test
+RUN npm run typecheck && npm run lint && npm test -- --maxWorkers=2
 
 FROM nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
 

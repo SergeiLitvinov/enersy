@@ -26,7 +26,7 @@ async function walk(relative) {
   }
   return files;
 }
-const groups = ['frontend/src', 'backend-go', 'backend-julia/src', 'backend-julia/test', 'backend-julia/benchmark', 'backend-julia/experimental', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'numerics/examples', 'numerics/include', 'database'];
+const groups = ['frontend/src', 'backend-go', 'mcp-go', 'backend-julia/src', 'backend-julia/test', 'backend-julia/benchmark', 'backend-julia/experimental', 'rust-wasm/src', 'numerics/src', 'numerics/tests', 'numerics/examples', 'numerics/include', 'database'];
 const files = (await Promise.all(groups.map(walk))).flat().sort();
 // Publish only explicitly selected, project-owned measurement artifacts.
 const reports = path.join(site, 'public/reports');

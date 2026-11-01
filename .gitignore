@@ -17,3 +17,6 @@ docs/site/public/reports/
 .pnpm-store/
 .cache/
 .backups/
+.secrets/
+mcp-go/enersy-mcp
+mcp-go/*.test

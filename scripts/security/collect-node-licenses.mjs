@@ -78,6 +78,8 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       if (source && digest !== source.sha256) throw new Error('Reviewed notice content changed');
       notices[digest] = { sha256: digest, text: utf8.decode(content) };
       files.push({ name: item, sha256: digest, ...(source ? { kind: source.kind ?? 'reviewed-embedded',
+        ...(typeof source.reason === 'string' ? { reviewReason: source.reason } : {}),
+        ...(typeof source.reviewedUtc === 'string' ? { reviewedUtc: source.reviewedUtc } : {}),
         ...(source.kind === 'reviewed-upstream' ? { sourceCommit: source.sourceCommit, sourceURL: source.sourceURL } : {}) } : {}) });
     }
     for (const item of (await readdir(directory)).sort()) {
@@ -147,6 +149,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       'Installed packages on this platform, including development dependencies; not the final bundle composition',
       'Optional packages absent on this platform are not inventoried',
       'Package license metadata and notice files are evidence, not a license compatibility decision',
+      'A captured package root notice does not establish coverage of native binary dependencies; reviewReason preserves narrower reviewed scopes',
       'Embedded and upstream notices are included only for explicitly reviewed name/version, manifest and file hashes',
       'Non-npm dependencies, operating-system packages and other non-root notice files require separate review',
     ],

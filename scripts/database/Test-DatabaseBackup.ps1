@@ -59,8 +59,13 @@ SELECT id,project_id,1,created_by,'11111111-1111-4111-8111-111111111111',repeat(
 convert_to('{"components":[],"connections":[],"modelGroup":"three-phase","method":"newton-raphson","computeBackend":"julia","executionOptions":{"max_time_ms":20000},"base":{"s_base_mva":100,"v_base_kv":10},"solverOptions":{"tolerance":1e-8,"max_iterations":50},"operatingLimits":[],"studyReference":{"formatVersion":1,"id":"1","revision":"1"}}','UTF8'),
 convert_to('{"formatVersion":1,"components":[]}','UTF8') FROM project_studies;
 COMMIT;
+-- Storage-only historical receipt fixture, not a computed engineering result.
+INSERT INTO project_application_commands(project_id,command_id,scheme_id,account_id,operation,intent_sha256,receipt)
+SELECT p.id,'11111111-1111-4111-8111-222222222222',s.id,p.owner_account_id,'component.create.v1',repeat('b',64),
+'{"ID":999999,"Revision":1,"Params":{"voltage_nom":"110.00"},"DeclaredParameterUnits":null,"Replayed":false,"Deleted":false,"TopologyRevision":1}'::jsonb
+FROM projects p JOIN circuit_schemes s ON s.project_id=p.id;
 CREATE TABLE schema_migrations(version BIGINT PRIMARY KEY, dirty BOOLEAN NOT NULL);
-CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(64) NOT NULL, origin VARCHAR(16) NOT NULL CHECK(origin IN ('applied','legacy-baseline')), recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(64) NOT NULL, origin VARCHAR(16) NOT NULL CHECK(origin = 'applied'), recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
 '@
     $latestVersion = [Int64]($migrations[-1].BaseName.Split('_')[0])
     $fixture += "`nINSERT INTO schema_migrations VALUES($latestVersion,false);`n"
@@ -114,7 +119,7 @@ CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(
     # restore. Compare this one constraint by its exact allowed values and
     # verify enforcement independently, while preserving every other line.
     foreach ($database in @('source_db','restored_db')) {
-        foreach ($origin in @('applied','legacy-baseline')) {
+        foreach ($origin in @('applied')) {
             $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', $database, '-v', 'ON_ERROR_STOP=1', '-c', "BEGIN; INSERT INTO schema_migration_integrity(version,sha256,origin) VALUES(-1,repeat('a',64),'$origin'); ROLLBACK;")
         }
         $invalidRefused = $false
@@ -144,6 +149,12 @@ CREATE TABLE schema_migration_integrity(version BIGINT PRIMARY KEY, sha256 CHAR(
         $studyEditRefused = $false
         try { $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', $database, '-v', 'ON_ERROR_STOP=1', '-c', "UPDATE project_study_versions SET input_body='{}'::bytea") } catch { $studyEditRefused = $true }
         if (-not $studyEditRefused) { throw 'Restored Study history is mutable.' }
+        $receiptCount = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', $database, '-At', '-v', 'ON_ERROR_STOP=1', '-c', "SELECT count(*) FROM project_application_commands WHERE receipt->'Params'->>'voltage_nom'='110.00'")
+        if (($receiptCount -join '').Trim() -ne '1') { throw 'Command receipt was not preserved.' }
+        $receiptEditRefused = $false
+        try { $null = Invoke-DatabaseDocker -Arguments @('exec', $container, 'psql', '-X', '-U', 'app_user', '-d', $database, '-v', 'ON_ERROR_STOP=1', '-c', "UPDATE project_application_commands SET receipt='{}'") } catch { $receiptEditRefused = $true }
+        if (-not $receiptEditRefused) { throw 'Restored command receipts are mutable.' }
+
     }
     # A damaged backup must be rejected before creating its target database.
     [IO.File]::AppendAllText($dump, 'damaged')

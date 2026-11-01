@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -218,13 +217,6 @@ func TestStudySnapshotLifecyclePostgres(t *testing.T) {
 	if _, err = f.store.SaveStudy(ctx, owner, f.project, 0, id, 3, f.topology+1, studyCommand(20), f.doc); !errors.Is(err, errStudyTopology) {
 		t.Fatal("wrong source revision accepted", err)
 	}
-	down, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261024001_project_studies.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = f.store.database.Exec(string(down)); err == nil {
-		t.Fatal("downgrade discarded history")
-	}
 	if err = (sessionStore{database: f.store.database}).Revoke(ctx, f.tokens[2].Token, f.tokens[2].Identity.SessionID); err != nil {
 		t.Fatal(err)
 	}
@@ -421,16 +413,6 @@ func TestStudyQuotaAndEmptyMigrationPostgres(t *testing.T) {
 	f := newStudyFixture(t)
 	ctx := context.Background()
 	owner := f.tokens[0].Token
-	// An unused schema can roll the additive migration down/up without data loss.
-	for _, migration := range []string{"20261028002_study_run_leases.down", "20261028001_study_run_queue.down", "20261024001_project_studies.down", "20261024001_project_studies.up", "20261028001_study_run_queue.up", "20261028002_study_run_leases.up"} {
-		body, err := os.ReadFile(filepath.Join("..", "database", "migrations", migration+".sql"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err = f.store.database.Exec(string(body)); err != nil {
-			t.Fatal("empty migration round trip", err)
-		}
-	}
 	var study int64
 	for i := 0; i < 100; i++ {
 		scheme := 0

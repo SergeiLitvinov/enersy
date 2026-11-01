@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -126,15 +124,6 @@ func TestStudyRunQuotaAndMigrationPostgres(t *testing.T) {
 	f := newStudyFixture(t)
 	ctx := context.Background()
 	owner := f.tokens[0].Token
-	for _, migration := range []string{"20261028002_study_run_leases.down", "20261028001_study_run_queue.down", "20261028001_study_run_queue.up", "20261028002_study_run_leases.up"} {
-		body, err := os.ReadFile(filepath.Join("..", "database", "migrations", migration+".sql"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err = f.store.database.Exec(string(body)); err != nil {
-			t.Fatal("empty migration round trip", err)
-		}
-	}
 	v, err := f.store.SaveStudy(ctx, owner, f.project, f.scheme, 0, 0, f.topology, studyCommand(951), f.doc)
 	if err != nil {
 		t.Fatal(err)
@@ -155,13 +144,6 @@ func TestStudyRunQuotaAndMigrationPostgres(t *testing.T) {
 	}
 	if replay, err := f.store.EnqueueStudyRun(ctx, owner, f.project, study, 1, studyCommand(1000)); err != nil || replay != first {
 		t.Fatal("quota blocked successful replay", replay, err)
-	}
-	body, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261028001_study_run_queue.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = f.store.database.Exec(string(body)); err == nil {
-		t.Fatal("downgrade discarded admitted commands")
 	}
 	if err = (sessionStore{database: f.store.database}).Revoke(ctx, owner, f.tokens[0].Identity.SessionID); err != nil {
 		t.Fatal(err)

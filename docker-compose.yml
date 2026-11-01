@@ -1,4 +1,37 @@
 services:
+  mcp:
+    profiles: [mcp]
+    image: enersy-mcp
+    build:
+      context: .
+      dockerfile: mcp-go/Dockerfile
+    stdin_open: true
+    tty: false
+    environment:
+      ENERSY_MCP_API_ORIGIN: http://go-api:8080
+      ENERSY_MCP_AUTH_ORIGIN: ${AUTH_ORIGIN:-}
+      ENERSY_MCP_PROJECT_ID: ${ENERSY_MCP_PROJECT_ID:-}
+      ENERSY_MCP_SCHEME_ID: ${ENERSY_MCP_SCHEME_ID:-}
+      ENERSY_MCP_ALLOW_WRITE: ${ENERSY_MCP_ALLOW_WRITE:-false}
+      ENERSY_MCP_COOKIE_NAME: ${ENERSY_MCP_COOKIE_NAME:-__Host-enersy_session}
+      ENERSY_MCP_SESSION_FILE: /run/secrets/enersy-session
+      GOMEMLIMIT: 192MiB
+      GOMAXPROCS: "1"
+    volumes:
+      - type: bind
+        source: ${ENERSY_MCP_SESSION_PATH:-./.secrets/mcp-session}
+        target: /run/secrets/enersy-session
+        read_only: true
+        bind:
+          create_host_path: false
+    cpus: 1
+    mem_limit: 256m
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      go-api: {condition: service_healthy}
+
   nginx:
     image: nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
     container_name: nginx-proxy

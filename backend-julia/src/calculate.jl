@@ -36,14 +36,15 @@ function calculate(components::Vector{RawComponent}, connections::Vector{RawConn
     response = calculate_islands(sys, sys_base, options, entry, model_group, method, started_ns; backend, control)
     response["solver"]["compute_backend"] = Dict(pairs(backend.metadata))
     response["topology"] = Dict(
-        "schema_version" => 1,
+        "schema_version" => 2,
         "node_numbering" => "min-component-terminal",
         "terminals" => [Dict("component_id" => t.component_id,
             "component_type" => t.component_type, "terminal" => t.terminal,
             "bus_id" => t.bus, "omitted_reason" => t.omitted_reason === nothing ? nothing : String(t.omitted_reason))
             for t in net.terminal_buses],
         "internal_nodes" => [Dict("bus_id" => source.bus,
-            "component_id" => source.component_id, "role" => "source_emf") for source in sys.sources])
+            "component_id" => source.component_id, "role" => "source_emf") for source in sys.sources],
+        "branch_origins" => [branch_origin(m) for m in sort(sys.branch_models; by=m -> m.component_id)])
     response["operating_assessment"] = assess_operating_limits(bound_limits, response)
     execution_checkpoint(control, :publication)
     control === nothing || (response["solver"]["execution"] = execution_metadata(control))
@@ -169,6 +170,32 @@ function build_admittance(sys::AcSystem)
 end
 
 # --- формирование ответа ---------------------------------------------------------
+
+"""Identify the implemented AC branch and its physical/internal endpoints.
+
+Bus IDs belong to the corresponding flow row. Endpoint identities contain no
+local solver index, so island renumbering cannot change their meaning. Model IDs
+refer to the existing implementation descriptions, not selectable ModelBindings.
+"""
+function branch_origin(m::BranchModel)
+    terminal(n) = Dict("kind" => "terminal", "terminal" => n)
+    if m.code == "generator"
+        model = "enersy.ac.source-impedance"
+        role = "source_impedance"
+        from = Dict("kind" => "internal", "role" => "source_emf")
+        to = terminal(1)
+    elseif m.code == "transmission_line"
+        model, role = "enersy.ac.line-pi", "line_pi"
+        from, to = terminal(1), terminal(2)
+    elseif m.code == "transformer"
+        model, role = "enersy.ac.transformer-2w", "transformer_2w"
+        from, to = terminal(1), terminal(2)
+    else
+        throw(unsupported_error("unsupported_branch_origin", "Branch implementation has no provenance contract"))
+    end
+    return Dict("component_id" => m.component_id, "component_type" => m.code,
+                "model_id" => model, "role" => role, "from" => from, "to" => to)
+end
 
 function node_type_of(bus_index::Int, cls::BusClassification)
     bus_index == cls.slack && return "slack"

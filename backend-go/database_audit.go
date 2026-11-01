@@ -6,37 +6,30 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/lib/pq"
 )
 
 type databaseAudit struct {
-	FormatVersion            int               `json:"formatVersion"`
-	Scope                    string            `json:"scope"`
-	Status                   string            `json:"status"`
-	ReadOnly                 bool              `json:"readOnly"`
-	CapturedAt               time.Time         `json:"capturedAt"`
-	LatestSourceVersion      string            `json:"latestSourceVersion"`
-	Version                  *string           `json:"version"`
-	Dirty                    *bool             `json:"dirty"`
-	Counts                   map[string]*int64 `json:"counts"`
-	ReferenceChecks          map[string]*int64 `json:"referenceChecks"`
-	IdentityChecks           map[string]*int64 `json:"identityChecks"`
-	DependencyChecks         map[string]*int64 `json:"dependencyChecks"`
-	DependencyReviewRequired bool              `json:"dependencyReviewRequired"`
-	Findings                 []string          `json:"findings"`
+	FormatVersion       int               `json:"formatVersion"`
+	Scope               string            `json:"scope"`
+	Status              string            `json:"status"`
+	ReadOnly            bool              `json:"readOnly"`
+	CapturedAt          time.Time         `json:"capturedAt"`
+	LatestSourceVersion string            `json:"latestSourceVersion"`
+	Version             *string           `json:"version"`
+	Dirty               *bool             `json:"dirty"`
+	Counts              map[string]*int64 `json:"counts"`
+	Findings            []string          `json:"findings"`
 }
 
-// Operator-only inventory. It neither applies migrations nor enrolls legacy checksums.
-// All database reads share one read-only REPEATABLE READ transaction. Names,
-// credentials, parameters and user rows never enter the report.
-func auditDatabase(ctx context.Context, database *sql.DB, sourceURL string) (databaseAudit, error) {
-	r := databaseAudit{FormatVersion: 1, Scope: "legacy-bootstrap-and-migration-inventory", Status: "review_required", ReadOnly: true,
-		Counts: map[string]*int64{"legacyUsers": nil, "duplicateLegacyNameGroups": nil, "unresolvedLegacyOwners": nil,
-			"migrationVersionRows": nil, "checksumMismatches": nil, "unexpectedIntegrityEntries": nil, "missingIntegrityEntries": nil, "legacyBaselineEntries": nil}, Findings: []string{}}
-	files, err := source.Open(sourceURL)
+// This is an integrity inventory of the v1 domain, never a legacy importer.
+// It takes one read-only snapshot and emits aggregate counts, not user rows.
+func auditDatabase(ctx context.Context, db *sql.DB, url string) (databaseAudit, error) {
+	r := databaseAudit{FormatVersion: 1, Scope: "database-v1-integrity", Status: "review_required", ReadOnly: true, CapturedAt: time.Now().UTC(), Counts: map[string]*int64{}, Findings: []string{}}
+	files, err := source.Open(url)
 	if err != nil {
 		return r, err
 	}
@@ -52,222 +45,132 @@ func auditDatabase(ctx context.Context, database *sql.DB, sourceURL string) (dat
 		}
 	}
 	r.LatestSourceVersion = strconv.FormatUint(uint64(latest), 10)
-	tx, err := beginReadOnlyAudit(ctx, database)
+	tx, err := beginReadOnlyAudit(ctx, db)
 	if err != nil {
 		return r, err
 	}
 	defer rollbackTx(tx)
-	if err = tx.QueryRowContext(ctx, `SELECT transaction_timestamp()`).Scan(&r.CapturedAt); err != nil {
-		return r, err
-	}
 	var schema string
 	if err = tx.QueryRowContext(ctx, `SELECT current_schema()`).Scan(&schema); err != nil {
 		return r, err
 	}
-	hasTable := func(name string) (bool, error) {
-		var present bool
-		err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relname=$2 AND c.relkind IN ('r','p'))`, schema, name).Scan(&present)
-		return present, err
+	qualified := func(name string) string { return pq.QuoteIdentifier(schema) + "." + pq.QuoteIdentifier(name) }
+	present := func(name string) (bool, error) {
+		var found bool
+		err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relname=$2 AND c.relkind IN ('r','p'))`, schema, name).Scan(&found)
+		return found, err
 	}
-	hasColumn := func(table, column string) (bool, error) {
-		var present bool
-		err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 AND column_name=$3)`, schema, table, column).Scan(&present)
-		return present, err
-	}
-	count := func(key, query string) error {
-		var value int64
-		if err := tx.QueryRowContext(ctx, query).Scan(&value); err != nil {
-			return fmt.Errorf("audit %s: %w", key, err)
+	count := func(name, key string) (bool, error) {
+		r.Counts[key] = nil
+		found, err := present(name)
+		if err != nil || !found {
+			return found, err
 		}
-		r.Counts[key] = &value
-		return nil
+		var n int64
+		err = tx.QueryRowContext(ctx, "SELECT count(*) FROM "+qualified(name)).Scan(&n)
+		if err == nil {
+			r.Counts[key] = &n
+		}
+		return true, err
 	}
-	// Fixed identifiers are schema-qualified to exclude fallback through search_path.
-	qualified := func(table string) string { return `"` + strings.ReplaceAll(schema, `"`, `""`) + `"."` + table + `"` }
-	users, err := hasTable("users")
+	tables := []string{"auth_accounts", "auth_local_credentials", "auth_sessions", "circuit_schemes", "component_params_template", "component_type_ports", "component_types", "connection_commands", "project_application_commands", "equipment_model_params", "equipment_models", "scheme_components", "scheme_connections", "project_calculation_archives", "project_editor_drafts", "project_members", "project_passports", "project_studies", "project_study_run_leases", "project_study_runs", "project_study_versions", "projects", "scheme_component_params"}
+	for _, name := range tables {
+		ok, e := count(name, "tables."+name)
+		if e != nil {
+			return r, e
+		}
+		if !ok {
+			r.Findings = append(r.Findings, "schema_incomplete")
+		}
+	}
+	found, err := present("schema_migrations")
 	if err != nil {
 		return r, err
 	}
-	if users {
-		if err = count("legacyUsers", `SELECT count(*) FROM `+qualified("users")); err != nil {
+	if found {
+		var n int64
+		var version sql.NullInt64
+		var dirty sql.NullBool
+		if err = tx.QueryRowContext(ctx, "SELECT count(*),min(version),bool_or(dirty) FROM "+qualified("schema_migrations")).Scan(&n, &version, &dirty); err != nil {
 			return r, err
 		}
-		if err = count("duplicateLegacyNameGroups", `SELECT count(*) FROM (SELECT name FROM `+qualified("users")+` GROUP BY name HAVING count(*)>1) d`); err != nil {
-			return r, err
-		}
-		if *r.Counts["duplicateLegacyNameGroups"] > 0 {
-			r.Findings = append(r.Findings, "legacy_user_name_duplicates_require_reference_review")
-		}
-	} else {
-		r.Counts["legacyUsers"] = nil
-		r.Counts["duplicateLegacyNameGroups"] = nil
-		r.Findings = append(r.Findings, "legacy_users_table_absent")
-	}
-	schemes, err := hasTable("circuit_schemes")
-	if err != nil {
-		return r, err
-	}
-	owner, err := hasColumn("circuit_schemes", "owner_id")
-	if err != nil {
-		return r, err
-	}
-	r.Counts["unresolvedLegacyOwners"] = nil
-	if schemes && users && owner {
-		if err = count("unresolvedLegacyOwners", `SELECT count(*) FROM `+qualified("circuit_schemes")+` s LEFT JOIN `+qualified("users")+` u ON u.id=s.owner_id WHERE s.owner_id IS NOT NULL AND u.id IS NULL`); err != nil {
-			return r, err
-		}
-		if *r.Counts["unresolvedLegacyOwners"] > 0 {
-			r.Findings = append(r.Findings, "unresolved_legacy_owner_ids")
-		}
-	} else {
-		r.Findings = append(r.Findings, "legacy_owner_links_not_assessed")
-	}
-	versioned, err := hasTable("schema_migrations")
-	if err != nil {
-		return r, err
-	}
-	var version uint64
-	if versioned {
-		if err = count("migrationVersionRows", `SELECT count(*) FROM `+qualified("schema_migrations")); err != nil {
-			return r, err
-		}
-		if *r.Counts["migrationVersionRows"] != 1 {
-			r.Findings = append(r.Findings, "invalid_migration_version_row_count")
-			versioned = false
-		}
-	}
-	if versioned {
-		var dirty bool
-		var value int64
-		if err = tx.QueryRowContext(ctx, `SELECT version,dirty FROM `+qualified("schema_migrations")).Scan(&value, &dirty); err != nil {
-			return r, err
-		}
-		v := strconv.FormatInt(value, 10)
-		r.Version, r.Dirty = &v, &dirty
-		if value < 0 {
-			r.Findings = append(r.Findings, "invalid_migration_version")
+		if n != 1 || !version.Valid || !dirty.Valid {
+			r.Findings = append(r.Findings, "migration_history_invalid")
 		} else {
-			version = uint64(value)
-		}
-		if dirty {
-			r.Findings = append(r.Findings, "dirty_migration")
-		}
-		if version > uint64(latest) {
-			r.Findings = append(r.Findings, "database_newer_than_source")
-		}
-		if _, ok := manifest.scripts[uint(version)]; !ok {
-			r.Findings = append(r.Findings, "version_absent_from_source")
-		}
-		if version < uint64(latest) {
-			r.Findings = append(r.Findings, "pending_migrations")
+			value := strconv.FormatInt(version.Int64, 10)
+			r.Version = &value
+			r.Dirty = &dirty.Bool
+			if version.Int64 < 0 || uint64(version.Int64) != uint64(latest) {
+				r.Findings = append(r.Findings, "unsupported_database_version")
+			}
+			if dirty.Bool {
+				r.Findings = append(r.Findings, "dirty_migration")
+			}
 		}
 	} else {
-		r.Findings = append(r.Findings, "unversioned_database")
+		r.Findings = append(r.Findings, "migration_history_missing")
 	}
-	integrity, err := hasTable("schema_migration_integrity")
+	found, err = count("schema_migration_integrity", "migrationIntegrityRecords")
 	if err != nil {
 		return r, err
 	}
-	if integrity {
-		// #nosec G202 -- qualified quotes the DB schema and this fixed table name.
-		rows, err := tx.QueryContext(ctx, `SELECT version,sha256,origin FROM `+qualified("schema_migration_integrity")+` ORDER BY version`)
-		if err != nil {
-			return r, err
+	if !found {
+		r.Findings = append(r.Findings, "migration_integrity_missing")
+	} else {
+		// #nosec G202 -- only current_schema() is interpolated, and qualified quotes both identifiers with pq.QuoteIdentifier.
+		rows, e := tx.QueryContext(ctx, "SELECT version,sha256,origin FROM "+qualified("schema_migration_integrity"))
+		if e != nil {
+			return r, e
 		}
-		seen := map[uint]bool{}
-		var mismatches, unknown, baselines int64
+		expected := map[string]migrationScript{}
+		for version, script := range manifest.scripts {
+			expected[strconv.FormatUint(uint64(version), 10)] = script
+		}
+		seen := map[string]bool{}
 		for rows.Next() {
-			var v uint
+			var id int64
 			var hash, origin string
-			if err = rows.Scan(&v, &hash, &origin); err != nil {
+			if e = rows.Scan(&id, &hash, &origin); e != nil {
 				rows.Close()
-				return r, err
+				return r, e
 			}
-			seen[v] = true
-			script, ok := manifest.scripts[v]
-			if !ok || uint64(v) > version {
-				unknown++
-			} else if script.hash != hash {
-				mismatches++
+			key := strconv.FormatInt(id, 10)
+			script, exists := expected[key]
+			if id < 0 || !exists || seen[key] || hash != script.hash || origin != "applied" {
+				r.Findings = append(r.Findings, "migration_integrity_mismatch")
 			}
-			if origin == "legacy-baseline" {
-				baselines++
-			}
+			seen[key] = true
 		}
-		err = rows.Err()
+		e = rows.Err()
 		rows.Close()
-		if err != nil {
+		if e != nil {
+			return r, e
+		}
+		if len(seen) != len(manifest.scripts) {
+			r.Findings = append(r.Findings, "migration_integrity_incomplete")
+		}
+	}
+	for key, query := range map[string]string{
+		"unvalidatedConstraints": `SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE n.nspname=$1 AND c.contype IN ('f','c') AND NOT c.convalidated`,
+		"disabledTriggers":       `SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND NOT t.tgisinternal AND t.tgenabled='D'`,
+	} {
+		var n int64
+		if err = tx.QueryRowContext(ctx, query, schema).Scan(&n); err != nil {
 			return r, err
 		}
-		var missing int64
-		for v := range manifest.scripts {
-			if uint64(v) <= version && !seen[v] {
-				missing++
-			}
-		}
-		r.Counts["checksumMismatches"], r.Counts["unexpectedIntegrityEntries"], r.Counts["missingIntegrityEntries"], r.Counts["legacyBaselineEntries"] = &mismatches, &unknown, &missing, &baselines
-		if mismatches > 0 {
-			r.Findings = append(r.Findings, "migration_checksum_mismatch")
-		}
-		if unknown > 0 {
-			r.Findings = append(r.Findings, "unexpected_integrity_entries")
-		}
-		if missing > 0 {
-			r.Findings = append(r.Findings, "missing_integrity_entries")
-		}
-		if baselines > 0 {
-			r.Findings = append(r.Findings, "legacy_baseline_is_not_historical_proof")
-		}
-	} else {
-		r.Findings = append(r.Findings, "integrity_table_absent")
-	}
-	r.ReferenceChecks, err = auditLegacyReferences(ctx, tx, schema)
-	if err != nil {
-		return r, err
-	}
-	for _, count := range r.ReferenceChecks {
-		if count == nil {
-			r.Findings = append(r.Findings, "legacy_reference_checks_incomplete")
-			break
+		r.Counts[key] = &n
+		if n > 0 {
+			r.Findings = append(r.Findings, key)
 		}
 	}
-	r.IdentityChecks, err = auditLegacyIdentities(ctx, tx, schema)
-	if err != nil {
-		return r, err
-	}
-	for _, count := range r.IdentityChecks {
-		if count == nil {
-			r.Findings = append(r.Findings, "legacy_identity_checks_incomplete")
-			break
-		}
-	}
-	for _, count := range r.IdentityChecks {
-		if count != nil && *count > 0 {
-			r.Findings = append(r.Findings, "legacy_identity_ambiguities_require_review")
-			break
-		}
-	}
-	for _, count := range r.ReferenceChecks {
-		if count != nil && *count > 0 {
-			r.Findings = append(r.Findings, "legacy_references_require_review")
-			break
-		}
-	}
-	r.DependencyChecks, err = auditLegacyDependencies(ctx, tx, schema)
-	if err != nil {
-		return r, err
-	}
-	// Incoming FK metadata is a migration-planning inventory, not a data
-	// integrity finding: extra constraints and NOT VALID are legal in fresh DBs.
-	// Keep its review signal separate from the existing integrity status.
-	for key, count := range r.DependencyChecks {
-		if count == nil || (!strings.HasSuffix(key, ".total") && *count > 0) {
-			r.DependencyReviewRequired = true
-			break
-		}
-	}
-
 	sort.Strings(r.Findings)
+	unique := r.Findings[:0]
+	for _, f := range r.Findings {
+		if len(unique) == 0 || unique[len(unique)-1] != f {
+			unique = append(unique, f)
+		}
+	}
+	r.Findings = unique
 	if len(r.Findings) == 0 {
 		r.Status = "no_findings_in_audited_scope"
 	}

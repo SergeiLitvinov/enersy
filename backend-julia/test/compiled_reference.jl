@@ -11,6 +11,12 @@
     base = BaseSystem(100,110,"independent compiled reference")
     options = SolverOptions(tolerance=1e-10)
     result = calculate(cs, es; base, options)
+    origin = only(filter(o -> o["component_id"] == 4, result["topology"]["branch_origins"]))
+    @test origin["component_type"] == "transformer"
+    @test origin["model_id"] == "enersy.ac.transformer-2w"
+    @test origin["role"] == "transformer_2w"
+    @test origin["from"] == Dict("kind" => "terminal", "terminal" => 1)
+    @test origin["to"] == Dict("kind" => "terminal", "terminal" => 2)
     # Map by equipment membership, never by generated bus order.
     function compare_result(result, ids)
         nodes = result["nodes"]

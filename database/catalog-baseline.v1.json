@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
-  "sourceVersion": "20261030001",
-  "migrationSha256": "0108e72bee1042dc560ada5e604ad0684f799a878d74eac0b5e7335369c72744",
+  "sourceVersion": "2",
+  "migrationSha256": "1a76a4cd4573b4856f17a353853dfd92d768f16401a991d009330108f45b9219",
   "entities": [
     {
       "name": "types",

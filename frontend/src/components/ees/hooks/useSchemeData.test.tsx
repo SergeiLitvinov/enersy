@@ -54,14 +54,14 @@ beforeEach(async () => {
   vi.mocked(api.getComponentParams).mockResolvedValue([]);
   vi.mocked(api.newConnectionCommandId).mockReturnValue('11111111-1111-4111-8111-111111111111');
   vi.mocked(api.addComponent).mockResolvedValue({ id: 103, revision: '1', success: true, params: {}, equipmentModelId: null });
-  vi.mocked(api.getScheme).mockImplementation(async id => ({ id, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [], connections: [] }));
+  vi.mocked(api.getScheme).mockImplementation(async id => ({ id, name: '', description: '', created_at: '', updated_at: '', components: [], connections: [] }));
   root = createRoot(document.createElement('div'));
   await act(async () => { root.render(<Harness />); });
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); });
 
 function graphWith(components: api.SchemeComponent[], id = 2): api.Scheme {
-  return {id,name:'Template fixture',description:'',created_at:'',updated_at:'',owner_id:1,components,connections:[]};
+  return {id,name:'Template fixture',description:'',created_at:'',updated_at:'',components,connections:[]};
 }
 const voltageTemplate: api.ComponentParam[] = [{key:'voltage_nom',name:'Voltage',type:'number',unit:'kV',default:'999'}];
 
@@ -157,7 +157,7 @@ test('retry keeps calculation waiting for the fresh topology and does not invent
   expect(api.calculateScheme).not.toHaveBeenCalled();
   expect(state.failedGraph).toHaveLength(1);
   await act(async () => {
-    read.resolve({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [], connections: [] });
+    read.resolve({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [], connections: [] });
     await retry; await calculation;
   });
   expect(state.connections).toEqual([]);
@@ -189,8 +189,7 @@ test('connection retry refreshes topology without accepting a conflicting parame
   expect(draft.intents).toEqual([{ kind: 'parameter', key: 'voltage_nom', value: '230' }]);
   vi.mocked(api.addConnection).mockRejectedValue(new Error('TCP acknowledgement lost'));
   await act(async () => { await state.addConnection(1, 101, 102, 'right', 'left'); });
-  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1,
-    components: [{ ...component, revision: '2', params: { voltage_nom: '220' } }, { ...component, id: 102 }],
+  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...component, revision: '2', params: { voltage_nom: '220' } }, { ...component, id: 102 }],
     connections: [{ id: 201, from: 101, to: 102, fromPort: 'right', toPort: 'left' }] });
   const review = await state.reviewGraph();
   vi.mocked(api.addConnection).mockResolvedValue({ id: 201, success: true, commandId: '11111111-1111-4111-8111-111111111111' });
@@ -215,8 +214,7 @@ test('graph acceptance refreshes server topology while retaining failed componen
   await act(async () => { await state.addConnection(1, 101, 102, 'a', 'b'); });
   expect(state.failedGraph).toHaveLength(1);
   expect(state.failedGraph[0].intent).toEqual({ kind: 'create-connection', commandId: '11111111-1111-4111-8111-111111111111', from: 101, to: 102, fromPort: 'a', toPort: 'b' });
-  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1,
-    components: [{ ...component, revision: '9', x: 999 }, { ...component, id: 102 }],
+  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...component, revision: '9', x: 999 }, { ...component, id: 102 }],
     connections: [{ id: 201, from: 101, to: 102, fromPort: 'a', toPort: 'b' }] });
   let review!: Awaited<ReturnType<typeof state.reviewGraph>>;
   await act(async () => { review = await state.reviewGraph(); });
@@ -329,7 +327,7 @@ test('old delete acknowledgement cannot remove freshly reloaded objects', async 
   let operation!: Promise<void>;
   await act(async () => { state.setComponents([component]); });
   await act(async () => { operation = state.deleteSelectedComponent(101); });
-  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [component], connections: [] });
+  vi.mocked(api.getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [component], connections: [] });
   await select(2);
   await select(1);
   await act(async () => { state.setComponents([component]); });

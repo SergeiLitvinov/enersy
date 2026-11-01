@@ -26,16 +26,16 @@ test('failed read remains an error and never claims the object was deleted', asy
 test('a late earlier comparison cannot replace the refreshed server version', async () => {
   let resolve!: (value: Scheme) => void;
   vi.mocked(getScheme).mockReturnValueOnce(new Promise< Scheme >(yes => { resolve = yes; }));
-  vi.mocked(getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [{ ...draft.base, revision: '8', x: 100 }] });
+  vi.mocked(getScheme).mockResolvedValue({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...draft.base, revision: '8', x: 100 }] });
   await act(async () => root.render(<RecoveryDialog draft={draft} onClose={() => {}} />));
   // Mounting a new object invalidates the earlier pending read.
   await act(async () => root.render(<RecoveryDialog draft={{ ...draft, componentId: 102 }} onClose={() => {}} />));
-  await act(async () => resolve({ id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [{ ...draft.base, id: 102, revision: '2', x: 20 }] }));
+  await act(async () => resolve({ id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...draft.base, id: 102, revision: '2', x: 20 }] }));
   expect(container.textContent).toContain('Объект отсутствует');
   expect(container.textContent).not.toContain('версия сервера 2');
 });
 
-const serverScheme: Scheme = { id: 1, name: '', description: '', created_at: '', updated_at: '', owner_id: 1, components: [{ ...draft.base, revision: '8', x: 100 }] };
+const serverScheme: Scheme = { id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...draft.base, revision: '8', x: 100 }] };
 
 test('comparison shows original and current unit labels and marks changed units before matching numbers', async () => {
   const source: ComponentDraft = { ...draft, base: { ...draft.base, params: { p: '10' }, declaredParameterUnits: { formatVersion: 1, units: { p: 'МВт' } } },

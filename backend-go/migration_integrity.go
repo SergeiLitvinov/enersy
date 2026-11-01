@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"sort"
 
@@ -110,6 +109,9 @@ func (d *integrityDriver) checkIntegrity() error {
 		return err
 	}
 	if !exists {
+		if version >= 0 {
+			return fmt.Errorf("migration integrity history is missing; v1 requires a fresh database or a verified restore")
+		}
 		tx, err := d.conn.BeginTx(ctx, nil)
 		if err != nil {
 			return err
@@ -117,23 +119,12 @@ func (d *integrityDriver) checkIntegrity() error {
 		defer rollbackTx(tx)
 		if _, err := tx.ExecContext(ctx, `CREATE TABLE schema_migration_integrity (
 version BIGINT PRIMARY KEY, sha256 CHAR(64) NOT NULL,
-origin VARCHAR(16) NOT NULL CHECK(origin IN ('applied','legacy-baseline')),
+origin VARCHAR(16) NOT NULL CHECK(origin = 'applied'),
 recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
 			return err
 		}
-		for _, v := range d.orderedVersions() {
-			if version < 0 || v > uint(version) {
-				break
-			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migration_integrity(version,sha256,origin) VALUES($1,$2,'legacy-baseline')`, v, d.source.scripts[v].hash); err != nil {
-				return err
-			}
-		}
 		if err := tx.Commit(); err != nil {
 			return err
-		}
-		if version >= 0 {
-			slog.Warn("enrolled legacy migration baseline; prior SQL contents cannot be verified", "version", version)
 		}
 		return nil
 	}

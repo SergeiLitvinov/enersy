@@ -19,12 +19,12 @@ test('retry requires a single creation and its own confirmation, independently o
   } }] };
   const retry = vi.fn(async () => {}), accept = vi.fn(async () => {});
   await act(async () => root.render(<GraphRecoveryDialog onRead={async () => creationReview} onAccept={accept} onRetry={retry} onClose={() => {}} />));
-  expect(button('Повторить создание связи').disabled).toBe(true);
+  expect(button('Повторить создание').disabled).toBe(true);
   await act(async () => (container.querySelector('input') as HTMLInputElement).click());
-  expect(button('Повторить создание связи').disabled).toBe(true);
+  expect(button('Повторить создание').disabled).toBe(true);
   await act(async () => container.querySelectorAll<HTMLInputElement>('input')[2].click());
   expect(button('Принять состав для выбранных').disabled).toBe(true);
-  await act(async () => button('Повторить создание связи').click());
+  await act(async () => button('Повторить создание').click());
   expect(retry).toHaveBeenCalledWith(creationReview, 8);
   expect(accept).not.toHaveBeenCalled();
 });

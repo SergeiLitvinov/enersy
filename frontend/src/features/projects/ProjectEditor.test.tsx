@@ -12,21 +12,21 @@ vi.mock('../../components/ees/SchemeEditor', () => ({ SchemeEditor: (props: type
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const project = { id: '8', name: 'Private project', role: 'owner' as const };
 const graph = { id: '1', projectId: '8', name: 'Private graph', description: '', topologyRevision: '0', components: [], connections: [] };
-beforeEach(() => { vi.clearAllMocks(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); host = document.createElement('div'); root = createRoot(host); });
+beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); host = document.createElement('div'); root = createRoot(host); });
 afterEach(async () => { await act(async () => root.unmount()); vi.restoreAllMocks(); });
 test('StrictMode restart creates a live scope; unmount cancels it and a new project gets a fresh queue', async () => {
-  await act(async () => root.render(<StrictMode><ProjectEditor project={project} graph={graph} onClose={() => {}} /></StrictMode>));
+  await act(async () => root.render(<StrictMode><ProjectEditor identity={{accountId:"1", sessionId:"2", expiresAt:"2099-01-01T00:00:00Z"}} project={project} graph={graph} onClose={() => {}} /></StrictMode>));
   const calls = vi.mocked(createProjectEditorTransport).mock.calls;
   expect(calls[0][0].signal.aborted).toBe(true); expect(calls[calls.length - 1][0].signal.aborted).toBe(false);
   expect(editor.manageSchemes).toBe(false);
   const oldQueue = editor.writeQueue, oldSignal = calls[calls.length - 1][0].signal;
-  await act(async () => root.render(<ProjectEditor key="other" project={{ ...project, id: '9' }} graph={{ ...graph, projectId: '9' }} onClose={() => {}} />));
+  await act(async () => root.render(<ProjectEditor identity={{accountId:"1", sessionId:"2", expiresAt:"2099-01-01T00:00:00Z"}} key="other" project={{ ...project, id: '9' }} graph={{ ...graph, projectId: '9' }} onClose={() => {}} />));
   expect(oldSignal.aborted).toBe(true); expect(editor.writeQueue).not.toBe(oldQueue);
   expect(calls[calls.length - 1][0].projectId).toBe('9');
 });
 test('closing waits for in-flight writes and preserves failed intentions when dismissal is cancelled', async () => {
   const close = vi.fn(); const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-  await act(async () => root.render(<ProjectEditor project={project} graph={graph} onClose={close} />));
+  await act(async () => root.render(<ProjectEditor identity={{accountId:"1", sessionId:"2", expiresAt:"2099-01-01T00:00:00Z"}} project={project} graph={graph} onClose={close} />));
   let reject!: (error: Error) => void;
   const pending = editor.writeQueue.graph.run(1, { kind: 'delete-connection', id: 10 }, () => new Promise((_, no) => { reject = no; }));
   const observed = pending.catch(() => {});
@@ -43,7 +43,7 @@ test('closing waits for in-flight writes and preserves failed intentions when di
 });
 test('revoked access clears editor and provenance; late calculation cannot restore either', async () => {
   const unavailable = vi.fn();
-  await act(async () => root.render(<ProjectEditor project={project} graph={graph} onClose={() => {}} onUnavailable={unavailable} />));
+  await act(async () => root.render(<ProjectEditor identity={{accountId:"1", sessionId:"2", expiresAt:"2099-01-01T00:00:00Z"}} project={project} graph={graph} onClose={() => {}} onUnavailable={unavailable} />));
   const options = vi.mocked(createProjectEditorTransport).mock.calls[0][0];
   const source = { projectId: '8', schemeId: '1', topologyRevision: '4', inputSha256: 'a'.repeat(64) };
   await act(async () => options.onCalculation?.(source)); expect(host.textContent).toContain('SHA-256');

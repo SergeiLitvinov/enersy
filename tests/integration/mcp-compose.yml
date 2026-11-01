@@ -1,0 +1,34 @@
+# Same disposable PostgreSQL checks as the application, plus a separate MCP SDK
+# client process. No live application data, exposed ports or Docker socket.
+name: enersy-mcp-acceptance
+services:
+  postgres:
+    extends: {file: go-compose.yml, service: postgres}
+  dependencies:
+    extends: {file: go-compose.yml, service: dependencies}
+    working_dir: /workspace/mcp-go
+  lint:
+    extends: {file: go-compose.yml, service: lint}
+    working_dir: /workspace/mcp-go
+    command: ["golangci-lint run --config /workspace/backend-go/.golangci.yml ./... && golangci-lint fmt --config /workspace/backend-go/.golangci.yml --diff"]
+  audit:
+    extends: {file: go-compose.yml, service: audit}
+    working_dir: /workspace/mcp-go
+  mcp-check:
+    extends: {file: go-compose.yml, service: go-check}
+    working_dir: /workspace/mcp-go
+    command:
+      - sh
+      - -c
+      - >-
+        go vet ./... && go test -race -v -count=1 ./... &&
+        CGO_ENABLED=0 go build -trimpath -o /tmp/enersy-mcp . &&
+        go test -c -o /tmp/mcp-client.test . &&
+        cd /workspace/backend-go &&
+        TEST_MCP_BINARY=/tmp/enersy-mcp TEST_MCP_CLIENT_BINARY=/tmp/mcp-client.test
+        go test -race -v -count=1 -run '^TestMCPExternalClientPostgres$$' ./...
+    depends_on:
+      postgres: {condition: service_healthy}
+networks:
+  default: {internal: true}
+  packages: {}

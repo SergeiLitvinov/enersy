@@ -6,7 +6,7 @@ param(
 . (Join-Path $PSScriptRoot 'DockerTools.ps1')
 # The operator CLI branches before initDB: no migration, enrollment or HTTP server.
 $mode = if ($Catalog) { '-audit-catalog' } else { '-audit-database' }
-$scope = if ($Catalog) { 'catalog-seed-comparison' } else { 'legacy-bootstrap-and-migration-inventory' }
+$scope = if ($Catalog) { 'catalog-seed-comparison' } else { 'database-v1-integrity' }
 $json = (Invoke-DatabaseDocker -Arguments @('exec', $Container, '/app/server', $mode)) -join [Environment]::NewLine
 $report = $json | ConvertFrom-Json
 if ($report.formatVersion -ne 1 -or $report.scope -ne $scope -or $report.readOnly -ne $true) {

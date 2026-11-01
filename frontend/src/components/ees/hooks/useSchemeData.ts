@@ -309,7 +309,9 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     if (!currentSchemeId || !context?.isCurrent() || context.version !== writes.current.version) {
       throw new Error('Сравнение устарело. Повторно откройте сверку.');
     }
-    const server = writes.current.graph.acceptServer(review, currentSchemeId, new Set(selected));
+    const server = writes.current.graph.acceptServer(review, currentSchemeId, new Set(selected), intent => {
+      if (intent.kind === 'create-component' && intent.commandId) dataAPI.completeComponentReplay?.(intent.commandId);
+    });
     applyGraphSnapshot(server, context.templates);
     graphReviews.current.delete(review);
     refreshRecovery(version => version + 1);
@@ -327,14 +329,23 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
         throw new Error('Во время повтора появились правки. Повторно сверьте состав схемы.');
       }
     };
+    let componentCommand: string | undefined;
     try {
-      await writes.current.graph.retryConnection(review, currentSchemeId, failureId, unchanged,
-        intent => dataAPI.addConnection(currentSchemeId, intent.from, intent.to, intent.fromPort, intent.toPort, intent.commandId),
+      await writes.current.graph.retryCreation(review, currentSchemeId, failureId, unchanged,
+        intent => {
+          if (intent.kind === 'create-connection') return dataAPI.addConnection(currentSchemeId, intent.from, intent.to, intent.fromPort, intent.toPort, intent.commandId);
+          componentCommand = intent.commandId;
+          if (!dataAPI.retryComponentCreation) throw new Error('Транспорт не поддерживает повтор создания оборудования');
+          if (intent.rotation === undefined || !intent.params) throw new Error('Исходные данные оборудования неполны');
+          return dataAPI.retryComponentCreation({ ...intent, typeId: String(intent.typeId), rotation: intent.rotation,
+            params: { ...intent.params }, equipmentModelId: intent.equipmentModelId === null ? null : String(intent.equipmentModelId) });
+        },
         async () => {
           assertFresh();
           const read = await readGraphServer(currentSchemeId, dataAPI);
           assertFresh();
           applyGraphSnapshot(read.snapshot, read.templates);
+          if (componentCommand) dataAPI.completeComponentReplay?.(componentCommand);
         });
     } finally {
       graphReviews.current.delete(review);

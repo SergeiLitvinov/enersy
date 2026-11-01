@@ -33,7 +33,7 @@ func TestConnectionsPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	for _, name := range []string{"20260612001_init.up.sql", "20260612002_equipment_models.up.sql", "20260930001_component_model_snapshot.up.sql", "20260930002_connection_integrity.up.sql", "20260930002_connection_integrity.up.sql", "20261003001_component_revision.up.sql", "20261010001_auth_sessions.up.sql", "20261010002_projects.up.sql", "20261010005_topology_revision.up.sql", "20261020001_project_passports.up.sql", "20261021001_component_passport_binding.up.sql", "20261030001_instance_parameter_units.up.sql"} {
+	for _, name := range []string{"000001_v1.up.sql"} {
 		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", name))
 		if err != nil {
 			t.Fatal(err)
@@ -116,6 +116,10 @@ func TestConnectionsPostgres(t *testing.T) {
 	if _, err = database.Exec("UPDATE scheme_components SET scheme_id=$1 WHERE id=$2", otherScheme, a); err == nil {
 		t.Fatal("connected object moved into another scheme")
 	}
+	var triggerDefinition string
+	if err := database.QueryRow(`SELECT pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid='scheme_connections'::regclass AND tgname='connection_ports_check'`).Scan(&triggerDefinition); err != nil {
+		t.Fatal(err)
+	}
 	// A pre-migration bad port is preserved and reported, never silently deleted.
 	if _, err = database.Exec("DROP TRIGGER connection_ports_check ON scheme_connections"); err != nil {
 		t.Fatal(err)
@@ -123,11 +127,7 @@ func TestConnectionsPostgres(t *testing.T) {
 	if _, err = database.Exec("INSERT INTO scheme_connections(scheme_id,from_component_id,to_component_id,from_port,to_port) VALUES($1,$2,$3,'legacy-invalid','right')", scheme, a, b); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20260930002_connection_integrity.up.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = database.Exec(string(data)); err != nil {
+	if _, err = database.Exec(triggerDefinition); err != nil {
 		t.Fatal(err)
 	}
 	if err = database.QueryRow("SELECT count(*) FROM invalid_scheme_connections WHERE 'unknown_port'=ANY(reasons)").Scan(&count); err != nil || count != 1 {

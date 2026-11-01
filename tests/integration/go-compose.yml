@@ -69,6 +69,10 @@ services:
       CGO_ENABLED: "0"
       GOFLAGS: -mod=readonly
     command: ["go", "test", "-v", "-count=1", "/workspace/scripts/security/collect-go-licenses.go", "/workspace/scripts/security/collect-go-licenses_test.go"]
+  go-license-lint:
+    extends: {service: lint}
+    network_mode: none
+    command: ["golangci-lint run --config /workspace/backend-go/.golangci.yml /workspace/scripts/security/collect-go-licenses.go /workspace/scripts/security/collect-go-licenses_test.go"]
   unit-worker:
     profiles: [parameter-units-check]
     image: enersy-julia-check

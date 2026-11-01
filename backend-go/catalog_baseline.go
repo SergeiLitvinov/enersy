@@ -75,11 +75,10 @@ func generateCatalogBaseline(ctx context.Context, db *sql.DB, url string) (catal
 	if provenance.Version == nil || *provenance.Version != version || provenance.Dirty == nil || *provenance.Dirty {
 		return catalogBaseline{}, fmt.Errorf("baseline generator requires a fully migrated clean database")
 	}
-	for _, field := range []string{"checksumMismatches", "missingIntegrityEntries", "unexpectedIntegrityEntries", "legacyBaselineEntries"} {
-		if provenance.Counts[field] == nil || *provenance.Counts[field] != 0 {
-			return catalogBaseline{}, fmt.Errorf("baseline generator requires checked applied migration history")
-		}
+	if provenance.Status != "no_findings_in_audited_scope" {
+		return catalogBaseline{}, fmt.Errorf("baseline generator requires checked applied migration history")
 	}
+
 	snapshot, err := readCatalogSnapshot(ctx, db)
 	if err != nil {
 		return catalogBaseline{}, err

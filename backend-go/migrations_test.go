@@ -2,13 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +60,45 @@ func executeFixture(t *testing.T, database *sql.DB, path string) {
 	}
 }
 
+func TestApplicationCommandsUpgradeFromV1Postgres(t *testing.T) {
+	database := migrationTestDatabase(t)
+	dir := t.TempDir()
+	body, err := os.ReadFile(filepath.Join("..", "database", "migrations", "000001_v1.up.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "000001_v1.up.sql"), body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runMigrationsFromSource(database, "file://"+filepath.ToSlash(dir)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO circuit_schemes(name,description) VALUES('Saved before v2','Сохранённая схема')`); err != nil {
+		t.Fatal(err)
+	}
+	var originalSeal string
+	if err := database.QueryRow(`SELECT sha256 FROM schema_migration_integrity WHERE version=1`).Scan(&originalSeal); err != nil {
+		t.Fatal(err)
+	}
+	url := migrationSourceURL(t)
+	if err := runMigrationsFromSource(database, url); err != nil {
+		t.Fatal(err)
+	}
+	if err := runMigrationsFromSource(database, url); err != nil {
+		t.Fatal(err)
+	}
+	var seal, description string
+	var version, models, receipts int
+	if err := database.QueryRow(`SELECT
+ (SELECT sha256 FROM schema_migration_integrity WHERE version=1),
+ (SELECT version FROM schema_migrations),
+ (SELECT description FROM circuit_schemes WHERE name='Saved before v2'),
+ (SELECT count(*) FROM equipment_models),
+ (SELECT count(*) FROM project_application_commands)`).Scan(&seal, &version, &description, &models, &receipts); err != nil || seal != originalSeal || version != 2 || description != "Сохранённая схема" || models != 90 || receipts != 0 {
+		t.Fatal("v2 upgrade changed v1 data or seal", seal, version, description, models, receipts, err)
+	}
+}
+
 func TestMigrationCompatibilityPostgres(t *testing.T) {
 	url := migrationSourceURL(t)
 	for _, tc := range []struct {
@@ -71,9 +107,10 @@ func TestMigrationCompatibilityPostgres(t *testing.T) {
 		dirty   bool
 		want    string
 	}{
-		{"future", 20990101001, false, "newer than supported"},
-		{"unknown historical", 20260701001, false, "absent from migration source"},
-		{"dirty", 20260612001, true, "manual recovery required"},
+		{"future", 3, false, "newer than supported"},
+		{"unpublished version", 0, false, "absent from migration source"},
+		{"retired pre-v1", 20261030001, false, "newer than supported"},
+		{"dirty", 1, true, "manual recovery required"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			database := migrationTestDatabase(t)
@@ -131,93 +168,27 @@ func TestMigrationDeploymentPostgres(t *testing.T) {
 	if !reflect.DeepEqual(before, migrationSnapshot(t, fresh)) {
 		t.Fatal("second migration changed schema or catalog")
 	}
-	t.Run("immediately previous version", func(t *testing.T) {
-		database := migrationTestDatabase(t)
-		paths, err := filepath.Glob(filepath.Join("..", "database", "migrations", "*.up.sql"))
-		if err != nil || len(paths) < 2 {
-			t.Fatal("need at least two migration versions", err)
+	var version int
+	if err := fresh.QueryRow("SELECT version FROM schema_migrations").Scan(&version); err != nil || version != 2 {
+		t.Fatal(version, err)
+	}
+	for _, table := range []string{"users", "circuit_nodes", "calculation_results", "calculation_node_results", "calculation_branch_results"} {
+		var found bool
+		if err := fresh.QueryRow(`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema=current_schema() AND table_name=$1)`, table).Scan(&found); err != nil || found {
+			t.Fatal("retired table present", table, err)
 		}
-		// Build a real previous-release source, not an artificially relabelled current database.
-		sort.Strings(paths)
-		dir := t.TempDir()
-		for _, path := range paths[:len(paths)-1] {
-			body, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(dir, filepath.Base(path)), body, 0600); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := runMigrationsFromSource(database, "file://"+filepath.ToSlash(dir)); err != nil {
-			t.Fatal(err)
-		}
-		var previous int64
-		if err := database.QueryRow(`SELECT version FROM schema_migrations`).Scan(&previous); err != nil {
-			t.Fatal(err)
-		}
-		expected := strings.Split(filepath.Base(paths[len(paths)-2]), "_")[0]
-		if strconv.FormatInt(previous, 10) != expected {
-			t.Fatal("not the previous release", previous, expected)
-		}
-		if _, err := database.Exec(`INSERT INTO circuit_schemes(id,name) VALUES(90002,'Previous release saved network'); INSERT INTO scheme_components(id,scheme_id,component_type_id,custom_name,pos_x,pos_y,rotation) SELECT 90002,90002,id,'Saved component',-3.25,9.5,180 FROM component_types WHERE code='generator'; INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES(90002,'p','0.125')`); err != nil {
-			t.Fatal(err)
-		}
-		if err := runMigrationsFromSource(database, url); err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(before, migrationSnapshot(t, database)) {
-			t.Fatal("previous release did not reach fresh schema/catalog")
-		}
-		var value string
-		if err := database.QueryRow(`SELECT param_value FROM scheme_component_params p JOIN scheme_components c ON c.id=p.scheme_component_id WHERE c.id=90002 AND c.pos_x=-3.25 AND c.pos_y=9.5 AND c.rotation=180 AND p.param_key='p'`).Scan(&value); err != nil || value != "0.125" {
-			t.Fatal("previous release data changed", value, err)
-		}
-	})
-	for _, fixture := range []string{"init.sql", "ees_schema.sql", "migrations/20260612001_init.up.sql"} {
-		t.Run(fixture, func(t *testing.T) {
-			database := migrationTestDatabase(t)
-			executeFixture(t, database, filepath.Join("..", "database", fixture))
-			if strings.HasPrefix(fixture, "migrations/") {
-				if _, err := database.Exec(`CREATE TABLE schema_migrations(version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL); INSERT INTO schema_migrations VALUES(20260612001,false);`); err != nil {
-					t.Fatal(err)
-				}
-			}
-			// Preserve a saved object, coordinates and explicit parameter overrides.
-			if _, err := database.Exec(`INSERT INTO circuit_schemes(id,name) VALUES(90001,'Migration fixture');
-INSERT INTO scheme_components(id,scheme_id,component_type_id,custom_name,pos_x,pos_y,rotation)
-SELECT 90001,90001,id,'Saved generator',12.5,-7.25,90 FROM component_types WHERE code='generator';
-INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES(90001,'p','12.345');`); err != nil {
-				t.Fatal(err)
-			}
-			if err := runMigrationsFromSource(database, url); err != nil {
-				t.Fatal(err)
-			}
-			if got := migrationSnapshot(t, database); !reflect.DeepEqual(before, got) {
-				for key, want := range before {
-					if got[key] != want {
-						var expectedRows, actualRows []json.RawMessage
-						if err := json.Unmarshal([]byte(want), &expectedRows); err != nil {
-							t.Fatal(err)
-						}
-						if err := json.Unmarshal([]byte(got[key]), &actualRows); err != nil {
-							t.Fatal(err)
-						}
-						t.Errorf("%s differs (rows %d/%d)", key, len(expectedRows), len(actualRows))
-						for i := 0; i < len(expectedRows) && i < len(actualRows); i++ {
-							if string(expectedRows[i]) != string(actualRows[i]) {
-								t.Logf("first difference at %d: want %s; got %s", i, expectedRows[i], actualRows[i])
-								break
-							}
-						}
-					}
-				}
-			}
-			var value string
-			if err := database.QueryRow(`SELECT param_value FROM scheme_component_params p JOIN scheme_components c ON c.id=p.scheme_component_id WHERE c.id=90001 AND c.pos_x=12.5 AND c.pos_y=-7.25 AND c.rotation=90 AND p.param_key='p'`).Scan(&value); err != nil || value != "12.345" {
-				t.Fatalf("saved object changed: %s: %v", value, err)
-			}
-		})
+	}
+	if _, err := fresh.Exec(`INSERT INTO circuit_schemes(id,name) VALUES(90001,'Saved v1 fixture');
+INSERT INTO scheme_components(id,scheme_id,component_type_id,custom_name,pos_x,pos_y,rotation) SELECT 90001,90001,id,'Saved generator',12.5,-7.25,90 FROM component_types WHERE code='generator';
+INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value) VALUES(90001,'p','12.345')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := runMigrationsFromSource(fresh, url); err != nil {
+		t.Fatal(err)
+	}
+	var value string
+	if err := fresh.QueryRow(`SELECT param_value FROM scheme_component_params WHERE scheme_component_id=90001 AND param_key='p'`).Scan(&value); err != nil || value != "12.345" {
+		t.Fatal("restart changed saved v1 data", value, err)
 	}
 }
 

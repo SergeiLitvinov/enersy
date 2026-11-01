@@ -152,12 +152,16 @@ test('one release retains both the full upstream license and embedded authorship
   const manifestSha256 = digest(await readFile(path.join(directory, 'package.json')));
   const embedded = { name: 'multiple', version: '1.0.0', file: 'README.md', manifestSha256, sha256: digest(attribution) };
   const upstream = { ...embedded, file: 'multiple-LICENSE', sha256: digest(license), kind: 'reviewed-upstream',
-    sourceCommit: 'b'.repeat(40), sourceURL: `https://example.org/${'b'.repeat(40)}/LICENSE` };
+    sourceCommit: 'b'.repeat(40), sourceURL: `https://example.org/${'b'.repeat(40)}/LICENSE`,
+    reason: 'Package-owned code only; native dependencies require separate review.', reviewedUtc: '2026-11-01' };
   const sources = [upstream, embedded];
   const report = await collectNodeLicenses(root, lock, sources, origin);
   assert.equal(report.packageCount, 1);
   assert.equal(report.incompleteEvidenceCount, 0);
   assert.deepEqual(report.packages[0].noticeFiles.map(file => file.kind), ['reviewed-upstream', 'reviewed-embedded']);
+  assert.equal(report.packages[0].noticeFiles[0].reviewReason, upstream.reason);
+  assert.equal(report.packages[0].noticeFiles[0].reviewedUtc, upstream.reviewedUtc);
+  assert.equal('reviewReason' in report.packages[0].noticeFiles[1], false);
   assert.equal(report.notices[digest(license)].text, license);
   assert.equal(report.notices[digest(attribution)].text, attribution);
   await assert.rejects(collectNodeLicenses(root, lock, [...sources, embedded], origin), /Duplicate reviewed/);

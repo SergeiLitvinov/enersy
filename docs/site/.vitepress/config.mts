@@ -20,10 +20,12 @@ export default defineConfig({
         { text: 'Запуск', link: '/guide/quickstart' },
         { text: 'Схемы и каталог', link: '/guide/editor' },
         { text: 'Исследования и версии', link: '/guide/studies' },
+          { text: 'Подключение MCP', link: '/guide/mcp' },
         { text: 'Расчёт и ошибки', link: '/guide/calculation' }
       ] },
       { text: 'Разработчикам', items: [
         { text: 'Архитектура', link: '/development/architecture' },
+        { text: 'Агент, MCP и harness', link: '/development/agent-interface' },
         { text: 'Реестр дефектов', link: '/development/defects' },
         { text: 'Численная проверка', link: '/development/numerical-validation' },
         { text: 'Приёмка A01–A08', link: '/development/calculation-acceptance' },

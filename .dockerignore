@@ -14,6 +14,9 @@ frontend/bundle.js
 injected-index.html
 .cache
 .backups
+.secrets
+mcp-go/enersy-mcp
+mcp-go/*.test
 STO.dxf
 dxf-sto-symbols-v2
 dxf-sto-symbols

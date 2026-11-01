@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -154,16 +152,5 @@ func TestInstanceUnitDeclarationLifecyclePostgres(t *testing.T) {
 	_, again, err := f.store.ReadStudy(ctx, f.tokens[0].Token, f.project, id, 1, "input")
 	if err != nil || string(again) != string(frozen) {
 		t.Fatal("later unit/value edits changed frozen Study", err)
-	}
-	down, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261030001_instance_parameter_units.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.store.database.Exec(string(down)); err == nil {
-		t.Fatal("downgrade discarded explicit declarations")
-	}
-	_, _, unit = current()
-	if unit.String != "MW" {
-		t.Fatal("failed downgrade lost declaration")
 	}
 }

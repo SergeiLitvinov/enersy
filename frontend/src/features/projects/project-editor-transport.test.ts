@@ -1,7 +1,8 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createProjectEditorTransport } from './project-editor-transport';
 
 afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => vi.stubGlobal('crypto', { getRandomValues: (bytes: Uint8Array) => { bytes.fill(0x11); bytes[8] = 1; return bytes; } }));
 const projectId = '9007199254740993', schemeId = '7', base = `/api/projects/${projectId}/schemes/${schemeId}`;
 const command = '11111111-1111-4111-8111-111111111111';
 const item = (id: string) => ({ id, typeId: '1', type: 'busbar', name: 'Шина', x: 0, y: 0, rotation: 0, revision: '1', equipmentModelId: null, params: {} });
@@ -14,7 +15,7 @@ test('project passport identity is captured before dispatch and retained after g
   const passport = '9007199254740993';
   const declaredParameterUnits = { formatVersion: 1, units: { power_nom: 'MVA' } };
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('0', [])))
-    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, projectPassportVersionId: passport, declaredParameterUnits, params: { power_nom: '10.00' } }, '1'))
+    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', commandId: command, deleted: false, topologyRevision: '1', equipmentModelId: null, projectPassportVersionId: passport, declaredParameterUnits, params: { power_nom: '10.00' } }, '1'))
     .mockResolvedValueOnce(reply({ ...graph('1', [item('10')]), components: [{ ...item('10'), projectPassportVersionId: passport, declaredParameterUnits, params: { power_nom: '10.00' } }] }));
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport(options()); await transport.getScheme(7);
@@ -29,7 +30,7 @@ test('structural mutations serialize, verify the complete graph and advance only
   let release!: (response: Response) => void;
   const first = new Promise<Response>(resolve => { release = resolve; });
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('0', []))).mockReturnValueOnce(first)
-    .mockResolvedValueOnce(reply(graph('1', [item('10')]))).mockResolvedValueOnce(reply({ success: true, id: '11', revision: '1', equipmentModelId: null, params: {} }, '1'))
+    .mockResolvedValueOnce(reply(graph('1', [item('10')]))).mockResolvedValueOnce(reply({ success: true, id: '11', revision: '1', commandId: command, deleted: false, topologyRevision: '2', equipmentModelId: null, params: {} }, '1'))
     .mockResolvedValueOnce(reply(graph('2'))).mockResolvedValueOnce(reply({ success: true, id: '20', commandId: command, deleted: false, topologyRevision: '3' }, '3'))
     .mockResolvedValueOnce(reply(graph('3', undefined, [link])));
   vi.stubGlobal('fetch', fetcher);
@@ -38,7 +39,7 @@ test('structural mutations serialize, verify the complete graph and advance only
   const add1 = transport.addComponent(7, 1, 0, 0, 0, 'Шина');
   const add2 = transport.addComponent(7, 1, 0, 0, 0, 'Шина');
   await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-  release(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, params: {} }, '1'));
+  release(reply({ success: true, id: '10', revision: '1', commandId: command, deleted: false, topologyRevision: '1', equipmentModelId: null, params: {} }, '1'));
   expect((await add1).id).toBe(10); expect((await add2).id).toBe(11);
   await transport.addConnection(7, 10, 11, 'right', 'left', command);
   expect(fetcher.mock.calls[5][1].headers['If-Match']).toBe('"2"');
@@ -46,7 +47,7 @@ test('structural mutations serialize, verify the complete graph and advance only
 });
 test('an unseen concurrent structural change cannot be silently adopted after a component acknowledgement', async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('0', [])))
-    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', equipmentModelId: null, params: {} }, '1'))
+    .mockResolvedValueOnce(reply({ success: true, id: '10', revision: '1', commandId: command, deleted: false, topologyRevision: '1', equipmentModelId: null, params: {} }, '1'))
     .mockResolvedValueOnce(reply(graph('2', [item('10'), item('99')])));
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport(options()); await transport.getScheme(7);

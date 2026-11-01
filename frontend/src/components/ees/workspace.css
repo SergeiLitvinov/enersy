@@ -114,3 +114,7 @@
 .capability-entry p, .capability-entry li { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
 .capability-entry ul { padding-left: 20px; }
 .connection-diagnostics-list { max-height: 18vh; overflow: auto; }
+
+/* Recovery controls must not inherit the project login's full-width inputs. */
+.recovery-choice { display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; }
+.recovery-choice input[type="checkbox"] { flex: 0 0 18px; width: 18px; height: 18px; min-height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--accent-blue); }

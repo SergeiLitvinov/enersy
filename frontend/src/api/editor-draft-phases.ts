@@ -22,7 +22,7 @@ function unprepared(value: unknown): UnpreparedGraphIntent {
   const kind = draftRecord(value).kind;
   if (kind === 'create-component') {
     const result = prepared(value);
-    if (result.kind !== 'create-component') throw new Error('Некорректное намерение оборудования');
+    if (result.kind !== 'create-component' || result.commandId !== undefined || result.expectedTopologyRevision !== undefined) throw new Error('Некорректное намерение оборудования');
     return result;
   }
   if (kind === 'delete-connection') {
@@ -53,7 +53,7 @@ export function parseEditorDraftPayloadV2(value: unknown): EditorDraftPayloadV2 
     if (entry.phase === 'prepared') result = { phase: 'prepared', intent: prepared(entry.intent), reason };
     else if (entry.phase === 'unprepared') result = { phase: 'unprepared', intent: unprepared(entry.intent), reason };
     else throw new Error('Неизвестная фаза намерения');
-    if (result.intent.kind === 'create-connection') {
+    if ((result.intent.kind === 'create-connection' || result.intent.kind === 'create-component') && result.intent.commandId) {
       if (commands.has(result.intent.commandId)) throw new Error('Повторный UUID в журнале');
       commands.add(result.intent.commandId);
     }

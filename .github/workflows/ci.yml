@@ -31,7 +31,9 @@ jobs:
       - name: Prepare locked Go dependencies
         run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps dependencies
       - name: Go notice collector checks
-        run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps go-license-check
+        run: |
+          docker compose -f tests/integration/go-compose.yml run --rm --no-deps go-license-check
+          docker compose -f tests/integration/go-compose.yml run --rm --no-deps go-license-lint
       - name: Build API with binary-linked module notices
         run: docker compose build go-api
       - name: Export Go module notice inventory
@@ -51,6 +53,21 @@ jobs:
         run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps lint
       - name: Go reachable vulnerability audit
         run: docker compose -f tests/integration/go-compose.yml run --rm --no-deps audit
+      - name: Optional MCP dependencies, SDK client, real API and PostgreSQL
+        run: |
+          docker compose -f tests/integration/mcp-compose.yml run --rm --no-deps dependencies
+          docker compose -f tests/integration/mcp-compose.yml run --rm mcp-check
+          docker compose -f tests/integration/mcp-compose.yml run --rm --no-deps lint
+          docker compose -f tests/integration/mcp-compose.yml run --rm --no-deps audit
+      - name: Build optional MCP image and collect linked notices
+        run: |
+          docker compose --profile mcp build mcp
+          docker run --rm --network none --entrypoint cat enersy-mcp /usr/share/licenses/enersy/go-modules.json > .cache/mcp-module-notices.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-module-notices-${{ matrix.arch }}
+          path: .cache/mcp-module-notices.json
+          if-no-files-found: error
       - name: Isolated database backup and restore
         shell: pwsh
         run: ./scripts/database/Test-DatabaseBackup.ps1
@@ -65,7 +82,9 @@ jobs:
           -UpgradeImage 'postgres:15.19@sha256:baa22e6286bf832cb147b8bb5aa9d8bc999846d69c21d11bf63f58fbeed1fa48'
       - name: Remove isolated Go environment
         if: always()
-        run: docker compose -f tests/integration/go-compose.yml down
+        run: |
+          docker compose -f tests/integration/go-compose.yml down
+          docker compose -f tests/integration/mcp-compose.yml down
 
   rust:
     name: ${{ matrix.label }}
@@ -240,6 +259,8 @@ jobs:
       - name: Atomic ZIP load profile and physical reference
         shell: pwsh
         run: ./tests/integration/Test-ZipLoad.ps1
+      - name: Real worker branch provenance through production frontend parser
+        run: docker compose -f tests/integration/branch-origin-compose.yml run --rm --build contract
       - name: Docker service DNS replacement through both proxies
         shell: pwsh
         run: ./tests/integration/Test-ProxyDns.ps1
@@ -247,7 +268,9 @@ jobs:
         run: docker compose -f tests/integration/revision-compose.yml --profile archive-check run --rm calculation-archive-check
       - name: Remove disposable command acceptance environment
         if: always()
-        run: docker compose -f tests/integration/revision-compose.yml --profile commands down
+        run: |
+          docker compose -f tests/integration/revision-compose.yml --profile commands down
+          docker compose -f tests/integration/branch-origin-compose.yml down
 
   julia:
     name: Julia numerical and HTTP regression
@@ -320,18 +343,30 @@ jobs:
         run: docker compose -f tests/integration/native-compose.yml down
 
   clean-release:
-    name: Clean Docker release and independent physical reference
-    runs-on: ubuntu-24.04
+    name: Clean Docker release and independent physical reference (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: amd64, machine: x86_64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64, machine: aarch64 }
     steps:
       - uses: actions/checkout@v4
+      - name: Verify native runner architecture
+        shell: bash
+        run: test "$(uname -m)" = '${{ matrix.machine }}'
+      - name: Reject unsupported and mixed platform receipts
+        shell: pwsh
+        run: ./scripts/build/Test-ReleasePlatform.ps1
       - name: Build without instruction cache, start isolated stack and verify
         shell: pwsh
-        run: ./scripts/build/Test-CleanRelease.ps1
+        run: ./scripts/build/Test-CleanRelease.ps1 -ExpectedArchitecture '${{ matrix.arch }}'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: clean-release-acceptance
+          name: clean-release-acceptance-${{ matrix.arch }}
           path: .cache/release-check/
           if-no-files-found: error
 

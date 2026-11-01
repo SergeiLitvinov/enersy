@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -11,26 +9,7 @@ import (
 // This is an access-path regression, not a solver or latency benchmark.
 func TestSchemeAccessIndexesPostgres(t *testing.T) {
 	database := migrationTestDatabase(t)
-	// Build the actual preceding release source, including its checksum history.
-	previousSource := t.TempDir()
-	migrations := filepath.Join("..", "database", "migrations")
-	entries, err := os.ReadDir(migrations)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || entry.Name() >= "20261008002_" {
-			continue
-		}
-		body, err := os.ReadFile(filepath.Join(migrations, entry.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(previousSource, entry.Name()), body, 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := runMigrationsFromSource(database, "file://"+filepath.ToSlash(previousSource)); err != nil {
+	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := database.Exec(`
@@ -90,9 +69,22 @@ func TestSchemeAccessIndexesPostgres(t *testing.T) {
 			t.Logf("indexed=%t %s: %s", indexed, query.index, encoded)
 		}
 	}
+	definitions := []string{}
+	for _, q := range queries {
+		var ddl string
+		if err := database.QueryRow(`SELECT pg_get_indexdef($1::regclass)`, q.index).Scan(&ddl); err != nil {
+			t.Fatal(err)
+		}
+		definitions = append(definitions, ddl)
+		if _, err := database.Exec("DROP INDEX " + q.index); err != nil {
+			t.Fatal(err)
+		}
+	}
 	check(false)
-	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
-		t.Fatal(err)
+	for _, ddl := range definitions {
+		if _, err := database.Exec(ddl); err != nil {
+			t.Fatal(err)
+		}
 	}
 	check(true)
 	var components, connections int
@@ -102,12 +94,4 @@ func TestSchemeAccessIndexesPostgres(t *testing.T) {
 	if components != 20000 || connections != 19900 {
 		t.Fatalf("index migration changed fixture: %d/%d", components, connections)
 	}
-	down, err := os.ReadFile(filepath.Join(migrations, "20261008002_scheme_access_indexes.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(string(down)); err != nil {
-		t.Fatal(err)
-	}
-	check(false)
 }

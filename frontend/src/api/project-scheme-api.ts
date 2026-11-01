@@ -1,3 +1,4 @@
+import { draftUUID } from './editor-draft-payload';
 import { ComponentWriteError, componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite } from './component-revision';
 import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { calculationErrorMessage, parseCalculationResult, type ComponentPatch, type CalculationResult } from './ees-api';
@@ -63,13 +64,16 @@ async function json(response: Response, signal: AbortSignal): Promise<unknown> {
   return value;
 }
 
-export async function createProjectComponent(scope: ProjectSchemeScope, input: ProjectComponentInput, signal: AbortSignal): Promise<ProjectCreatedComponent> {
+export async function createProjectComponent(scope: ProjectSchemeScope, input: ProjectComponentInput, signal: AbortSignal, command?: { commandId: string; expectedTopologyRevision: string; identity?: { accountId: string; sessionId: string } }): Promise<ProjectCreatedComponent & { commandId?: string; deleted?: boolean; topologyRevision?: string }> {
   const typeId = id(input.typeId, true);
   const equipmentModelId = input.equipmentModelId === null ? null : id(input.equipmentModelId, true);
   const passportId = input.projectPassportVersionId == null ? null : id(input.projectPassportVersionId);
   if (passportId !== null && equipmentModelId !== null) throw new Error('Выберите один источник паспорта');
-  const response = await send(`${path(scope)}/components`, 'POST', signal, { 'Content-Type': 'application/json' }, { ...input, typeId, equipmentModelId });
+  const headers = { 'Content-Type': 'application/json', ...(command ? { 'Idempotency-Key': draftUUID(command.commandId), 'If-Match': `"${topology(command.expectedTopologyRevision)}"`, ...(command.identity ? { 'X-Enersy-Account-Id': id(command.identity.accountId), 'X-Enersy-Session-Id': id(command.identity.sessionId) } : {}) } : {}) };
+  const response = await send(`${path(scope)}/components`, 'POST', signal, headers, { ...input, typeId, equipmentModelId });
   const data = record(await json(response, signal));
+  const confirmation = command ? { commandId: draftUUID(data.commandId), deleted: data.deleted, topologyRevision: topology(data.topologyRevision) } : undefined;
+  if (confirmation && (confirmation.commandId !== command?.commandId || typeof confirmation.deleted !== 'boolean')) throw new Error('Сервер не подтвердил команду создания оборудования');
   const componentId = id(data.id as string, true);
   const modelId = data.equipmentModelId === null ? null : id(data.equipmentModelId as string, true);
   const confirmedPassport = data.projectPassportVersionId == null ? null : archiveId(data.projectPassportVersionId);
@@ -77,7 +81,7 @@ export async function createProjectComponent(scope: ProjectSchemeScope, input: P
   if (modelId !== equipmentModelId) throw new Error('Сервер не подтвердил выбранную паспортную модель');
   const parsed = parseCreatedComponent({ ...data, id: Number(componentId), equipmentModelId: modelId === null ? null : Number(modelId) });
   etag(response, parsed.revision);
-  return { ...parsed, id: componentId, equipmentModelId: modelId, projectPassportVersionId: confirmedPassport };
+  return { ...parsed, id: componentId, equipmentModelId: modelId, projectPassportVersionId: confirmedPassport, ...(confirmation ? { ...confirmation, deleted: confirmation.deleted as boolean } : {}) };
 }
 
 async function componentWrite(scope: ProjectSchemeScope, componentId: string, method: string, revision: string, signal: AbortSignal, body?: unknown, suffix = '') {

@@ -58,7 +58,7 @@ func (store projectStore) CreateScheme(ctx context.Context, token string, projec
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRowContext(ctx, `INSERT INTO circuit_schemes(project_id,name,description,owner_id) VALUES($1,$2,$3,NULL) RETURNING id`, project, name, description).Scan(&id)
+	err = tx.QueryRowContext(ctx, `INSERT INTO circuit_schemes(project_id,name,description) VALUES($1,$2,$3) RETURNING id`, project, name, description).Scan(&id)
 	if err != nil {
 		return 0, err
 	}

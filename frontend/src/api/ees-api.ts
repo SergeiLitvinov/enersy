@@ -9,7 +9,7 @@ export type { InputUnitContract } from './input-unit-contract';
 import { parseOperatingAssessment, parseTerminalVoltageLimits, requireOperatingLimits, type OperatingAssessment, type TerminalVoltageLimit } from './operating-assessment';
 export type { OperatingAssessment, VoltageLimitCheck, TerminalVoltageLimit } from './operating-assessment';
 import { parseCalculationTopology, type CalculationTopology } from './calculation-topology';
-export type { CalculationTopology, CalculationTerminal, CalculationInternalNode } from './calculation-topology';
+export type { CalculationTopology, CalculationTopologyBase, CalculationTerminal, CalculationInternalNode, CalculationBranchOrigin, CalculationBranchEndpoint } from './calculation-topology';
 import { parseCalculationFlows, type CalculationBranch, type CalculationShunt } from './calculation-flows';
 import { parseCalculationLoads, type CalculationLoad } from './calculation-loads';
 import { validateSourceTerminalPowers } from './calculation-source-power';
@@ -116,7 +116,6 @@ export interface Scheme {
   description: string;
   created_at: string | null;
   updated_at: string | null;
-  owner_id: number | null;
   components?: SchemeComponent[];
   connections?: SchemeConnection[];
 }
@@ -264,7 +263,7 @@ export function parseCalculationResult(data: unknown): CalculationResult {
   }
   if (result.topology !== undefined) {
     if (!Array.isArray(result.sources)) return fail();
-    parseCalculationTopology(result.topology, nodeIds, result.sources as CalculationSource[]);
+    parseCalculationTopology(result.topology, nodeIds, result.sources as CalculationSource[], result.branches);
   }
   parseCalculationFlows(result.branches, result.shunts, {
     nodes: result.nodes as CalculationResult['nodes'], sources: result.sources as CalculationSource[] | undefined,

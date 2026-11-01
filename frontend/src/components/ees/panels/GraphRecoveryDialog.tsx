@@ -49,7 +49,7 @@ export function GraphRecoveryDialog({ onRead, onAccept, onRetry, onClose }: {
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [onRead, request]);
-  const candidate = selected.size === 1 ? review?.failures.find(failure => selected.has(failure.id) && failure.intent.kind === 'create-connection' && failure.intent.commandId) : undefined;
+  const candidate = selected.size === 1 ? review?.failures.find(failure => selected.has(failure.id) && (failure.intent.kind === 'create-connection' || failure.intent.kind === 'create-component') && failure.intent.commandId) : undefined;
   const perform = async (mode: 'accept' | 'retry') => {
     if (!review || !selected.size || submitting.current ||
         (mode === 'accept' ? !confirmed : !retryConfirmed || !candidate || !onRetry)) return;
@@ -64,26 +64,26 @@ export function GraphRecoveryDialog({ onRead, onAccept, onRetry, onClose }: {
     } finally { submitting.current = false; if (alive.current) setSaving(false); }
   };
   return <Dialog wide title="Сверка состава схемы" closeDisabled={saving} onClose={onClose}>
-    <p className="dialog-intro">Сервер мог сохранить команду, даже если её ответ потерян. Сверьте состав, затем выберите принятие серверного состояния или повтор создания одной связи.</p>
+    <p className="dialog-intro">Сервер мог сохранить команду, даже если её ответ потерян. Сверьте состав, затем выберите принятие серверного состояния или повтор одной команды создания оборудования или связи.</p>
     {busy && <p role="status">Ожидание записей и чтение схемы…</p>}
     {error && <p role="alert">{error}</p>}
     {review && <>
       <p>Схема #{review.schemeId}: {review.server.components.length} объектов, {review.server.connections.length} связей на момент чтения. Правки других клиентов после чтения здесь не отражены.</p>
       <div className="results-table-wrap"><table className="results-table recovery-table"><caption>Неподтверждённые намерения и прочитанный состав</caption>
         <thead><tr><th scope="col">Ваше намерение</th><th scope="col">Состояние на сервере</th><th scope="col">Причина</th></tr></thead>
-        <tbody>{review.failures.map(failure => <tr key={failure.id}><th scope="row"><label><input type="checkbox" aria-label={`Принять сервер для намерения ${failure.id}`} checked={selected.has(failure.id)} disabled={saving} onChange={event => { setConfirmed(false); setRetryConfirmed(false); setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(failure.id); else next.delete(failure.id); return next; }); }} /> {describe(failure)}</label></th><td>{observed(failure, review)}</td><td>{failure.reason}</td></tr>)}</tbody>
+        <tbody>{review.failures.map(failure => <tr key={failure.id}><th scope="row"><label className="recovery-choice"><input type="checkbox" aria-label={`Принять сервер для намерения ${failure.id}`} checked={selected.has(failure.id)} disabled={saving} onChange={event => { setConfirmed(false); setRetryConfirmed(false); setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(failure.id); else next.delete(failure.id); return next; }); }} /> {describe(failure)}</label></th><td>{observed(failure, review)}</td><td>{failure.reason}</td></tr>)}</tbody>
       </table></div>
       <p className="dialog-intro">Невыбранные намерения и черновики параметров/положения останутся в журнале и продолжат блокировать расчёт. Совпадение объектов по имени и координатам не определяет их идентичность.</p>
-      <label><input type="checkbox" checked={confirmed} disabled={saving} onChange={event => setConfirmed(event.target.checked)} /> Принимаю прочитанный состав; отказываюсь только от выбранных намерений</label>
-      {onRetry && <section className="result-notice graph-retry-notice" aria-label="Повтор создания связи">
-        <p>Для повтора выберите одно создание связи. Будет отправлена исходная команда. Если она уже выполнена, сервер вернёт её подтверждение. Связь, удалённая после выполнения команды, не восстанавливается.</p>
-        <label><input type="checkbox" checked={retryConfirmed} disabled={saving || !candidate} onChange={event => setRetryConfirmed(event.target.checked)} /> Подтверждаю повтор создания выбранной связи</label>
+      <label className="recovery-choice"><input type="checkbox" checked={confirmed} disabled={saving} onChange={event => setConfirmed(event.target.checked)} /> Принимаю прочитанный состав; отказываюсь только от выбранных намерений</label>
+      {onRetry && <section className="result-notice graph-retry-notice" aria-label="Повтор создания">
+        <p>Для повтора выберите одно создание оборудования или связи с сохранённым ID команды. Будет отправлена исходная команда. Если она уже выполнена, сервер вернёт её подтверждение. Объект или связь, удалённые после выполнения команды, не восстанавливаются.</p>
+        <label className="recovery-choice"><input type="checkbox" checked={retryConfirmed} disabled={saving || !candidate} onChange={event => setRetryConfirmed(event.target.checked)} /> Подтверждаю повтор выбранной команды</label>
         <p>Расчёт остаётся заблокирован до подтверждения и свежей загрузки схемы. Другие черновики сохраняются.</p>
       </section>}
     </>}
     <div className="dialog-actions recovery-actions">
       <button className="tool-btn primary" disabled={busy || saving || !review || !selected.size || !confirmed} onClick={() => { void perform('accept'); }}>Принять состав для выбранных</button>
-      {onRetry && <button className="tool-btn" disabled={busy || saving || !candidate || !retryConfirmed} onClick={() => { void perform('retry'); }}>Повторить создание связи</button>}
+      {onRetry && <button className="tool-btn" disabled={busy || saving || !candidate || !retryConfirmed} onClick={() => { void perform('retry'); }}>Повторить создание</button>}
       <button className="tool-btn" disabled={busy || saving} onClick={() => refresh(value => value + 1)}>Обновить сравнение</button>
       <button className="tool-btn" disabled={saving} onClick={onClose}>Оставить намерения в журнале</button>
     </div>

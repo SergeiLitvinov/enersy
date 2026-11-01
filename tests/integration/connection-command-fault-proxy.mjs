@@ -6,12 +6,21 @@ import http from 'node:http';
 const dropped = new Set();
 const inFlight = new Set();
 const commandRoute = '/api/ees/connection-commands';
+const equipmentFaults = process.env.ACCEPTANCE_EQUIPMENT_COMMANDS === '1';
+const holdEquipmentAck = equipmentFaults && process.env.ACCEPTANCE_EQUIPMENT_HOLD_ACK === '1';
+let equipmentReleased = false;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const server = http.createServer((incoming, response) => {
   if (!incoming.url?.startsWith('/') || incoming.url.startsWith('//')) {
     response.writeHead(400);
     response.end();
+    return;
+  }
+  if (holdEquipmentAck && incoming.method === 'POST' && incoming.url === '/__acceptance/release-equipment') {
+    equipmentReleased = true;
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ released: true, dropped: dropped.size }));
     return;
   }
   if (incoming.method === 'GET' && incoming.url === '/__acceptance/ready') {
@@ -22,8 +31,9 @@ const server = http.createServer((incoming, response) => {
   const target = new URL(incoming.url, incoming.url.startsWith('/api/') ? 'http://go-api:8080' : 'http://react-frontend:3000');
   const key = incoming.headers['idempotency-key'];
   const canonical = typeof key === 'string' ? key.toLowerCase() : '';
-  const fault = incoming.method === 'POST' && incoming.url === commandRoute && uuid.test(canonical) &&
-    !dropped.has(canonical) && !inFlight.has(canonical);
+  const equipment = equipmentFaults && /^\/api\/projects\/[1-9][0-9]*\/schemes\/[1-9][0-9]*\/components$/.test(incoming.url);
+  const fault = incoming.method === 'POST' && (incoming.url === commandRoute || equipment) && uuid.test(canonical) &&
+    (equipment && holdEquipmentAck ? !equipmentReleased : !dropped.has(canonical)) && !inFlight.has(canonical);
   if (fault) inFlight.add(canonical);
   const upstream = http.request(target, {
     method: incoming.method, headers: { ...incoming.headers, host: target.host }, agent: false,
@@ -47,10 +57,12 @@ const server = http.createServer((incoming, response) => {
       const body = Buffer.concat(chunks);
       let acknowledgement;
       try { acknowledgement = JSON.parse(body.toString()); } catch { /* Forward invalid responses unchanged. */ }
-      if (committed.statusCode === 200 && acknowledgement?.success === true &&
-          acknowledgement.commandId === canonical && Number.isSafeInteger(acknowledgement.id) && acknowledgement.id > 0) {
+      const confirmed = equipment
+        ? committed.statusCode === 201 && typeof acknowledgement?.id === 'string' && /^[1-9][0-9]*$/.test(acknowledgement.id)
+        : committed.statusCode === 200 && Number.isSafeInteger(acknowledgement?.id) && acknowledgement.id > 0;
+      if (confirmed && acknowledgement?.success === true && acknowledgement.commandId === canonical) {
         dropped.add(canonical);
-        console.log(JSON.stringify({ event: 'committed-ack-dropped', commandId: canonical, connectionId: acknowledgement.id }));
+        console.log(JSON.stringify({ event: 'committed-ack-dropped', commandId: canonical, ...(equipment ? { componentId: acknowledgement.id } : { connectionId: acknowledgement.id }) }));
         // No headers/body have reached the browser. Nginx is not between this
         // socket and the browser, so it cannot turn the loss into a 502 response.
         response.destroy();

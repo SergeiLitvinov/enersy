@@ -1,5 +1,5 @@
 import juliaTopology from '../../../backend-julia/src/topology.jl?raw';
-import sqlPorts from '../../../database/migrations/20260930002_connection_integrity.up.sql?raw';
+import sqlPorts from '../../../database/migrations/000001_v1.up.sql?raw';
 import { describe, expect, it } from 'vitest';
 import { describeEndpoint, indexEquipment, equipmentConnections, equipmentTerminals, terminalForPort } from './equipment-terminals';
 describe('legacy terminal projection', () => {
@@ -41,8 +41,14 @@ describe('legacy terminal projection', () => {
 // change must be reviewed rather than silently weakening this comparison.
 it('matches the existing SQL port set and Julia multi-terminal aliases', () => {
   const sqlTypes = new Map<string, string[]>();
-  for (const match of sqlPorts.matchAll(/\('([a-z0-9_]+)','([a-z0-9_]+)'\)/g)) {
-    sqlTypes.set(match[1], [...(sqlTypes.get(match[1]) ?? []), match[2]]);
+  const typeIds = new Map([...sqlPorts.matchAll(/^INSERT INTO component_types \(id, code,.*?VALUES \((\d+), '([a-z0-9_]+)'/gm)].map(match => [match[1], match[2]]));
+  expect(typeIds.size).toBe(13);
+  for (const row of sqlPorts.matchAll(/^INSERT INTO component_type_ports .*$/gm)) {
+    const match = row[0].match(/VALUES \((\d+), '([a-z0-9_]+)'/);
+    expect(match).not.toBeNull();
+    const type = typeIds.get(match![1]);
+    expect(type).toBeDefined();
+    sqlTypes.set(type!, [...(sqlTypes.get(type!) ?? []), match![2]]);
   }
   expect(sqlTypes.size).toBe(13);
   for (const [type, ports] of sqlTypes) expect(equipmentTerminals(type)?.flatMap(terminal => terminal.aliases).sort()).toEqual(ports.sort());

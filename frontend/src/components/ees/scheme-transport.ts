@@ -16,6 +16,8 @@ export type SchemeTransport = Pick<typeof api,
   'newConnectionCommandId' | 'calculateScheme'> & {
     // Optional observation of the exact private command immediately before dispatch.
     // Legacy functions remain assignable but do not provide persistent CAS evidence.
+    completeComponentReplay?: (commandId: string) => void;
+    retryComponentCreation?: (intent: Extract<EditorGraphIntent, { kind: 'create-component' }>) => Promise<{ success: true; id: number; commandId: string }>;
     projectPassports?: (signal: AbortSignal, after?: string) => ReturnType<typeof listProjectPassports>;
     addComponent: (...args: [...Parameters<typeof api.addComponent>, capture?: GraphDispatchCapture, projectPassportVersionId?: string | null]) => ReturnType<typeof api.addComponent>;
     addConnection: (...args: [...Parameters<typeof api.addConnection>, capture?: GraphDispatchCapture]) => ReturnType<typeof api.addConnection>;

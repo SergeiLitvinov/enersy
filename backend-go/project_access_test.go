@@ -114,7 +114,7 @@ func TestProjectAccessPostgres(t *testing.T) {
 	}
 	denied(tokens[1].Token, projectScope, own, projectRead)
 	var legacy int64
-	if err := database.QueryRowContext(ctx, `INSERT INTO circuit_schemes(name,owner_id) VALUES('Legacy unassigned',1) RETURNING id`).Scan(&legacy); err != nil {
+	if err := database.QueryRowContext(ctx, `INSERT INTO circuit_schemes(name) VALUES('Unassigned v1 fixture') RETURNING id`).Scan(&legacy); err != nil {
 		t.Fatal(err)
 	}
 	for _, token := range tokens {

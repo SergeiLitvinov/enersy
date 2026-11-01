@@ -44,7 +44,7 @@ end
     append!(es, [connection(e.from+100,e.to+100,e.from_port,e.to_port) for e in other_es])
     result = calculate(cs, es)
     map = result["topology"]
-    @test map["schema_version"] == 1
+    @test map["schema_version"] == 2
     @test map["node_numbering"] == "min-component-terminal"
     physical = Set(t["bus_id"] for t in map["terminals"] if t["bus_id"] !== nothing)
     internal = Set(t["bus_id"] for t in map["internal_nodes"])
@@ -52,6 +52,24 @@ end
     @test union(physical, internal) == Set(n["node_id"] for n in result["nodes"])
     @test length(map["terminals"]) == 16
     @test length(map["internal_nodes"]) == 2
+    origins = Dict(o["component_id"] => o for o in map["branch_origins"])
+    @test length(origins) == length(result["branches"]) == 4
+    @test [o["component_id"] for o in map["branch_origins"]] == [1, 4, 101, 104]
+    for branch in result["branches"]
+        origin = origins[branch["component_id"]]
+        @test origin["component_type"] == branch["code"]
+        if branch["code"] == "generator"
+            @test origin["model_id"] == "enersy.ac.source-impedance"
+            @test origin["role"] == "source_impedance"
+            @test origin["from"] == Dict("kind" => "internal", "role" => "source_emf")
+            @test origin["to"] == Dict("kind" => "terminal", "terminal" => 1)
+        else
+            @test origin["model_id"] == "enersy.ac.line-pi"
+            @test origin["role"] == "line_pi"
+            @test origin["from"] == Dict("kind" => "terminal", "terminal" => 1)
+            @test origin["to"] == Dict("kind" => "terminal", "terminal" => 2)
+        end
+    end
     for source in result["sources"]
         t = only(filter(t -> t["component_id"] == source["component_id"], map["terminals"]))
         emf = only(filter(n -> n["component_id"] == source["component_id"], map["internal_nodes"]))

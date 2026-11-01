@@ -1,8 +1,12 @@
 #requires -Version 7.0
-param([switch]$UseCache)
+param(
+    [switch]$UseCache,
+    [ValidateSet('amd64','arm64')][string]$ExpectedArchitecture = 'amd64'
+)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'ReleasePlatform.ps1')
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 $token = [guid]::NewGuid().ToString('N')
 $project = 'enersy-release-' + $token
@@ -13,7 +17,7 @@ $previousReportDir = [Environment]::GetEnvironmentVariable('ENERSY_RELEASE_REPOR
 $env:ENERSY_RELEASE_REPORT_DIR = $reportDir
 $script:step = 0
 $receipt = [ordered]@{ formatVersion=1; scope='isolated-clean-release'; status='running'; startedAt=[DateTime]::UtcNow.ToString('o');
-    project=$project; buildCache=[bool]$UseCache; platform=$null; images=@(); selectedInputChecksums=@{}; checks=@{}; cleanup='not_started' }
+    project=$project; buildCache=[bool]$UseCache; expectedArchitecture=$ExpectedArchitecture; platform=$null; images=@(); selectedInputChecksums=@{}; checks=@{}; cleanup='not_started' }
 
 function Invoke-ReleaseDocker {
     param([string]$Label, [string[]]$Arguments, [switch]$Json)
@@ -71,16 +75,16 @@ $inputs = @('.node-version','LICENSE','docker-compose.yml','nginx.conf',
     'frontend/Dockerfile','frontend/nginx-default.conf','frontend/package-lock.json',
     'docs/Dockerfile','pnpm-lock.yaml','tests/integration/release-compose.yml',
     'tests/integration/release-check.mjs','backend-julia/test/reference/ac-networks-v1.json',
-    'scripts/build/Test-CleanRelease.ps1')
+    'scripts/build/Test-CleanRelease.ps1','scripts/build/ReleasePlatform.ps1',
+    'frontend/package.json','package.json','pnpm-workspace.yaml',
+    'scripts/security/julia-notice-sources.json','scripts/security/collect_julia_licenses.jl')
 foreach ($path in $inputs) { $receipt.selectedInputChecksums[$path] = (Get-FileHash -LiteralPath (Join-Path $root $path) -Algorithm SHA256).Hash.ToLowerInvariant() }
 $buildStarted = $false
 $failure = $null
 try {
     $platform = Invoke-ReleaseDocker -Label platform -Json -Arguments @('info','--format','{"os":"{{.OSType}}","architecture":"{{.Architecture}}","serverVersion":"{{.ServerVersion}}"}')
     $receipt.platform = $platform
-    if ($platform.os -ne 'linux' -or $platform.architecture -notin @('amd64','x86_64')) {
-        throw 'This acceptance profile currently verifies Linux amd64 containers only; another platform requires its own reviewed runtime/notice inputs.'
-    }
+    Assert-ReleaseArchitecture -OS $platform.os -Architecture $platform.architecture -ExpectedArchitecture $ExpectedArchitecture
     $config = Invoke-ReleaseDocker -Label config -Json -Arguments ($compose + @('--profile','check','config','--format','json'))
     Assert-ReleaseIsolation $config
     $receipt['isolation'] = @{ publishedPorts=0; applicationVolumes=0; internalNetwork=$true; postgresStorage='tmpfs' }
@@ -92,6 +96,7 @@ try {
     # and memory budgets stay in Compose; never extend a solver timeout here.
     Invoke-ReleaseDocker -Label start -Arguments ($compose + @('up','-d','--wait','--wait-timeout','240','postgres','julia-compute','go-api','study-worker','react-frontend','nginx','docs'))
     $receipt.images = @(Invoke-ReleaseDocker -Label images -Json -Arguments ($compose + @('images','--format','json')))
+    Assert-ReleaseImagePlatforms -Images $receipt.images -ExpectedArchitecture $ExpectedArchitecture
     $receipt.checks.database = Invoke-ReleaseDocker -Label database-audit -Json -Arguments ($compose + @('exec','-T','go-api','/app/server','-audit-database'))
     if ($receipt.checks.database.status -ne 'no_findings_in_audited_scope') { throw 'Fresh database migration audit has findings' }
     $receipt.checks.catalog = Invoke-ReleaseDocker -Label catalog-audit -Json -Arguments ($compose + @('exec','-T','go-api','/app/server','-audit-catalog'))

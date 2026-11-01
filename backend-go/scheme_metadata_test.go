@@ -26,8 +26,8 @@ func TestLegacySchemeNullableMetadataPostgres(t *testing.T) {
 		query string
 		id    *int
 	}{
-		{`INSERT INTO circuit_schemes(name,description,created_at,updated_at,owner_id) VALUES('Null metadata',NULL,NULL,NULL,NULL) RETURNING id`, &nullID},
-		{`INSERT INTO circuit_schemes(name,description,created_at,updated_at,owner_id) VALUES('Complete','Описание','2001-01-02 03:04:05','2002-02-03 04:05:06',17) RETURNING id`, &completeID},
+		{`INSERT INTO circuit_schemes(name,description,created_at,updated_at) VALUES('Null metadata',NULL,NULL,NULL) RETURNING id`, &nullID},
+		{`INSERT INTO circuit_schemes(name,description,created_at,updated_at) VALUES('Complete','Описание','2001-01-02 03:04:05','2002-02-03 04:05:06') RETURNING id`, &completeID},
 		{`INSERT INTO circuit_schemes(name,description) VALUES('Blank','') RETURNING id`, &blankID},
 		{`INSERT INTO circuit_schemes(name) VALUES('Default metadata') RETURNING id`, &defaultID},
 	} {
@@ -67,7 +67,7 @@ func TestLegacySchemeNullableMetadataPostgres(t *testing.T) {
 		if detail.Code != http.StatusOK || json.Unmarshal(detail.Body.Bytes(), &snapshot) != nil {
 			t.Fatalf("nullable metadata blocked snapshot: %d %s", detail.Code, detail.Body.String())
 		}
-		for _, key := range []string{"id", "name", "description", "created_at", "updated_at", "owner_id"} {
+		for _, key := range []string{"id", "name", "description", "created_at", "updated_at"} {
 			if !reflect.DeepEqual(row[key], snapshot[key]) {
 				t.Errorf("list/snapshot mismatch for scheme %d field %s: %v / %v", id, key, row[key], snapshot[key])
 			}
@@ -78,7 +78,7 @@ func TestLegacySchemeNullableMetadataPostgres(t *testing.T) {
 			t.Errorf("absent/empty description must be display text, got %v", byID[id])
 		}
 	}
-	for _, key := range []string{"created_at", "updated_at", "owner_id"} {
+	for _, key := range []string{"created_at", "updated_at"} {
 		value, present := byID[nullID][key]
 		if !present || value != nil {
 			t.Errorf("unknown %s must remain JSON null: %v", key, byID[nullID])
@@ -87,11 +87,11 @@ func TestLegacySchemeNullableMetadataPostgres(t *testing.T) {
 			t.Errorf("known/default metadata lost for %s", key)
 		}
 	}
-	if byID[completeID]["description"] != "Описание" || byID[completeID]["owner_id"] != float64(17) {
+	if byID[completeID]["description"] != "Описание" {
 		t.Errorf("known metadata changed: %v", byID[completeID])
 	}
 	var stillNull bool
-	if err := database.QueryRowContext(ctx, `SELECT description IS NULL AND created_at IS NULL AND updated_at IS NULL AND owner_id IS NULL FROM circuit_schemes WHERE id=$1`, nullID).Scan(&stillNull); err != nil || !stillNull {
+	if err := database.QueryRowContext(ctx, `SELECT description IS NULL AND created_at IS NULL AND updated_at IS NULL FROM circuit_schemes WHERE id=$1`, nullID).Scan(&stillNull); err != nil || !stillNull {
 		t.Fatalf("reading metadata must not rewrite stored values: %t %v", stillNull, err)
 	}
 	privateDetail := httptest.NewRecorder()

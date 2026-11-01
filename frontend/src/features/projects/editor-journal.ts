@@ -18,7 +18,7 @@ export function captureEditorJournal(writes: ComponentWrites, scheme: string): E
 }
 /** New queue + transport as one unit. Imported work is blocked for explicit
  * comparison; promises, review capabilities and optimistic UI state are not restored. */
-export function restoreProjectEditorJournal(options: Omit<ProjectEditorTransportOptions, 'connectionAttempts'>, value: unknown) {
+export function restoreProjectEditorJournal(options: Omit<ProjectEditorTransportOptions, 'connectionAttempts' | 'componentAttempts'>, value: unknown) {
   options.signal.throwIfAborted();
   const sid = schemeId(options.schemeId), payload = parseStoredEditorDraftPayload(value);
   const queue = new ComponentWrites();
@@ -27,6 +27,6 @@ export function restoreProjectEditorJournal(options: Omit<ProjectEditorTransport
       equipmentModelId: draft.base.equipmentModelId === null ? null : Number(draft.base.equipmentModelId) } })));
   const entries = graphEntriesV2(payload);
   queue.graph.restore(sid, entries);
-  const transport = createProjectEditorTransport({ ...options, connectionAttempts: entries.flatMap(entry => entry.phase === 'prepared' && entry.intent.kind === 'create-connection' ? [entry.intent] : []) });
+  const transport = createProjectEditorTransport({ ...options, componentAttempts: entries.flatMap(entry => entry.phase === 'prepared' && entry.intent.kind === 'create-component' && entry.intent.commandId && entry.intent.expectedTopologyRevision !== undefined ? [entry.intent] : []), connectionAttempts: entries.flatMap(entry => entry.phase === 'prepared' && entry.intent.kind === 'create-connection' ? [entry.intent] : []) });
   return { queue, transport };
 }

@@ -24,7 +24,10 @@ import (
 
 const maxNoticeBytes = 1024 * 1024
 
-var noticeFileName = regexp.MustCompile(`(?i)^(licen[sc]e|copying|notice|copyright|patents)([-_][a-z0-9-]+)?(\.(txt|md|markdown|rst|text|html))?$|^third[-_]?party[-_ ]?(notices?|licen[sc]es?)(\.(txt|md|markdown|rst|text|html))?$`)
+// A dependency may qualify its notice by component (for example testify.LICENSE).
+// Keep the notice token and text extension explicit: source code, backups and
+// archives with a similar basename are not standalone notice evidence.
+var noticeFileName = regexp.MustCompile(`(?i)^([a-z0-9][a-z0-9._-]*\.)?(licen[sc]e|copying|notice|copyright|patents)([-_][a-z0-9-]+)?(\.(txt|md|markdown|rst|text|html))?$|^third[-_]?party[-_ ]?(notices?|licen[sc]es?)(\.(txt|md|markdown|rst|text|html))?$`)
 
 type noticeFile struct {
 	Name   string `json:"name"`
@@ -231,6 +234,8 @@ func validateModule(selected *debug.Module, metadata goModule, cache string) err
 }
 
 func goOutput(ctx context.Context, args ...string) ([]byte, error) {
+	// #nosec G702 -- Fixed Go executable, argv (no shell), metadata-only
+	// subcommands chosen by this tool. Inputs are trusted build artifacts.
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off")
 	var stderr bytes.Buffer
@@ -295,6 +300,8 @@ func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
 		return r, fmt.Errorf("binary main module does not match source module")
 	}
 	r.MainModule = info.Main.Path
+	// #nosec G703 -- The operator explicitly selects this build artifact for
+	// read-only inspection. This CLI does not serve user-provided HTTP paths.
 	bin, err := os.Open(binary)
 	if err != nil {
 		return r, err
@@ -366,6 +373,9 @@ func main() {
 		var data []byte
 		data, err = json.MarshalIndent(r, "", "  ")
 		if err == nil {
+			// #nosec G306 G703 -- Operator-selected output file for a public
+			// license inventory, readable by all image users. No credentials or
+			// private build paths are published; this is not an HTTP endpoint.
 			err = os.WriteFile(os.Args[2], append(data, '\n'), 0o644)
 		}
 	}

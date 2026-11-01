@@ -51,6 +51,19 @@ func (store projectStore) CreateComponent(ctx context.Context, token string, pro
 		if _, err := lockArchiveProject(ctx, tx, token, project, true); err != nil {
 			return projectComponentCreation{}, err
 		}
+	}
+	created, err := createProjectComponentInTx(ctx, tx, project, req)
+	if err != nil {
+		return projectComponentCreation{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return projectComponentCreation{}, err
+	}
+	return created, nil
+}
+
+func createProjectComponentInTx(ctx context.Context, tx *sql.Tx, project int64, req createComponentRequest) (projectComponentCreation, error) {
+	if req.ProjectPassportVersionID != nil {
 		copied, err := copyProjectPassport(ctx, tx, project, req)
 		if err != nil {
 			return projectComponentCreation{}, err
@@ -60,9 +73,6 @@ func (store projectStore) CreateComponent(ctx context.Context, token string, pro
 	}
 	id, params, revision, err := createComponentInTx(ctx, tx, req)
 	if err != nil {
-		return projectComponentCreation{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return projectComponentCreation{}, err
 	}
 	return projectComponentCreation{ID: id, Params: params, Revision: revision, DeclaredParameterUnits: req.unitDeclaration}, nil

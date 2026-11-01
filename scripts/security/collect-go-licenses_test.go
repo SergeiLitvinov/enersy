@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,6 +10,15 @@ import (
 	"strings"
 	"testing"
 )
+
+func currentSDKRoot(t *testing.T) string {
+	t.Helper()
+	root, err := goOutput(context.Background(), "env", "GOROOT")
+	if err != nil || strings.TrimSpace(string(root)) == "" {
+		t.Fatal("cannot locate current Go SDK", err)
+	}
+	return strings.TrimSpace(string(root))
+}
 
 func TestNoticesPreserveExactText(t *testing.T) {
 	root := t.TempDir()
@@ -121,6 +131,59 @@ func TestMissingNoticeStaysMissing(t *testing.T) {
 	}
 }
 
+func TestQualifiedNoticesAcrossRootAndNestedScopes(t *testing.T) {
+	root := t.TempDir()
+	text := "\ufeffCopyright © Component authors\r\nFull permission and disclaimer\r\n"
+	names := []string{"testify.LICENSE", "third-party.COPYING.txt", "src/vendor/example/org/component.COPYRIGHT", "misc/tools/Library.V2.NOTICE.md"}
+	for _, name := range names {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"testify.LICENSE.go", "testify.LICENSE.zip", "testify.LICENSE.bak", "component.notice_test.go", "LICENSE.json", ".LICENSE", "unlicensed.go"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte{0xff}, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, check := range []struct {
+		collect func(string, map[string]string) (sourceNoticeInventory, error)
+		want    int
+	}{{collectSDKSourceNotices, 1}, {collectSDKOtherNotices, 1}, {collectModuleNestedNotices, 2}} {
+		notices := map[string]string{}
+		inventory, err := check.collect(root, notices)
+		if err != nil || len(inventory.Files) != check.want || len(notices) != 1 {
+			t.Fatalf("qualified nested notice missing: %+v %v", inventory, err)
+		}
+		for _, file := range inventory.Files {
+			if notices[file.SHA256] != text || file.SHA256 != digest([]byte(text)) {
+				t.Fatal("qualified notice bytes changed")
+			}
+		}
+	}
+	notices := map[string]string{}
+	files, err := collectNotices(root, notices)
+	if err != nil || len(files) != 2 || len(notices) != 1 {
+		t.Fatalf("qualified root notice missing: %+v %v", files, err)
+	}
+	for _, file := range files {
+		if notices[file.SHA256] != text || file.SHA256 != digest([]byte(text)) {
+			t.Fatal("qualified root notice bytes changed")
+		}
+	}
+	// A recognized, corrupt qualified notice must fail instead of disappearing
+	// behind a valid root license or being relabelled as missing evidence.
+	if err := os.WriteFile(filepath.Join(root, "src", "vendor", "bad.LICENSE"), []byte{0xff}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := collectModuleNestedNotices(root, map[string]string{}); err == nil {
+		t.Fatal("invalid qualified notice was ignored")
+	}
+}
+
 func TestSDKSourceNoticePathsAndExactBytes(t *testing.T) {
 	root := t.TempDir()
 	text := "\ufeff© Вложенный автор\r\nFull permission and disclaimer\r\n"
@@ -209,7 +272,7 @@ func TestSDKSourceNoticeRefusals(t *testing.T) {
 
 func TestActualSDKContainsVendoredSourceNotices(t *testing.T) {
 	notices := map[string]string{}
-	r, err := collectSDKSourceNotices(runtime.GOROOT(), notices)
+	r, err := collectSDKSourceNotices(currentSDKRoot(t), notices)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +386,7 @@ func TestNestedInventoriesRejectUnsafeEvidence(t *testing.T) {
 
 func TestActualSDKOtherNotices(t *testing.T) {
 	notices := map[string]string{}
-	r, err := collectSDKOtherNotices(runtime.GOROOT(), notices)
+	r, err := collectSDKOtherNotices(currentSDKRoot(t), notices)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -182,54 +182,15 @@ func TestCatalogAuditChangesPostgres(t *testing.T) {
 	}
 }
 
-func TestCatalogAuditLegacyPostgres(t *testing.T) {
-	for _, fixture := range []string{"init.sql", "ees_schema.sql"} {
-		t.Run(fixture, func(t *testing.T) {
-			db := migrationTestDatabase(t)
-			executeFixture(t, db, filepath.Join("..", "database", fixture))
-			before, err := readCatalogSnapshot(context.Background(), db)
-			if err != nil {
-				t.Fatal(err)
-			}
-			b, err := readCatalogBaseline(filepath.Join("..", "database", "catalog-baseline.v1.json"), migrationSourceURL(t))
-			if err != nil {
-				t.Fatal(err)
-			}
-			r, err := compareCatalog(b, before)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, e := range r.Entities {
-				t.Logf("%s: matched=%d modified=%d extra=%d missing=%d ambiguous=%d invalid=%d", e.Name, e.Matched, e.Modified, e.Extra, e.Missing, e.Ambiguous, e.Invalid)
-			}
-			if fixture == "init.sql" && r.Status != "matches_seed_baseline" {
-				t.Fatal("current bootstrap differs from canonical seed")
-			}
-			if fixture == "ees_schema.sql" && r.Status != "review_required" {
-				t.Fatal("historical seed differences hidden")
-			}
-			if fixture == "ees_schema.sql" {
-				for _, e := range r.Entities {
-					if e.Name == "model_params" && e.Missing != 76 {
-						t.Fatalf("historical missing params changed: %d", e.Missing)
-					}
-				}
-			}
-			after, err := readCatalogSnapshot(context.Background(), db)
-			if err != nil || !reflect.DeepEqual(before.Entities, after.Entities) {
-				t.Fatal("legacy source changed", err)
-			}
-		})
-	}
-}
-
-func TestLegacyCatalogOverridesSurviveUpgradePostgres(t *testing.T) {
-	for _, fixture := range []string{"init.sql", "ees_schema.sql"} {
+func TestCatalogOverridesSurviveRestartPostgres(t *testing.T) {
+	for _, fixture := range []string{"v1"} {
 		t.Run(fixture, func(t *testing.T) {
 			db := migrationTestDatabase(t)
 			url := migrationSourceURL(t)
 			ctx := context.Background()
-			executeFixture(t, db, filepath.Join("..", "database", fixture))
+			if err := runMigrationsFromSource(db, url); err != nil {
+				t.Fatal(err)
+			}
 			var parameterID, customID string
 			if err := db.QueryRow(`SELECT min(id)::text FROM equipment_model_params`).Scan(&parameterID); err != nil {
 				t.Fatal(err)

@@ -69,22 +69,19 @@ func TestMigrationIntegrityPostgres(t *testing.T) {
 			}
 		})
 	}
-	t.Run("legacy baseline then sealed", func(t *testing.T) {
+	t.Run("unsealed database rejected", func(t *testing.T) {
 		dir, url := integrityFixture(t)
 		database := migrationTestDatabase(t)
 		executeFixture(t, database, filepath.Join(dir, "1_first.up.sql"))
 		if _, err := database.Exec("CREATE TABLE schema_migrations(version bigint NOT NULL PRIMARY KEY,dirty boolean NOT NULL); INSERT INTO schema_migrations VALUES(1,false)"); err != nil {
 			t.Fatal(err)
 		}
-		if err := runMigrationsFromSource(database, url); err != nil {
-			t.Fatal(err)
+		if err := runMigrationsFromSource(database, url); err == nil || !strings.Contains(err.Error(), "integrity history is missing") {
+			t.Fatal("unsealed history accepted", err)
 		}
-		var origin string
-		if err := database.QueryRow("SELECT origin FROM schema_migration_integrity WHERE version=1").Scan(&origin); err != nil || origin != "legacy-baseline" {
-			t.Fatalf("baseline origin: %s: %v", origin, err)
-		}
-		if err := database.QueryRow("SELECT origin FROM schema_migration_integrity WHERE version=2").Scan(&origin); err != nil || origin != "applied" {
-			t.Fatalf("new migration origin: %s: %v", origin, err)
+		var value string
+		if err := database.QueryRow("SELECT value FROM saved_values").Scan(&value); err != nil || value != "kept" {
+			t.Fatal(value, err)
 		}
 	})
 	t.Run("concurrent starts", func(t *testing.T) {

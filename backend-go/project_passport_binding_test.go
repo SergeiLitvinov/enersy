@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,17 +16,6 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	database := migrationTestDatabase(t)
 	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
 		t.Fatal(err)
-	}
-	// An unused migration can be reverted and applied again. Once references
-	// exist, the same down path must refuse to discard them (checked below).
-	for _, suffix := range []string{"down", "up"} {
-		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261021001_component_passport_binding."+suffix+".sql"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := database.Exec(string(data)); err != nil {
-			t.Fatal(err)
-		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -221,13 +208,6 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 	if w := request(http.MethodGet, fmt.Sprintf("/api/projects/%d/calculation-archives/%d/provenance", project, historical), "", ""); w.Code != 404 {
 		t.Fatal("historical provenance manufactured")
 	}
-	provenanceDown, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261021002_calculation_provenance.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.ExecContext(ctx, string(provenanceDown)); err == nil {
-		t.Fatal("downgrade discarded archived provenance")
-	}
 	for _, sqlText := range []string{
 		`UPDATE scheme_components SET project_passport_version_id=NULL WHERE id=$1`,
 		`UPDATE scheme_components SET scheme_id=` + strconv.FormatInt(otherScheme, 10) + ` WHERE id=$1`,
@@ -255,13 +235,6 @@ func TestProjectPassportBindingPostgres(t *testing.T) {
 		if component.ParameterUnits["power_nom"] != "МВА" {
 			t.Fatal("template reinterpreted a copied passport value", component)
 		}
-	}
-	down, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261021001_component_passport_binding.down.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.ExecContext(ctx, string(down)); err == nil {
-		t.Fatal("downgrade discarded used provenance")
 	}
 	var count int
 	if err := database.QueryRowContext(ctx, `SELECT count(*) FROM scheme_components WHERE project_passport_version_id=$1`, parent).Scan(&count); err != nil || count != 2 {
@@ -343,21 +316,5 @@ func TestProjectPassportUnitCopyScopePostgres(t *testing.T) {
 	before := count()
 	if _, err := f.store.CreateComponent(ctx, f.tokens[0].Token, f.project, req); err == nil || count() != before {
 		t.Fatal("unit failure partly created a component", err)
-	}
-}
-
-func TestCalculationProvenanceUnusedMigrationPostgres(t *testing.T) {
-	database := migrationTestDatabase(t)
-	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
-		t.Fatal(err)
-	}
-	for _, suffix := range []string{"down", "up"} {
-		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", "20261021002_calculation_provenance."+suffix+".sql"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := database.Exec(string(data)); err != nil {
-			t.Fatal(err)
-		}
 	}
 }

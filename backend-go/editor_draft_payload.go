@@ -197,8 +197,14 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 			if !draftPassport(i.EquipmentModelID, i.ProjectPassportVersionID) {
 				return payload, errEditorDraftPayload
 			}
-			if connection || i.ID != nil || len(i.ExpectedTopologyRevision) != 0 || i.TypeID == nil || !draftID(*i.TypeID) || i.Name == nil || i.X == nil || i.Y == nil || i.Rotation == nil || !draftParams(i.Params) || validateComponentPose(*i.X, *i.Y, *i.Name) != nil || (i.EquipmentModelID != nil && !draftID(*i.EquipmentModelID)) {
+			if i.From != nil || i.To != nil || i.FromPort != nil || i.ToPort != nil || i.ID != nil || i.TypeID == nil || !draftID(*i.TypeID) || i.Name == nil || i.X == nil || i.Y == nil || i.Rotation == nil || !draftParams(i.Params) || validateComponentPose(*i.X, *i.Y, *i.Name) != nil || (i.EquipmentModelID != nil && !draftID(*i.EquipmentModelID)) {
 				return payload, errEditorDraftPayload
+			}
+			if i.CommandID != nil || len(i.ExpectedTopologyRevision) != 0 {
+				if !prepared || i.CommandID == nil || !editorWorkspacePattern.MatchString(*i.CommandID) || commands[*i.CommandID] || !draftExpected(i.ExpectedTopologyRevision, true) {
+					return payload, errEditorDraftPayload
+				}
+				commands[*i.CommandID] = true
 			}
 			if *i.Rotation < math.MinInt32 || *i.Rotation > math.MaxInt32 {
 				return payload, errEditorDraftPayload

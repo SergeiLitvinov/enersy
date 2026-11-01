@@ -68,17 +68,12 @@ func loadConfig() Config {
 func main() {
 	studyWorker := flag.Bool("study-worker", false, "Execute admitted immutable Study runs from PostgreSQL")
 	provision := flag.Bool("provision-account", false, "Provision a local account from JSON on stdin, then exit")
-	audit := flag.Bool("audit-database", false, "Read-only bootstrap and migration inventory as JSON; do not migrate or serve HTTP")
+	audit := flag.Bool("audit-database", false, "Read-only v1 database integrity inventory; do not migrate or serve HTTP")
 	catalog := flag.Bool("audit-catalog", false, "Read-only comparison with the shipped fresh-database seed baseline")
-	checkMap := flag.Bool("check-catalog-map", false, "Validate an explicit legacy model reference map from stdin without changing data")
-	applyMap := flag.Bool("apply-catalog-map", false, "Atomically apply an explicit legacy model reference map from stdin without replacing instance parameters")
-	ownerAudit := flag.Bool("audit-legacy-owners", false, "Read-only fingerprint inventory of legacy users and scheme owner references")
-	ownerCheck := flag.Bool("check-legacy-owner-map", false, "Validate an explicit legacy scheme owner map from stdin without changing data")
-	ownerApply := flag.Bool("apply-legacy-owner-map", false, "Apply an explicit legacy owner metadata map without changing accounts or project access")
 	flag.Parse()
 	cfg := loadConfig()
 	modes := 0
-	for _, selected := range []bool{*studyWorker, *provision, *audit, *catalog, *checkMap, *applyMap, *ownerAudit, *ownerCheck, *ownerApply} {
+	for _, selected := range []bool{*studyWorker, *provision, *audit, *catalog} {
 		if selected {
 			modes++
 		}
@@ -87,25 +82,7 @@ func main() {
 		slog.Error("choose exactly one operator mode")
 		os.Exit(1)
 	}
-	if *audit || *catalog || *checkMap || *applyMap || *ownerAudit || *ownerCheck || *ownerApply {
-		var plan catalogMap
-		var ownerPlan legacyOwnerMap
-		if *checkMap || *applyMap {
-			var err error
-			plan, err = readCatalogMap(os.Stdin)
-			if err != nil {
-				slog.Error("invalid catalog map; no database changes", "error", err)
-				os.Exit(1)
-			}
-		}
-		if *ownerCheck || *ownerApply {
-			var err error
-			ownerPlan, err = readLegacyOwnerMap(os.Stdin)
-			if err != nil {
-				slog.Error("invalid legacy owner map; no database changes", "error", err)
-				os.Exit(1)
-			}
-		}
+	if *audit || *catalog {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		database, err := sql.Open("postgres", databaseConnectionString(cfg))
@@ -120,19 +97,11 @@ func main() {
 			os.Exit(1)
 		}
 		var report any
-		if *ownerAudit {
-			report, err = auditLegacyOwners(ctx, database, source)
-		} else if *ownerCheck || *ownerApply {
-			report, err = executeLegacyOwnerMap(ctx, database, source, ownerPlan, *ownerApply)
-		} else if *catalog || *checkMap || *applyMap {
+		if *catalog {
 			var path string
 			path, err = configuredCatalogBaseline()
 			if err == nil {
-				if *catalog {
-					report, err = auditCatalog(ctx, database, source, path)
-				} else {
-					report, err = executeCatalogMap(ctx, database, source, path, plan, *applyMap)
-				}
+				report, err = auditCatalog(ctx, database, source, path)
 			}
 		} else {
 			report, err = auditDatabase(ctx, database, source)
@@ -566,7 +535,7 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		rows, err := db.QueryContext(r.Context(), "SELECT id, name, description, created_at, updated_at, owner_id FROM circuit_schemes WHERE project_id IS NULL ORDER BY updated_at DESC")
+		rows, err := db.QueryContext(r.Context(), "SELECT id, name, description, created_at, updated_at FROM circuit_schemes WHERE project_id IS NULL ORDER BY updated_at DESC")
 		if err != nil {
 			sendError(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -579,14 +548,13 @@ func handleSchemes(w http.ResponseWriter, r *http.Request) {
 			var name string
 			var description sql.NullString
 			var createdAt, updatedAt *string
-			var ownerID *int
-			if err := rows.Scan(&id, &name, &description, &createdAt, &updatedAt, &ownerID); err != nil {
+			if err := rows.Scan(&id, &name, &description, &createdAt, &updatedAt); err != nil {
 				sendError(w, "Database scan error: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 			schemes = append(schemes, map[string]interface{}{
 				"id": id, "name": name, "description": description.String,
-				"created_at": createdAt, "updated_at": updatedAt, "owner_id": ownerID,
+				"created_at": createdAt, "updated_at": updatedAt,
 			})
 		}
 		if err := rows.Err(); err != nil {

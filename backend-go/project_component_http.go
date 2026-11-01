@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"mime"
 	"net/http"
 	"strconv"
@@ -101,7 +102,44 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			}
 			passport = &value
 		}
-		created, err := store.CreateComponent(r.Context(), token, project, createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params})
+		req := createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params}
+		var created projectComponentCreation
+		var receipt *createEquipmentReceipt
+		keys := r.Header.Values("Idempotency-Key")
+		// Existing clients without either header retain the one-shot API. Only
+		// the explicit command mode is safe to replay after a lost response.
+		if len(keys) > 0 || len(r.Header.Values("If-Match")) > 0 {
+			if len(keys) != 1 || !commandUUID.MatchString(keys[0]) {
+				componentWriteError(w, 400, "invalid_command_id", "Укажите единственный UUID команды")
+				return true
+			}
+			expected, ok := expectedTopologyRevision(w, r)
+			if !ok {
+				return true
+			}
+			identity, ok := expectedApplicationIdentity(w, r)
+			if !ok {
+				return true
+			}
+			ack, commandErr := (applicationService{database: handler.auth.database}).CreateEquipment(r.Context(), token,
+				createEquipmentCommand{ProjectID: project, CommandID: keys[0], ExpectedTopologyRevision: expected, Equipment: req, ExpectedIdentity: identity})
+			if errors.Is(commandErr, errApplicationSessionChanged) {
+				componentWriteError(w, 409, "command_session_changed", "Сессия изменилась. Повторно откройте рабочий контекст")
+				return true
+			}
+			if errors.Is(commandErr, errApplicationCommandConflict) {
+				componentWriteError(w, 409, "command_intent_conflict", "ID команды уже использован с другими данными или автором")
+				return true
+			}
+			if errors.Is(commandErr, errTopologyConflict) {
+				componentWriteError(w, 412, "topology_revision_conflict", "Топология изменена другим клиентом. Перечитайте схему")
+				return true
+			}
+			created, err = ack.projectComponentCreation, commandErr
+			receipt = &ack
+		} else {
+			created, err = store.CreateComponent(r.Context(), token, project, req)
+		}
 		if err != nil {
 			status, message := projectComponentCreationError(err)
 			componentWriteError(w, status, "component_creation_failed", message)
@@ -117,10 +155,18 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 		}
 		decimal := strconv.FormatInt(created.Revision, 10)
 		w.Header().Set("ETag", `"`+decimal+`"`)
+		if receipt != nil && receipt.Replayed {
+			w.Header().Set("Idempotency-Replayed", "true")
+		}
 		w.WriteHeader(201)
 		body := map[string]any{"id": strconv.Itoa(created.ID), "revision": decimal, "params": created.Params, "equipmentModelId": modelID, "projectPassportVersionId": passportID, "success": true}
 		if created.DeclaredParameterUnits != nil {
 			body["declaredParameterUnits"] = created.DeclaredParameterUnits
+		}
+		if receipt != nil {
+			body["commandId"] = keys[0]
+			body["deleted"] = receipt.Deleted
+			body["topologyRevision"] = strconv.FormatInt(receipt.TopologyRevision, 10)
 		}
 		writeJSON(w, body)
 		return true
