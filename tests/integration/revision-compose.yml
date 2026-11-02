@@ -22,7 +22,7 @@ services:
       postgres:
         condition: service_healthy
       julia-compute:
-        condition: service_started
+        condition: service_healthy
   editor-draft-client-check:
     profiles: [draft-client]
     build:
@@ -124,6 +124,12 @@ services:
     build:
       context: ../..
       dockerfile: backend-julia/Dockerfile
+    healthcheck:
+      test: [CMD, julia, --project=., --startup-file=no, -e, 'using HTTP; @assert HTTP.get("http://127.0.0.1:8001/ready"; proxy=HTTP.ProxyConfig()).status == 200']
+      interval: 2s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
   react-frontend:
     networks: [default, web]
     build:

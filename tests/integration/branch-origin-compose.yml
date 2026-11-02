@@ -21,5 +21,28 @@ services:
     command: [npm, test, --, src/api/calculation-branch-origin.http.test.ts]
     depends_on:
       worker: {condition: service_healthy}
+  native-worker:
+    profiles: [native]
+    image: enersy-numerics-ffi-check
+    command: [julia, --project=., --startup-file=no, experimental/native_server.jl]
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, julia, --project=., --startup-file=no, -e, 'using HTTP; @assert HTTP.get("http://127.0.0.1:8001/ready"; proxy=HTTP.ProxyConfig()).status == 200']
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+  native-contract:
+    profiles: [native]
+    build: {context: ../.., dockerfile: frontend/Dockerfile, target: check}
+    cpus: 2
+    mem_limit: 2g
+    environment:
+      VITE_BRANCH_ORIGIN_WORKER_URL: http://native-worker:8001
+      VITE_BRANCH_ORIGIN_BACKEND: julia-rust-jacobian
+    command: [npm, test, --, src/api/calculation-branch-origin.http.test.ts]
+    depends_on:
+      native-worker: {condition: service_healthy}
 networks:
   default: {internal: true}

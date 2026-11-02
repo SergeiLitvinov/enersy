@@ -11,6 +11,9 @@ $password = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerat
 $accounts = [Collections.Generic.List[long]]::new()
 $projects = [Collections.Generic.List[long]]::new()
 function Auth-Request($Session,[string]$Method,[string]$Path,$Body=$null,[string]$RequestOrigin=$origin,[string]$Match='',[string]$IdempotencyKey='') {
+    # PowerShell may retain -Headers in WebRequestSession. Share authentication
+    # cookies, but make Origin/CAS/command headers belong to this request only.
+    $Session.Headers.Clear()
     $arguments = @{ Uri="$baseUri$Path"; Method=$Method; WebSession=$Session; TimeoutSec=30; SkipHttpErrorCheck=$true }
     if ($RequestOrigin) { $arguments.Headers=@{ Origin=$RequestOrigin } }
     if ($Match) {
@@ -22,7 +25,7 @@ function Auth-Request($Session,[string]$Method,[string]$Path,$Body=$null,[string
         $arguments.Headers['Idempotency-Key']=$IdempotencyKey
     }
     if ($null -ne $Body) { $arguments.Body=ConvertTo-Json -InputObject $Body -Depth 16 -Compress; $arguments.ContentType='application/json' }
-    Invoke-WebRequest @arguments
+    try { Invoke-WebRequest @arguments } finally { $Session.Headers.Clear() }
 }
 function Check-Session($Session,[int]$Expected) {
     $response = Auth-Request $Session GET '/api/auth/session'
@@ -103,7 +106,10 @@ try {
     $response = Auth-Request $first PATCH "/api/ees/components/$($component.id)" @{pose=@{x=99}} $origin $componentTag
     if ([int]$response.StatusCode -ne 404) { throw 'Legacy component route bypasses project rights' }
     $response = Auth-Request $first POST $componentsPath @{typeId=[string]$busType[0].id;name='Second private bus'}
-    if ([int]$response.StatusCode -ne 201) { throw 'Second private equipment creation failed' }
+    if ([int]$response.StatusCode -ne 201) {
+        $errorCode = try { ($response.Content | ConvertFrom-Json).code } catch { 'non-json response' }
+        throw "Second private equipment creation failed: HTTP $($response.StatusCode), code=$errorCode"
+    }
     $secondBus = $response.Content | ConvertFrom-Json
     $graph = (Auth-Request $second GET $privateSchemePath).Content | ConvertFrom-Json
     $topologyTag = '"'+$graph.topologyRevision+'"'
@@ -190,6 +196,8 @@ try {
     if ([int]$response.StatusCode -ne 409) { throw 'Stale membership command overwrote roster' }
     $response = Auth-Request $first POST '/api/auth/logout' $null 'http://foreign.example'
     if ([int]$response.StatusCode -ne 403) { throw 'Foreign Origin accepted' }
+    $response = Auth-Request $first POST '/api/auth/logout' $null ''
+    if ([int]$response.StatusCode -ne 403) { throw 'A previous Origin leaked into a request that omitted it' }
     Check-Session $first 200
     $response = Auth-Request $first POST '/api/auth/logout'
     if ([int]$response.StatusCode -ne 204) { throw 'Logout failed' }

@@ -323,6 +323,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose build julia-compute
       - run: docker compose --profile numerics-ffi-check run --rm --build numerics-ffi-check
+      - name: First external native calculation after prepared readiness
+        run: docker compose -f tests/integration/branch-origin-compose.yml --profile native run --rm --build native-contract
       - name: Export Rust native notice inventory
         run: |
           mkdir -p .cache
@@ -340,7 +342,9 @@ jobs:
         run: docker compose -f tests/integration/native-compose.yml run --rm archive-check
       - name: Remove disposable native acceptance services
         if: always()
-        run: docker compose -f tests/integration/native-compose.yml down
+        run: |
+          docker compose -f tests/integration/native-compose.yml down
+          docker compose -f tests/integration/branch-origin-compose.yml --profile native down
 
   clean-release:
     name: Clean Docker release and independent physical reference (${{ matrix.arch }})

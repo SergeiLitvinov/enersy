@@ -4,6 +4,7 @@ include(joinpath(@__DIR__, "..", "server", "main.jl"))
 const EC = EnersyCompute
 include("json_wire.jl")
 include("execution_control.jl")
+include("startup_preparation.jl")
 include("operating_limits.jl")
 include("base_scaling.jl")
 include("own_base_scaling.jl")

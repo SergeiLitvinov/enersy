@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "source": {
+    "commit": "ea733ba06fd131082c417511965c0778a2211b97",
+    "jobURL": "https://github.com/SergeiLitvinov/enersy/actions/runs/41335114100/job/124933183232",
+    "artifactId": 13094384555,
+    "artifactSha256": "879abe568ea417a51fe39a4dba48615456af653fcfe32455f3e1c12c951348ca"
+  },
+  "images": [
+    {
+      "ID": "sha256:13482244169156a2c9426ca85a6c9ea044e0ac77ab52baddf3069ec6780886ac",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-go-api-1",
+      "Platform": "linux/arm64"
+    },
+    {
+      "ID": "sha256:13482244169156a2c9426ca85a6c9ea044e0ac77ab52baddf3069ec6780886ac",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-study-worker-1",
+      "Platform": "linux/arm64"
+    },
+    {
+      "ID": "sha256:95628c3107a5a8aed1cc1c6ac84a22f3943f78e244a3e1e6368343d5f30f683b",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-docs-1",
+      "Platform": "linux/arm64"
+    },
+    {
+      "ID": "sha256:4dbd312122c451c173b5ebc5cbfcd25b0fbd5bf07c3ab0ec46c6fc69b7d75e3c",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-postgres-1",
+      "Platform": "linux/arm64/v8"
+    },
+    {
+      "ID": "sha256:f420f770788f1cddf1abcc94c151316005f90eb03a7ad75737ee722044b3cf4f",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-julia-compute-1",
+      "Platform": "linux/arm64"
+    },
+    {
+      "ID": "sha256:619012c725df7915de8bb49a8edb40422d22a8413fa4f12fc7f3b14ed618a76e",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-react-frontend-1",
+      "Platform": "linux/arm64"
+    },
+    {
+      "ID": "sha256:3622c15090bd8b851add8cbe6842ebb78fc22e0dffcb412ca6ae5a1aa0c43728",
+      "ContainerName": "enersy-release-f34dcd82144240118c0057742698fed6-nginx-1",
+      "Platform": "linux/arm64/v8"
+    }
+  ]
+}

@@ -195,10 +195,12 @@ end
 
 Поднимает сервер и возвращает объект сервера (для тестов и для остановки).
 Порт `0` означает «выбрать свободный» — это позволяет тестам не занимать
-фиксированный порт.
+фиксированный порт. До открытия сокета выполняется prepare_worker для всех
+настроенных движков. Ошибка подготовки прекращает запуск; /ready не публикуется.
 """
 function start_server(; host::AbstractString="0.0.0.0", port::Integer=8001,
                       max_body_bytes::Int=MAX_BODY_BYTES, backends=(julia_backend(),))
+    prepare_worker(backends)
     handler = req -> handle_request(req; max_body_bytes=max_body_bytes, backends)
     return HTTP.serve!(handler, host, port;
                        read_timeout_ns=REQUEST_TIMEOUT_NS,

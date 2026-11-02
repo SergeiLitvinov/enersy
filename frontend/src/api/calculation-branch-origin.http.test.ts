@@ -3,13 +3,17 @@ import { expect, test } from 'vitest';
 import { parseCalculationResult } from './ees-api';
 
 const worker = import.meta.env.VITE_BRANCH_ORIGIN_WORKER_URL;
+const backend = import.meta.env.VITE_BRANCH_ORIGIN_BACKEND;
 
 test.skipIf(!worker)('real worker provenance survives the production result boundary', async () => {
-  const response = await fetch(`${worker}/calculate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: input });
+  const body = backend ? JSON.stringify({ ...JSON.parse(input) as Record<string, unknown>, computeBackend: backend }) : input;
+  const response = await fetch(`${worker}/calculate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
   expect(response.status).toBe(200);
   const raw: unknown = await response.json();
   const result = parseCalculationResult(raw);
   expect(result.success).toBe(true);
+  expect(result.solver?.compute_backend?.id).toBe(backend || 'julia');
+  expect(result.solver?.execution?.max_time_ms).toBe(20_000);
   expect(result.topology?.schema_version).toBe(2);
   if (result.topology?.schema_version !== 2) throw new Error('Missing v2 provenance');
   expect(result.topology.branch_origins.length).toBe(result.branches?.length);

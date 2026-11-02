@@ -24,6 +24,17 @@ foreach ($target in @('amd64','arm64')) {
     $images = @(1..7 | ForEach-Object { [pscustomobject]@{ Platform="linux/$target"; ID=('sha256:' + ('a' * 64)); ContainerName="service-$_" } })
     Assert-ReleaseImagePlatforms -Images $images -ExpectedArchitecture $target
     $script:checks++
+    $baselineVariant = if ($target -eq 'arm64') { 'v8' } else { 'v1' }
+    $images[1].Platform = "linux/$target/$baselineVariant"
+    $images[5].Platform = "linux/$target/$baselineVariant"
+    Assert-ReleaseImagePlatforms -Images $images -ExpectedArchitecture $target
+    $script:checks++
+    foreach ($variant in @('linux/arm64/v7','linux/arm64/v8.1','linux/arm64/v9','linux/amd64/v2','linux/amd64/v3','linux/amd64/v8','linux/arm64/v8/extra','Linux/arm64/v8')) {
+        $original = $images[0].Platform
+        $images[0].Platform = $variant
+        Assert-Refused { Assert-ReleaseImagePlatforms -Images $images -ExpectedArchitecture $target }
+        $images[0].Platform = $original
+    }
     $images[3].Platform = "linux/$other"
     Assert-Refused { Assert-ReleaseImagePlatforms -Images $images -ExpectedArchitecture $target }
     $images[3].Platform = "linux/$target"
@@ -35,4 +46,9 @@ foreach ($target in @('amd64','arm64')) {
     Assert-Refused { Assert-ReleaseImagePlatforms -Images @() -ExpectedArchitecture $target }
     Assert-Refused { Assert-ReleaseImagePlatforms -Images $images[0..5] -ExpectedArchitecture $target }
 }
+$fixture = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../tests/fixtures/release-images-arm64-v8.json') -Raw -Encoding utf8 | ConvertFrom-Json
+if ($fixture.formatVersion -ne 1 -or @($fixture.images | Where-Object Platform -CEQ 'linux/arm64/v8').Count -ne 2) { throw 'Actual ARM64 regression fixture is incomplete.' }
+Assert-ReleaseImagePlatforms -Images $fixture.images -ExpectedArchitecture arm64
+$script:checks++
+Assert-Refused { Assert-ReleaseImagePlatforms -Images $fixture.images -ExpectedArchitecture amd64 }
 Write-Host "PASS: $script:checks native platform and image receipt checks."

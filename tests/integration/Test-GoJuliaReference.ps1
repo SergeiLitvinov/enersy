@@ -11,6 +11,8 @@ $compose = Join-Path $PSScriptRoot 'revision-compose.yml'
 $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
 $lastHeaders = $null
 function Request-Reference([string]$Method, [string]$Path, $Body = $null, [string]$Match='', [string]$Key='') {
+    # Preserve cookies across calls, never a previous request's CAS/UUID.
+    $session.Headers.Clear()
     $arguments = @{ Uri = "$baseUri$Path"; Method = $Method; TimeoutSec = 40 }
     if ($ProjectMode) { $arguments.WebSession=$session; $arguments.Headers=@{Origin='http://localhost:4174'} }
     if ($Match -or $Key) {
@@ -19,7 +21,7 @@ function Request-Reference([string]$Method, [string]$Path, $Body = $null, [strin
         if ($Key) { $arguments.Headers['Idempotency-Key']=$Key }
     }
     if ($null -ne $Body) { $arguments.Body = ConvertTo-Json -InputObject $Body -Depth 10 -Compress; $arguments.ContentType = 'application/json' }
-    $reply = Invoke-WebRequest @arguments
+    try { $reply = Invoke-WebRequest @arguments } finally { $session.Headers.Clear() }
     $script:lastHeaders = $reply.Headers
     $reply.Content | ConvertFrom-Json
 }

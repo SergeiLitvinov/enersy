@@ -46,6 +46,7 @@ include("linear_solve.jl")
 include("model_parameters.jl")
 include("model_definitions.jl")
 include("http_api.jl")
+include("startup_preparation.jl")
 
 export VERSION,
        CalculationControl, cancel_calculation!, EXECUTION,
