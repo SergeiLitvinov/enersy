@@ -25,6 +25,11 @@ const mcpFrameLimit = 2 << 20
 const readOperation = "scheme.read.v1"
 const createOperation = "component.create.v1"
 
+type creationUnits struct {
+	FormatVersion int               `json:"formatVersion"`
+	Units         map[string]string `json:"units"`
+}
+
 var errConfiguration = errors.New("invalid MCP configuration or session file")
 var errAPI = errors.New("API operation unavailable or not confirmed; for a write retain the original UUID and read/replay before creating another command")
 var errCatalog = errors.New("API operation catalog is incompatible")
@@ -135,6 +140,12 @@ func (b *bridge) api(ctx context.Context, method, path string, body []byte, head
 	r, err := http.NewRequestWithContext(ctx, method, b.config.api+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, errAPI
+	}
+	// net/http treats Idempotency-Key as permission to retry a buffered POST
+	// after a connection loss. Writes require an explicit reviewed replay here;
+	// a caller must observe the unknown outcome instead of a hidden second send.
+	if len(body) > 0 {
+		r.GetBody = nil
 	}
 	// #nosec G124 -- Outbound Cookie request, not Set-Cookie. Browser policy
 	// attributes are controlled by the API and are not transmitted by AddCookie.
@@ -300,9 +311,29 @@ func (b *bridge) invoke(ctx context.Context, op operation, arguments json.RawMes
 			CommandID                      string
 			Deleted                        *bool
 			Params                         map[string]string
+			DeclaredParameterUnits         *creationUnits
 		}
 		if json.Unmarshal(data, &receipt) != nil || !receipt.Success || receipt.CommandID != command || receipt.Deleted == nil || receipt.Params == nil || !decimal(receipt.ID, 2147483647, false) || !decimal(receipt.Revision, 9223372036854775807, false) || !decimal(receipt.TopologyRevision, 9223372036854775807, true) {
 			return nil, errAPI
+		}
+		var requested struct {
+			Params                   map[string]string `json:"params"`
+			ParameterUnitDeclaration *creationUnits    `json:"parameterUnitDeclaration"`
+		}
+		if json.Unmarshal(body, &requested) != nil {
+			return nil, errAPI
+		}
+		if units := requested.ParameterUnitDeclaration; units != nil {
+			if units.FormatVersion != 1 || len(units.Units) == 0 || receipt.DeclaredParameterUnits == nil || receipt.DeclaredParameterUnits.FormatVersion != 1 {
+				return nil, errAPI
+			}
+			for key, unit := range units.Units {
+				value, present := requested.Params[key]
+				actual, confirmed := receipt.Params[key]
+				if !present || !confirmed || actual != value || receipt.DeclaredParameterUnits.Units[key] != unit {
+					return nil, errAPI
+				}
+			}
 		}
 	}
 	return data, nil

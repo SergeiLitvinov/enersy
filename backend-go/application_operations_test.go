@@ -150,7 +150,8 @@ func TestApplicationOperationCatalogHTTPPostgres(t *testing.T) {
 	}
 	write := catalog.Operations[1]
 	arguments := map[string]any{"commandId": studyCommand(951), "expectedTopologyRevision": snapshot.TopologyRevision,
-		"equipment": map[string]any{"typeId": typeID, "name": "Catalog-driven creation", "x": 0, "y": 0, "rotation": 0, "params": map[string]string{}}}
+		"equipment": map[string]any{"typeId": typeID, "name": "Catalog-driven creation", "x": 0, "y": 0, "rotation": 0, "params": map[string]string{"voltage_nom": "110000.0000"},
+			"parameterUnitDeclaration": map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "В"}}}}
 	headers := map[string]string{}
 	for header, mapping := range write.HTTP.Headers {
 		value := arguments[mapping.Argument].(string)
@@ -167,6 +168,18 @@ func TestApplicationOperationCatalogHTTPPostgres(t *testing.T) {
 	replayed := request(f.tokens[0].Token, write.HTTP.Method, write.HTTP.Path, arguments[write.HTTP.BodyArgument], headers)
 	if created.Code != 201 || replayed.Code != 201 || created.Body.String() != replayed.Body.String() || replayed.Header().Get("Idempotency-Replayed") != "true" {
 		t.Fatal("advertised durable command failed", created.Code, created.Body, replayed.Code, replayed.Body)
+	}
+	var receipt struct {
+		Params                 map[string]string
+		DeclaredParameterUnits parameterUnitDeclaration
+	}
+	if json.Unmarshal(created.Body.Bytes(), &receipt) != nil || receipt.Params["voltage_nom"] != "110000.0000" || receipt.DeclaredParameterUnits.Units["voltage_nom"] != "В" {
+		t.Fatal("catalog-driven command lost the explicit value/unit pair")
+	}
+	equipment := arguments[write.HTTP.BodyArgument].(map[string]any)
+	equipment["parameterUnitDeclaration"] = map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "кВ"}}
+	if changed := request(f.tokens[0].Token, write.HTTP.Method, write.HTTP.Path, equipment, headers); changed.Code != 409 {
+		t.Fatal("catalog-driven replay accepted a changed unit", changed.Code)
 	}
 	for _, tc := range []struct {
 		path, method string

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -20,9 +21,33 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 	}
 	f := newStudyFixture(t)
 	auth := newAuthHTTP(f.store.database, "http://localhost", false)
+	var acknowledgements atomic.Int32
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/auth/") {
 			auth.ServeHTTP(w, r)
+		} else if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/components") {
+			// Commit through the real handler, then lose the first successful
+			// acknowledgement. The transport must not silently replay the POST.
+			reply := httptest.NewRecorder()
+			(projectsHTTP{auth: auth}).ServeHTTP(reply, r)
+			if reply.Code == http.StatusCreated && acknowledgements.Add(1) == 1 {
+				connection, _, err := w.(http.Hijacker).Hijack()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if err := connection.Close(); err != nil {
+					t.Error(err)
+				}
+				return
+			}
+			for key, values := range reply.Header() {
+				w.Header()[key] = values
+			}
+			w.WriteHeader(reply.Code)
+			if _, err := w.Write(reply.Body.Bytes()); err != nil {
+				t.Error(err)
+			}
 		} else {
 			(projectsHTTP{auth: auth}).ServeHTTP(w, r)
 		}
@@ -62,5 +87,8 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 	}
 	if components != 3 || receipts != 1 {
 		t.Fatal("MCP wrote duplicate data or receipts", components, receipts)
+	}
+	if acknowledgements.Load() != 3 {
+		t.Fatal("unexpected automatic or missing replay", acknowledgements.Load())
 	}
 }

@@ -93,6 +93,7 @@ func equipmentOperationSchema() map[string]any {
 		"x":                        map[string]any{"type": "number", "minimum": -math.MaxFloat32, "maximum": math.MaxFloat32},
 		"y":                        map[string]any{"type": "number", "minimum": -math.MaxFloat32, "maximum": math.MaxFloat32},
 		"rotation":                 map[string]any{"type": "integer", "minimum": math.MinInt32, "maximum": math.MaxInt32},
+		"parameterUnitDeclaration": creationUnitOperationSchema(),
 		"params": map[string]any{"type": "object", "maxProperties": 256, "propertyNames": map[string]any{"minLength": 1, "maxLength": 50}, "additionalProperties": map[string]any{"type": "string", "maxLength": 16384},
 			"description": "Original parameter text, never guessed physical values. Passport parameters/declared units are copied by the common service. Manual values require engineering review and supported explicit unit declarations before calculation."},
 	}, []string{"typeId", "name", "x", "y", "rotation", "params"})
@@ -103,4 +104,16 @@ func equipmentOperationSchema() map[string]any {
 		"expectedTopologyRevision": map[string]any{"type": "string", "pattern": "^(0|[1-9][0-9]*)$", "maxLength": 19, "description": "Original revision, at most 9223372036854775807. Reuse it on replay; never manufacture a new CAS."},
 		"equipment":                equipment,
 	}, []string{"commandId", "expectedTopologyRevision", "equipment"})
+}
+
+// Keys of units must also be explicitly present in params. JSON Schema cannot
+// compare arbitrary sibling property sets; the shared creation service does it.
+func creationUnitOperationSchema() map[string]any {
+	return closedOperationSchema(map[string]any{
+		"formatVersion": map[string]any{"type": "integer", "const": 1},
+		"units": map[string]any{"type": "object", "minProperties": 1, "maxProperties": 256,
+			"propertyNames":        map[string]any{"minLength": 1, "maxLength": 50},
+			"additionalProperties": map[string]any{"type": "string", "minLength": 1, "maxLength": 64, "pattern": `^[^\x00-\x1f\x7f]+$`},
+			"description":          "Explicit instance units paired with values in params of this same request. No conversion or inference. Labels must have no surrounding whitespace or control characters; the service rechecks labels and value co-presence."},
+	}, []string{"formatVersion", "units"})
 }

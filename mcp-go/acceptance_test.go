@@ -77,10 +77,42 @@ func TestExternalAPIAcceptance(t *testing.T) {
 		return
 	}
 	args := map[string]any{"commandId": "11111111-1111-4111-8111-000000000999", "expectedTopologyRevision": graph["topologyRevision"],
-		"equipment": map[string]any{"typeId": os.Getenv("TEST_MCP_TYPE_ID"), "name": "MCP acceptance busbar", "x": 0, "y": 0, "rotation": 0, "params": map[string]string{}}}
-	first := call(createOperation, args)
+		"equipment": map[string]any{"typeId": os.Getenv("TEST_MCP_TYPE_ID"), "name": "MCP acceptance busbar", "x": 0, "y": 0, "rotation": 0, "params": map[string]string{"voltage_nom": "110000.0000"},
+			"parameterUnitDeclaration": map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "В"}}}}
+	for _, units := range []any{nil, map[string]any{"formatVersion": 2, "units": map[string]string{"voltage_nom": "В"}},
+		map[string]any{"formatVersion": 1, "units": map[string]string{}},
+		map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": " MW"}},
+		map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "В\n"}},
+		map[string]any{"formatVersion": 1, "units": map[string]string{"absent": "В"}}} {
+		equipment := map[string]any{}
+		for key, value := range args["equipment"].(map[string]any) {
+			equipment[key] = value
+		}
+		equipment["parameterUnitDeclaration"] = units
+		invalid := map[string]any{"commandId": args["commandId"], "expectedTopologyRevision": args["expectedTopologyRevision"], "equipment": equipment}
+		if result := call(createOperation, invalid); !result.IsError {
+			t.Fatal("invalid creation units admitted")
+		}
+	}
+	lost := call(createOperation, args)
+	if !lost.IsError {
+		t.Fatal("lost acknowledgement was hidden by an automatic retry")
+	}
+	committed := read()
+	if len(committed["components"].([]any)) != len(graph["components"].([]any))+1 {
+		t.Fatal("lost response did not leave one committed creation")
+	}
+	first := call(createOperation, args) // Explicit replay of the original input.
 	if first.IsError {
 		t.Fatal("creation failed", first)
+	}
+	var receipt struct {
+		ID                     string
+		Params                 map[string]string
+		DeclaredParameterUnits *creationUnits
+	}
+	if json.Unmarshal([]byte(first.Content[0].(*mcp.TextContent).Text), &receipt) != nil || receipt.Params["voltage_nom"] != "110000.0000" || receipt.DeclaredParameterUnits == nil || receipt.DeclaredParameterUnits.Units["voltage_nom"] != "В" {
+		t.Fatal("creation receipt lost the explicit value/unit pair")
 	}
 	replay := call(createOperation, args)
 	if replay.IsError || replay.Content[0].(*mcp.TextContent).Text != first.Content[0].(*mcp.TextContent).Text {
@@ -90,6 +122,27 @@ func TestExternalAPIAcceptance(t *testing.T) {
 	if len(after["components"].([]any)) != len(graph["components"].([]any))+1 {
 		t.Fatal("duplicate or missing creation")
 	}
+	found := false
+	for _, raw := range after["components"].([]any) {
+		component := raw.(map[string]any)
+		if component["id"] == receipt.ID {
+			found = true
+			units := component["declaredParameterUnits"].(map[string]any)["units"].(map[string]any)
+			if component["params"].(map[string]any)["voltage_nom"] != "110000.0000" || units["voltage_nom"] != "В" {
+				t.Fatal("graph differs from acknowledged pair")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("created component missing from fresh graph")
+	}
+	equipment := args["equipment"].(map[string]any)
+	originalUnits := equipment["parameterUnitDeclaration"]
+	equipment["parameterUnitDeclaration"] = map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "кВ"}}
+	if result := call(createOperation, args); !result.IsError {
+		t.Fatal("unit-only change reused a command")
+	}
+	equipment["parameterUnitDeclaration"] = originalUnits
 	args["commandId"] = "11111111-1111-4111-8111-000000000998"
 	if result := call(createOperation, args); !result.IsError {
 		t.Fatal("stale topology accepted")
