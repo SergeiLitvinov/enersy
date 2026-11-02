@@ -290,6 +290,22 @@ test('new components retain acknowledged unit declarations before the next graph
   expect(state.components[0].params.voltage_nom).toBe('110.00');
 });
 
+test('lost creation with units blocks a new creation until topology review, including the public transport', async () => {
+  vi.mocked(api.createComponent).mockRejectedValue(new TypeError('lost acknowledgement'));
+  const creation = { params: { voltage_nom: '110.0000' }, parameterUnitDeclaration: { formatVersion: 1 as const, units: { voltage_nom: 'кВ' } } };
+  await act(async () => {
+    await expect(state.addComponent(item, 10, 20, null, null, creation)).rejects.toThrow('lost acknowledgement');
+  });
+  expect(api.createComponent).toHaveBeenCalledTimes(1);
+  expect(api.createComponent).toHaveBeenCalledWith(expect.objectContaining(creation), expect.any(Function));
+  await act(async () => {
+    await expect(state.addComponent(item, 10, 20, null, null, creation)).rejects.toThrow('не подтверждено');
+  });
+  expect(api.createComponent).toHaveBeenCalledTimes(1);
+  expect(api.addComponent).not.toHaveBeenCalled();
+  expect(state.failedGraph).toHaveLength(1);
+});
+
 test('old connection deletion cannot remove a reloaded connection', async () => {
   const reply = deferred<Awaited<ReturnType<typeof api.deleteConnection>>>();
   vi.mocked(api.deleteConnection).mockReturnValue(reply.promise);

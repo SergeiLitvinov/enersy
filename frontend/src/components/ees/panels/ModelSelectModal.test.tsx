@@ -20,7 +20,35 @@ beforeEach(() => {
   vi.mocked(api.getEquipmentModelParams).mockImplementation(async id => ({ p: String(id) })); confirm.mockClear();
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.clearAllMocks(); });
+async function fill(label: string, value: string) {
+  const input = [...host.querySelectorAll('.creation-parameter-row label')].find(item => item.firstChild?.textContent === label)?.querySelector('input');
+  expect(input).toBeTruthy();
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
 describe('passport selection', () => {
+  it('creates a manual value/unit pair, requires explicit units and keeps the draft after a failed save', async () => {
+    await mount(); await click('Добавить параметр');
+    await fill('Ключ', 'p'); await fill('Значение', '1.2300');
+    await click('Добавить на схему');
+    expect(confirm).not.toHaveBeenCalled(); expect(host.textContent).toContain('Укажите единицу');
+    await fill('Единица', 'МВт');
+    confirm.mockRejectedValueOnce(new Error('Ответ потерян'));
+    await click('Добавить на схему');
+    expect(confirm).toHaveBeenCalledWith(null, undefined, { params: { p: '1.2300' }, parameterUnitDeclaration: { formatVersion: 1, units: { p: 'МВт' } } });
+    expect(host.textContent).toContain('Ответ потерян');
+    expect((host.querySelector('.creation-parameter-row input') as HTMLInputElement).value).toBe('p');
+    expect(host.querySelectorAll('.creation-parameter-row')).toHaveLength(1);
+  });
+  it('clears overrides when the passport changes but keeps them while comparing and searching', async () => {
+    await mount(); await click('Alpha'); await click('Добавить параметр');
+    await fill('Ключ', 'p'); await fill('Значение', '2.000'); await fill('Единица', 'МВт');
+    await click('Beta');
+    expect(host.querySelectorAll('.creation-parameter-row')).toHaveLength(0);
+    await click('Добавить на схему'); expect(confirm).toHaveBeenCalledWith(2);
+  });
   it('shows exact project version values, filters types and confirms its separate identity', async () => {
     const version: PassportVersion = { id: '9007199254740993', projectId: '1', authorAccountId: '1', predecessorId: null, revision: 1, status: 'draft', sha256: 'a'.repeat(64), createdAt: '2026-10-21T00:00:00Z',
       document: { formatVersion: 1, componentTypeCode: 'generator', name: 'Проектный источник', manufacturer: '', source: 'Учебный пример', license: 'Авторская декларация', parameters: { power_nom: { value: '10.00', unit: 'МВА' } } } };
@@ -77,9 +105,15 @@ describe('passport selection', () => {
     expect((host.querySelector('.dialog-actions .primary') as HTMLButtonElement).disabled).toBe(true);
     await act(async () => second({ p: '42' })); await click('Добавить на схему'); expect(confirm).toHaveBeenCalledWith(2);
   });
-  it('keeps manual entry available when the catalog fails', async () => {
-    vi.mocked(api.getEquipmentModels).mockRejectedValue(new Error('offline'));
-    await mount(); expect(host.textContent).toContain('Не удалось загрузить каталог'); await click('Добавить на схему'); expect(confirm).toHaveBeenCalledWith(null);
+  it('keeps manual entry and explicit overrides when a failed catalog is retried', async () => {
+    vi.mocked(api.getEquipmentModels).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(models);
+    await mount(); expect(host.textContent).toContain('Не удалось загрузить каталог');
+    await click('Добавить на схему'); expect(confirm).toHaveBeenCalledWith(null); confirm.mockClear();
+    await click('Добавить параметр'); await fill('Ключ', 'p'); await fill('Значение', '1.2300'); await fill('Единица', 'МВт');
+    await click('Повторить загрузку каталога');
+    expect(host.querySelectorAll('.creation-parameter-row')).toHaveLength(1);
+    await click('Добавить на схему');
+    expect(confirm).toHaveBeenCalledWith(null, undefined, { params: { p: '1.2300' }, parameterUnitDeclaration: { formatVersion: 1, units: { p: 'МВт' } } });
   });
   it('allows retry after a parameter error, without substituting defaults', async () => {
     vi.mocked(api.getEquipmentModelParams).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({});

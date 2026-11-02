@@ -140,6 +140,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     if (!currentSchemeId) return;
     const isCurrent = captureView();
     try {
+      writes.current.graph.assertConfirmed(currentSchemeId);
       if (projectPassportVersionId !== null && !dataAPI.projectPassports) throw new Error('Проектный паспорт недоступен в этом редакторе');
       const input = copyComponentCreation({ ...creation, schemeId: currentSchemeId, typeId: item.id, x: wx, y: wy, rotation: 0, name: item.name, equipmentModelId,
         ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) });
@@ -147,6 +148,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
       const params = await dataAPI.getComponentParams(item.code);
       // No write was dispatched yet; a selection change cancels this intent.
       if (!isCurrent()) return;
+      writes.current.graph.assertConfirmed(currentSchemeId);
       const r = await writes.current.graph.run(currentSchemeId,
         { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, rotation: 0, equipmentModelId, params: input.params,
           ...(input.parameterUnitDeclaration ? { parameterUnitDeclaration: input.parameterUnitDeclaration } : {}), ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) },

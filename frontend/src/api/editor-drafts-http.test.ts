@@ -19,9 +19,10 @@ test.skipIf(import.meta.env.VITE_DRAFT_HTTP_ACCEPTANCE !== '1')('real private dr
   const { createHttpSessionContext } = await import('../test/http-session-context.mjs');
   const sessions = createHttpSessionContext();
   const jars = ['', '', ''];
-  let active = 0, loseNextPut = false, loseNextConnection = false, loseNextParameter = false;
+  let active = 0, loseNextPut = false, loseNextConnection = false, loseNextParameter = false, loseNextEquipment = false;
   const paths: string[] = [];
   const connectionRequests: { body: BodyInit | null | undefined; revision: string | null; commandId: string | null }[] = [];
+  const equipmentRequests: { body: BodyInit | null | undefined; revision: string | null; commandId: string | null }[] = [];
   const parameterRequests: { session: number; body: BodyInit | null | undefined; revision: string | null; status: number }[] = [];
   vi.stubGlobal('fetch', async (path: string, options?: RequestInit) => {
     if (!path.startsWith('/api/')) throw new Error('Acceptance request escaped API');
@@ -31,9 +32,17 @@ test.skipIf(import.meta.env.VITE_DRAFT_HTTP_ACCEPTANCE !== '1')('real private dr
     headers.set('Origin', 'http://localhost:4174');
     if (jars[jar]) headers.set('Cookie', jars[jar]);
     if (path.endsWith('/connection-commands')) connectionRequests.push({ body: options?.body, revision: headers.get('If-Match'), commandId: headers.get('Idempotency-Key') });
+    const equipmentCommand = path.endsWith('/components') && options?.method === 'POST' && headers.has('Idempotency-Key');
+    if (equipmentCommand) equipmentRequests.push({ body: options?.body, revision: headers.get('If-Match'), commandId: headers.get('Idempotency-Key') });
     const response = await originalFetch(`http://go-api:8080${path}`, { ...options, headers });
     const cookie = response.headers.get('Set-Cookie');
     if (cookie) jars[jar] = cookie.split(';')[0];
+    if (loseNextEquipment && equipmentCommand) {
+      loseNextEquipment = false;
+      expect(response.status).toBe(201);
+      await response.body?.cancel();
+      throw new TypeError('Acceptance: equipment acknowledgement lost');
+    }
     if (options?.method === 'PATCH' && /\/components\/[1-9][0-9]*$/.test(path)) {
       parameterRequests.push({ session: jar, body: options.body, revision: headers.get('If-Match'), status: response.status });
       if (loseNextParameter) {
@@ -140,6 +149,51 @@ test.skipIf(import.meta.env.VITE_DRAFT_HTTP_ACCEPTANCE !== '1')('real private dr
     expect(captureEditorJournal(restored.queue, schemeId).graph).toEqual([]);
     expect(() => restored.queue.assertConfirmed(Number(schemeId))).not.toThrow();
     await deleteEditorDraft(scope, durableWorkspace, '1', signal);
+
+    // Save the actual creation journal after the API committed, reopen it in a
+    // second session and explicitly replay the original value/unit/CAS pair.
+    active = 0;
+    const createTransport = createProjectEditorTransport(transportOptions), createQueue = new ComponentWrites();
+    const creationSchemeId = Number(schemeId);
+    const createBefore = await createTransport.getScheme(creationSchemeId);
+    const pair = { voltage_nom: '110000.0000' };
+    const declaration = { formatVersion: 1 as const, units: { voltage_nom: 'В' } };
+    loseNextEquipment = true;
+    await expect(createQueue.graph.run(creationSchemeId, { kind: 'create-component', typeId: type.id, name: 'Created with units',
+      x: 200, y: 0, rotation: 0, equipmentModelId: null, params: pair, parameterUnitDeclaration: declaration },
+    capture => createTransport.createComponent!({ schemeId: creationSchemeId, typeId: type.id, name: 'Created with units',
+      x: 200, y: 0, rotation: 0, equipmentModelId: null, params: pair, parameterUnitDeclaration: declaration }, capture)))
+      .rejects.toThrow('equipment acknowledgement lost');
+    const creationJournal = captureEditorJournal(createQueue, schemeId);
+    expect(creationJournal.graph[0].intent).toMatchObject({ params: pair, parameterUnitDeclaration: declaration });
+    const creationWorkspace = '88888888-8888-4888-8888-888888888888';
+    await saveEditorDraft(scope, creationWorkspace, '0', creationJournal, signal);
+    active = 2;
+    await expect(readEditorDraft(scope, creationWorkspace, signal)).rejects.toMatchObject({ status: 404 });
+    active = 1;
+    const creationStored = await readEditorDraft(scope, creationWorkspace, signal);
+    expect(creationStored.payload).toEqual(creationJournal);
+    const reopenedCreation = restoreProjectEditorJournal(transportOptions, creationStored.payload);
+    expect(() => reopenedCreation.queue.assertConfirmed(creationSchemeId)).toThrow();
+    const creationReview = await reopenedCreation.queue.graph.review(creationSchemeId, async () => {
+      const value = await reopenedCreation.transport.getScheme(creationSchemeId);
+      return { id: creationSchemeId, components: value.components!, connections: value.connections! };
+    });
+    await reopenedCreation.queue.graph.retryCreation(creationReview, creationSchemeId, creationReview.failures[0].id, () => true,
+      candidate => {
+        if (candidate.kind !== 'create-component') throw new Error('Expected equipment command');
+        return reopenedCreation.transport.retryComponentCreation!({ ...candidate, typeId: String(candidate.typeId),
+          equipmentModelId: null, params: candidate.params ?? {}, rotation: candidate.rotation ?? 0 });
+      },
+      async () => {
+        const value = await reopenedCreation.transport.getScheme(creationSchemeId);
+        expect(value.components).toHaveLength(createBefore.components!.length + 1);
+        expect(value.components?.find(item => item.name === 'Created with units')).toMatchObject({ params: pair, declaredParameterUnits: declaration });
+      });
+    expect(equipmentRequests).toHaveLength(2);
+    expect(equipmentRequests[1]).toEqual(equipmentRequests[0]);
+    expect(() => reopenedCreation.queue.assertConfirmed(creationSchemeId)).not.toThrow();
+    await deleteEditorDraft(scope, creationWorkspace, creationStored.revision, signal);
 
     // Two real independent sessions see the same object; stale data cannot be
     // restored under a peer's new unit, even when a journal survives a reload.

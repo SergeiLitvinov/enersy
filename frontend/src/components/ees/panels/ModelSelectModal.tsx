@@ -6,9 +6,11 @@ import './ModelSelectModal.css';
 import type { SchemeTransport } from '../scheme-transport';
 import type { PassportVersion } from '../../../api/project-passports-api';
 import { ProjectPassportPicker } from './ProjectPassportPicker';
+import { CreationParametersForm } from './CreationParametersForm';
+import { creationParameters, type CreationParameterRow, type CreationParameters } from '../../../features/catalog/creation-parameters';
 interface ModelSelectModalProps {
   componentType: { id: number; code: string; name: string };
-  onConfirm: (equipmentModelId: number | null, projectPassportVersionId?: string) => Promise<void>;
+  onConfirm: (equipmentModelId: number | null, projectPassportVersionId?: string, creation?: CreationParameters) => Promise<void>;
   projectPassports?: SchemeTransport['projectPassports'];
   onCancel: () => void;
 }
@@ -28,6 +30,8 @@ function usePassport(id: number | null) {
 export function ModelSelectModal({ componentType, onConfirm, onCancel, projectPassports }: ModelSelectModalProps) {
   const [source, setSource] = useState('shared');
   const [projectVersion, setProjectVersion] = useState<PassportVersion | null>(null);
+  const [creationRows, setCreationRows] = useState<CreationParameterRow[]>([]);
+  const creationType = useRef(componentType.code);
   const [catalog, setCatalog] = useState<{ code: string; models: api.EquipmentModel[]; template: api.ComponentParam[] }>();
   const [selected, setSelected] = useState<number | null>(null);
   const [compare, setCompare] = useState<number | null>(null);
@@ -38,6 +42,7 @@ export function ModelSelectModal({ componentType, onConfirm, onCancel, projectPa
   useEffect(() => {
     const controller = new AbortController(); let active = true;
     setCatalog(undefined); setSelected(null); setCompare(null); setQuery(''); setManufacturer(''); setLoading(true); setCatalogError(''); setSaveError('');
+    if (creationType.current !== componentType.code) { creationType.current = componentType.code; setCreationRows([]); }
     Promise.all([api.getEquipmentModels(componentType.code, controller.signal), api.getComponentParams(componentType.code, controller.signal)])
       .then(([models, template]) => { if (active) setCatalog({ code: componentType.code, models, template }); })
       .catch(() => { if (active) setCatalogError('Не удалось загрузить каталог. Можно повторить запрос или задать параметры самостоятельно.'); })
@@ -59,16 +64,21 @@ export function ModelSelectModal({ componentType, onConfirm, onCancel, projectPa
     // React may batch two confirmations before it renders the disabled button.
     confirming.current = true;
     setBusy(true); setSaveError('');
-    try { if (source === 'project' && projectVersion) await onConfirm(null, projectVersion.id); else await onConfirm(selected); }
+    try {
+      const creation = creationRows.length ? creationParameters(creationRows, current?.template ?? []) : undefined;
+      if (creation) await onConfirm(source === 'project' ? null : selected, source === 'project' ? projectVersion?.id : undefined, creation);
+      else if (source === 'project' && projectVersion) await onConfirm(null, projectVersion.id);
+      else await onConfirm(selected);
+    }
     catch (error) { setSaveError(error instanceof Error ? error.message : 'Не удалось добавить оборудование. Повторите попытку.'); }
     finally { confirming.current = false; setBusy(false); }
   }
   return <Dialog title={`Добавить: ${componentType.name}`} onClose={onCancel} closeDisabled={busy} wide>
     <p className="dialog-intro">Выберите паспорт оборудования и проверьте его параметры перед добавлением на схему. Паспорт изделия не определяет математическую модель.</p>
-    {projectPassports && <label className="passport-field">Источник паспорта<select value={source} disabled={busy} onChange={event => { setSource(event.target.value); setProjectVersion(null); setSaveError(''); }}><option value="shared">Общий справочник / свои параметры</option><option value="project">Паспорта текущего проекта</option></select></label>}
-    {source === 'project' && projectPassports ? <ProjectPassportPicker read={projectPassports} typeCode={componentType.code} selected={projectVersion} onSelect={version => { setProjectVersion(version); setSaveError(''); }} disabled={busy} template={current?.template ?? []} /> : <>
+    {projectPassports && <label className="passport-field">Источник паспорта<select value={source} disabled={busy} onChange={event => { setSource(event.target.value); setProjectVersion(null); setSaveError(''); setCreationRows([]); }}><option value="shared">Общий справочник / свои параметры</option><option value="project">Паспорта текущего проекта</option></select></label>}
+    {source === 'project' && projectPassports ? <ProjectPassportPicker read={projectPassports} typeCode={componentType.code} selected={projectVersion} onSelect={version => { if (version.id !== projectVersion?.id) setCreationRows([]); setProjectVersion(version); setSaveError(''); }} disabled={busy} template={current?.template ?? []} /> : <>
     <label className={`passport-manual ${selected === null ? 'is-selected' : ''}`}>
-      <input type="radio" name="equipment-model" checked={selected === null} disabled={busy} onChange={() => { setSelected(null); setCompare(null); }} />
+      <input type="radio" name="equipment-model" checked={selected === null} disabled={busy} onChange={() => { setSelected(null); setCompare(null); setCreationRows([]); }} />
       <span><strong>Задать параметры самостоятельно</strong><small>Физические параметры нужно заполнить перед расчётом.</small></span>
     </label>
     {loading && <p role="status">Загрузка каталога…</p>}
@@ -79,7 +89,7 @@ export function ModelSelectModal({ componentType, onConfirm, onCancel, projectPa
         <label className="passport-field">Производитель<select value={manufacturer} disabled={busy} onChange={event => setManufacturer(event.target.value)}><option value="">Все производители</option>{[...new Set(models.map(item => item.manufacturer).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></label>
         <p className="passport-count" role="status">Найдено: {visible.length} из {models.length}</p>
         <div className="passport-options">{visible.map(item => <label key={item.id} className={`passport-option ${selected === item.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="equipment-model" checked={selected === item.id} disabled={busy} onChange={() => { setSelected(item.id); if (compare === item.id) setCompare(null); setSaveError(''); }} />
+          <input type="radio" name="equipment-model" checked={selected === item.id} disabled={busy} onChange={() => { setSelected(item.id); if (compare === item.id) setCompare(null); setSaveError(''); setCreationRows([]); }} />
           <span><strong>{item.model_name}</strong><small>{item.manufacturer || 'Производитель не указан'}</small><span>{item.description}</span></span>
         </label>)}{!visible.length && <p className="passport-empty">{models.length ? 'Нет совпадений. Измените поиск или производителя.' : 'Для этого типа пока нет паспортов.'}</p>}</div>
       </section>
@@ -102,6 +112,7 @@ export function ModelSelectModal({ componentType, onConfirm, onCancel, projectPa
       </section>
     </div>}
     </>}
+    <CreationParametersForm rows={creationRows} template={current?.template ?? []} disabled={busy} onChange={rows => { setCreationRows(rows); setSaveError(''); }} />
     {saveError && <p role="alert">{saveError}</p>}
     <div className="dialog-actions"><button className="tool-btn" onClick={onCancel} disabled={busy}>Отмена</button><button className="tool-btn primary" onClick={confirm} disabled={(source === 'shared' && loading) || busy || !ready}>{busy ? 'Добавление…' : 'Добавить на схему'}</button></div>
   </Dialog>;

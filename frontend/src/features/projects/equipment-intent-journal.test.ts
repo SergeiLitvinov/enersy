@@ -56,7 +56,7 @@ const response = (value: unknown) => new Response(JSON.stringify(value), { heade
 const graph = (revision: string, present: boolean) => ({ id: '7', projectId: '8', name: 'Graph', description: '', topologyRevision: revision,
   components: present ? [{ id: '10', typeId: '1', type: 'busbar', name: 'Шина', x: 0, y: 0, rotation: 0, revision: '1', equipmentModelId: null, params: { voltage_nom: '110.00' } }] : [], connections: [] });
 
-test.each([false, true])('lost creation survives reopening and replays exact identity before fresh graph (deleted=%s)', async deleted => {
+test.each([false, true])('lost creation with explicit units survives reopening and replays exact identity before fresh graph (deleted=%s)', async deleted => {
   const journal = createEquipmentIntentJournal(scope);
   const options = { identity: { accountId: scope.accountId, sessionId: scope.sessionId }, projectId: '8', schemeId: '7', name: 'Graph', writable: true, signal: new AbortController().signal,
     onPreparedEquipment: journal.prepare, onResolvedEquipment: journal.resolve };
@@ -67,16 +67,31 @@ test.each([false, true])('lost creation survives reopening and replays exact ide
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport(options), writes = new ComponentWrites();
   await transport.getScheme(7);
-  await expect(writes.graph.run(7, { ...intent, typeId: 1, commandId: undefined, expectedTopologyRevision: undefined },
-    capture => transport.addComponent(7, 1, 0, 0, 0, 'Шина', null, { voltage_nom: '110.00' }, capture))).rejects.toThrow('lost acknowledgement');
+  const declaration = { formatVersion: 1 as const, units: { voltage_nom: 'кВ' } };
+  const input = { schemeId: 7, typeId: 1, x: 0, y: 0, rotation: 0, name: 'Шина', equipmentModelId: null,
+    params: { voltage_nom: '110.00' }, parameterUnitDeclaration: declaration };
+  const pending = writes.graph.run(7, { ...intent, typeId: 1, commandId: undefined, expectedTopologyRevision: undefined, parameterUnitDeclaration: declaration },
+    capture => {
+      const result = transport.createComponent!(input, capture);
+      // Input belongs to the form; a later edit must not change a queued command.
+      input.params.voltage_nom = '220'; declaration.units.voltage_nom = 'В';
+      return result;
+    });
+  await expect(pending).rejects.toThrow('lost acknowledgement');
   const stored = journal.read()[0];
+  expect(stored.parameterUnitDeclaration?.units.voltage_nom).toBe('кВ');
+  expect(stored.params.voltage_nom).toBe('110.00');
   expect(stored.expectedTopologyRevision).toBe('0');
   expect(fetcher.mock.calls[1][1].headers).toMatchObject({ 'Idempotency-Key': stored.commandId, 'If-Match': '"0"', 'X-Enersy-Account-Id': scope.accountId, 'X-Enersy-Session-Id': scope.sessionId });
   const { queue, transport: reopened } = restoreProjectEditorJournal(options, { formatVersion: 1, components: [], graph: [{ intent: stored, reason: 'lost' }] });
   expect(() => queue.graph.assertConfirmed(7)).toThrow('подтверждено');
   const revision = deleted ? '2' : '1';
+  const changed = { ...stored, parameterUnitDeclaration: { formatVersion: 1 as const, units: { voltage_nom: 'В' } } };
+  await expect(reopened.retryComponentCreation!(changed)).rejects.toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(2);
   fetcher.mockResolvedValueOnce(response(graph(revision, !deleted)))
     .mockResolvedValueOnce(response({ success: true, id: '10', revision: '1', params: { voltage_nom: '110.00' }, equipmentModelId: null,
+      declaredParameterUnits: { formatVersion: 1, units: { voltage_nom: 'кВ' } },
       commandId: stored.commandId, topologyRevision: revision, deleted }))
     .mockResolvedValueOnce(response(graph(revision, !deleted)));
   const review = await queue.graph.review(7, async () => {

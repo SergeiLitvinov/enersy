@@ -9,6 +9,7 @@ import { useSchemeData } from './hooks/useSchemeData';
 import { useComputeBackends } from './hooks/useComputeBackends';
 import type { ComputeBackendId } from '../../api/compute-backends';
 import type { ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
+import type { CreationParameters } from '../../features/catalog/creation-parameters';
 import { isCalculationBudget } from '../../api/calculation-execution';
 import type { TerminalVoltageLimit } from '../../api/operating-assessment';
 import { limitContextKey } from './limit-context';
@@ -252,10 +253,11 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   }, [selectedConnection, deleteConnectionHandler]);
   const renderConnection=useCallback((conn:EditorConnection)=>renderWire(conn,connectionPaths.get(conn.id)),[renderWire,connectionPaths]);
 
-  const handleModelSelectConfirm = useCallback(async (equipmentModelId: number | null, projectPassportVersionId?: string) => {
+  const handleModelSelectConfirm = useCallback(async (equipmentModelId: number | null, projectPassportVersionId?: string,
+    creation?: CreationParameters) => {
     if (!pendingDrop) return;
     const isCurrent = captureView();
-    await addComponent(pendingDrop.item, pendingDrop.wx, pendingDrop.wy, equipmentModelId, projectPassportVersionId);
+    await addComponent(pendingDrop.item, pendingDrop.wx, pendingDrop.wy, equipmentModelId, projectPassportVersionId, creation);
     if (isCurrent()) setPendingDrop(null);
   }, [pendingDrop, addComponent, captureView]);
 

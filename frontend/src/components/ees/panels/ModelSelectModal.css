@@ -22,4 +22,13 @@
 .passport-table thead { background: var(--bg-toolbar); }
 .passport-different { background: var(--accent-blue-selected); }
 .passport-empty { padding: 12px; color: var(--text-secondary); line-height: 1.7; }
+.creation-parameters { margin-top: 20px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-card); }
+.creation-parameters summary { cursor: pointer; font-weight: 600; }
+.creation-parameters > p { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.creation-parameter-rows { display: grid; gap: 12px; margin-bottom: 12px; }
+.creation-parameter-row { display: grid; grid-template-columns: minmax(120px, 1.4fr) minmax(100px, 1fr) minmax(90px, .8fr) auto; align-items: end; gap: 10px; margin: 0; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; min-width: 0; }
+.creation-parameter-row legend { padding: 0 6px; font-size: 12px; color: var(--text-secondary); }
+.creation-parameter-row .passport-field { margin: 0; }
+.creation-parameter-hint { grid-column: 1 / -1; color: var(--text-secondary); line-height: 1.5; }
+@media (max-width: 640px) { .creation-parameter-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 @media (max-width: 640px) { .passport-layout { grid-template-columns: minmax(0, 1fr); } .passport-options { max-height: 230px; } .passport-preview { padding: 12px; } }
