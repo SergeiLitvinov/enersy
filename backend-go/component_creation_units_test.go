@@ -69,7 +69,7 @@ func TestCreationUnitDeclarationCodec(t *testing.T) {
 	if validateComponentCreation(missing) == nil {
 		t.Fatal("label without an explicit value accepted")
 	}
-	passport := &parameterUnitDeclaration{1, map[string]string{"p": "MW", "voltage_nom": "kV"}}
+	passport := &parameterUnitDeclaration{FormatVersion: 1, Units: map[string]string{"p": "MW", "voltage_nom": "kV"}}
 	first.unitDeclaration = passport
 	merged := creationParameterUnits(first)
 	merged.Units["p"] = "W"

@@ -40,7 +40,7 @@ func TestExternalAPIAcceptance(t *testing.T) {
 	}
 	list, err := session.ListTools(ctx, nil)
 	want := 1
-	if mode == "write" {
+	if mode == "write" || mode == "write-based" {
 		want = 2
 	}
 	if err != nil || len(list.Tools) != want {
@@ -70,16 +70,29 @@ func TestExternalAPIAcceptance(t *testing.T) {
 	if graph["id"] != os.Getenv("ENERSY_MCP_SCHEME_ID") || graph["projectId"] != os.Getenv("ENERSY_MCP_PROJECT_ID") {
 		t.Fatal("wrong scope")
 	}
-	if mode != "write" {
+	if mode != "write" && mode != "write-based" {
 		if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: createOperation, Arguments: map[string]any{}}); err == nil {
 			t.Fatal("read-only session exposed write")
 		}
 		return
 	}
-	args := map[string]any{"commandId": "11111111-1111-4111-8111-000000000999", "expectedTopologyRevision": graph["topologyRevision"],
+	commandID := "11111111-1111-4111-8111-000000000999"
+	expectedValue, expectedUnit := "110000.0000", "В"
+	if mode == "write-based" {
+		commandID = "11111111-1111-4111-8111-000000000997"
+		expectedValue, expectedUnit = "1.0000", "p.u."
+	}
+	args := map[string]any{"commandId": commandID, "expectedTopologyRevision": graph["topologyRevision"],
 		"equipment": map[string]any{"typeId": os.Getenv("TEST_MCP_TYPE_ID"), "name": "MCP acceptance busbar", "x": 0, "y": 0, "rotation": 0, "params": map[string]string{"voltage_nom": "110000.0000"},
 			"parameterUnitDeclaration": map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "В"}}}}
+	if mode == "write-based" {
+		equipment := args["equipment"].(map[string]any)
+		equipment["params"] = map[string]string{"voltage_nom": expectedValue}
+		equipment["parameterUnitDeclaration"] = map[string]any{"formatVersion": 2, "units": map[string]string{"voltage_nom": expectedUnit}, "bases": map[string]any{"voltage_nom": map[string]any{"profile": "ac-three-phase-rms-v1", "s_base_mva": 10, "v_base_kv": 110}}}
+	}
 	for _, units := range []any{nil, map[string]any{"formatVersion": 2, "units": map[string]string{"voltage_nom": "В"}},
+		map[string]any{"formatVersion": 2, "units": map[string]string{"voltage_nom": "p.u."}, "bases": map[string]any{"voltage_nom": map[string]any{"profile": "ac-three-phase-rms-v1", "s_base_mva": 0, "v_base_kv": 110}}},
+		map[string]any{"formatVersion": 2, "units": map[string]string{"voltage_nom": "p.u."}, "bases": map[string]any{"absent": map[string]any{"profile": "ac-three-phase-rms-v1", "s_base_mva": 10, "v_base_kv": 110}}},
 		map[string]any{"formatVersion": 1, "units": map[string]string{}},
 		map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": " MW"}},
 		map[string]any{"formatVersion": 1, "units": map[string]string{"voltage_nom": "В\n"}},
@@ -111,8 +124,11 @@ func TestExternalAPIAcceptance(t *testing.T) {
 		Params                 map[string]string
 		DeclaredParameterUnits *creationUnits
 	}
-	if json.Unmarshal([]byte(first.Content[0].(*mcp.TextContent).Text), &receipt) != nil || receipt.Params["voltage_nom"] != "110000.0000" || receipt.DeclaredParameterUnits == nil || receipt.DeclaredParameterUnits.Units["voltage_nom"] != "В" {
+	if json.Unmarshal([]byte(first.Content[0].(*mcp.TextContent).Text), &receipt) != nil || receipt.Params["voltage_nom"] != expectedValue || receipt.DeclaredParameterUnits == nil || receipt.DeclaredParameterUnits.Units["voltage_nom"] != expectedUnit {
 		t.Fatal("creation receipt lost the explicit value/unit pair")
+	}
+	if mode == "write-based" && (receipt.DeclaredParameterUnits.Bases["voltage_nom"] == nil || receipt.DeclaredParameterUnits.Bases["voltage_nom"].SBaseMVA != 10 || receipt.DeclaredParameterUnits.Bases["voltage_nom"].VBaseKV != 110) {
+		t.Fatal("lost source basis")
 	}
 	replay := call(createOperation, args)
 	if replay.IsError || replay.Content[0].(*mcp.TextContent).Text != first.Content[0].(*mcp.TextContent).Text {
@@ -128,8 +144,14 @@ func TestExternalAPIAcceptance(t *testing.T) {
 		if component["id"] == receipt.ID {
 			found = true
 			units := component["declaredParameterUnits"].(map[string]any)["units"].(map[string]any)
-			if component["params"].(map[string]any)["voltage_nom"] != "110000.0000" || units["voltage_nom"] != "В" {
+			if component["params"].(map[string]any)["voltage_nom"] != expectedValue || units["voltage_nom"] != expectedUnit {
 				t.Fatal("graph differs from acknowledged pair")
+			}
+			if mode == "write-based" {
+				base := component["declaredParameterUnits"].(map[string]any)["bases"].(map[string]any)["voltage_nom"].(map[string]any)
+				if base["profile"] != "ac-three-phase-rms-v1" || base["s_base_mva"] != float64(10) || base["v_base_kv"] != float64(110) {
+					t.Fatal("fresh graph lost original source base")
+				}
 			}
 		}
 	}
@@ -143,11 +165,20 @@ func TestExternalAPIAcceptance(t *testing.T) {
 		t.Fatal("unit-only change reused a command")
 	}
 	equipment["parameterUnitDeclaration"] = originalUnits
+	if mode == "write-based" {
+		bases := originalUnits.(map[string]any)["bases"].(map[string]any)
+		source := bases["voltage_nom"].(map[string]any)
+		source["s_base_mva"] = 20
+		if result := call(createOperation, args); !result.IsError {
+			t.Fatal("basis-only change reused original command")
+		}
+		source["s_base_mva"] = 10
+	}
 	args["commandId"] = "11111111-1111-4111-8111-000000000998"
 	if result := call(createOperation, args); !result.IsError {
 		t.Fatal("stale topology accepted")
 	}
-	args["commandId"] = "11111111-1111-4111-8111-000000000999"
+	args["commandId"] = commandID
 	args["equipment"].(map[string]any)["name"] = "Changed intention"
 	if result := call(createOperation, args); !result.IsError || strings.Contains(result.Content[0].(*mcp.TextContent).Text, "Changed intention") {
 		t.Fatal("changed intention accepted or echoed")

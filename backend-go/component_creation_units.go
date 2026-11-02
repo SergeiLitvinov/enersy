@@ -85,8 +85,16 @@ func (value creationUnitDeclaration) validate(params map[string]string) error {
 	if declaration == nil {
 		return nil
 	}
-	if declaration.FormatVersion != 1 || len(declaration.Units) == 0 || len(declaration.Units) > 256 {
+	if declaration.FormatVersion != 1 && declaration.FormatVersion != 2 || len(declaration.Units) == 0 || len(declaration.Units) > 256 {
 		return fmt.Errorf("Некорректная декларация единиц создания оборудования")
+	}
+	if declaration.FormatVersion == 1 && len(declaration.Bases) != 0 || declaration.FormatVersion == 2 && (len(declaration.Bases) == 0 || len(declaration.Bases) > 256) {
+		return fmt.Errorf("Базисы требуют декларацию v2")
+	}
+	for key, base := range declaration.Bases {
+		if declaration.Units[key] != "p.u." || base != nil && !base.valid() {
+			return fmt.Errorf("Некорректный базис параметра")
+		}
 	}
 	for key, unit := range declaration.Units {
 		if _, supplied := params[key]; !supplied {
@@ -102,19 +110,5 @@ func (value creationUnitDeclaration) validate(params map[string]string) error {
 // Never infer shared-catalog units from today's template. Only immutable
 // passport declarations and explicit value/unit pairs can enter the instance.
 func creationParameterUnits(req createComponentRequest) *parameterUnitDeclaration {
-	units := map[string]string{}
-	if req.unitDeclaration != nil {
-		for key, unit := range req.unitDeclaration.Units {
-			units[key] = unit
-		}
-	}
-	if explicit := req.UnitDeclaration.declaration; explicit != nil {
-		for key, unit := range explicit.Units {
-			units[key] = unit
-		}
-	}
-	if len(units) == 0 {
-		return nil
-	}
-	return &parameterUnitDeclaration{FormatVersion: 1, Units: units}
+	return mergeParameterUnits(req.unitDeclaration, req.UnitDeclaration.declaration)
 }

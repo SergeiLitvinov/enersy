@@ -17,6 +17,27 @@ const submit = () => host.querySelector('form')!.dispatchEvent(new Event('submit
 async function type(index: number, value: string) { await act(async () => { const input = inputs()[index]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); }
 const render = async (value = component) => { await act(async () => root.render(<ParameterUnitDialog component={value} onSave={save} onClose={close} />)); };
 
+test('p.u. needs explicit source bases and preserves them after a rejected write', async () => {
+  save.mockRejectedValueOnce(new Error('Revision conflict'));
+  await render(); await type(1, 'p.u.');
+  expect(inputs()[2].value).toBe(''); expect(inputs()[3].value).toBe('');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await type(2, '10'); await type(3, '35');
+  await act(async () => submit());
+  expect(save).toHaveBeenCalledWith('p', '10', 'p.u.', { profile: 'ac-three-phase-rms-v1', s_base_mva: 10, v_base_kv: 35 });
+  expect(close).not.toHaveBeenCalled();
+  expect(inputs()[2].value).toBe('10'); expect(inputs()[3].value).toBe('35');
+  expect(host.textContent).toContain('Revision conflict');
+});
+
+test('saved source bases are displayed without using a template or Study base', async () => {
+  await render({ ...component, declaredParameterUnits: { formatVersion: 2, units: { p: 'p.u.' }, bases: { p: { profile: 'ac-three-phase-rms-v1', s_base_mva: 20, v_base_kv: 110 } } } });
+  expect(inputs()[2].value).toBe('20'); expect(inputs()[3].value).toBe('110');
+  await type(1, 'MW'); expect(inputs()).toHaveLength(2);
+  await act(async () => submit());
+  expect(save).toHaveBeenCalledWith('p', '10', 'MW');
+});
+
 test('current template is a hint and never becomes an implicit declaration or default value', async () => {
   await render();
   expect(inputs()[0].value).toBe('10'); expect(inputs()[1].value).toBe(''); expect(inputs()[1].placeholder).toBe('МВт');

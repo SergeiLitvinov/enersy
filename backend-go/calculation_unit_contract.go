@@ -9,6 +9,7 @@ import (
 
 const acInputUnitProfile = "legacy-ac-three-phase-rms-v1"
 const scaledACInputUnitProfile = "scaled-ac-three-phase-rms-v2"
+const basedACInputUnitProfile = "based-ac-three-phase-rms-v3"
 
 var errUnitContract = errors.New("invalid input unit contract")
 
@@ -18,7 +19,7 @@ type inputUnitContract struct {
 }
 
 func validInputUnitContract(value *inputUnitContract) bool {
-	return value == nil || (value.FormatVersion == 1 && (value.Profile == acInputUnitProfile || value.Profile == scaledACInputUnitProfile))
+	return value == nil || (value.FormatVersion == 1 && (value.Profile == acInputUnitProfile || value.Profile == scaledACInputUnitProfile || value.Profile == basedACInputUnitProfile))
 }
 
 func closedUnitContractObject(data []byte, names ...string) (map[string]json.RawMessage, error) {
@@ -81,12 +82,13 @@ func applyInputUnitContract(payload map[string]any, contract *inputUnitContract,
 	}
 	type completeUnitComponent struct {
 		calculationComponent
-		Units map[string]string `json:"parameterUnits"`
+		Units map[string]string          `json:"parameterUnits"`
+		Bases *map[string]*parameterBase `json:"parameterBases,omitempty"`
 	}
 	values := make([]completeUnitComponent, len(components))
 	for i, component := range components {
 		units := component.ParameterUnits
-		if contract.Profile == scaledACInputUnitProfile {
+		if contract.Profile == scaledACInputUnitProfile || contract.Profile == basedACInputUnitProfile {
 			units = nil
 			if component.DeclaredParameterUnits != nil {
 				units = component.DeclaredParameterUnits.Units
@@ -95,7 +97,19 @@ func applyInputUnitContract(payload map[string]any, contract *inputUnitContract,
 		if units == nil {
 			units = map[string]string{}
 		}
-		values[i] = completeUnitComponent{component, units}
+		values[i] = completeUnitComponent{calculationComponent: component, Units: units}
+		if contract.Profile == basedACInputUnitProfile {
+			bases := map[string]*parameterBase{}
+			if component.DeclaredParameterUnits != nil {
+				for key, base := range component.DeclaredParameterUnits.Bases {
+					if base != nil {
+						cloned := *base
+						bases[key] = &cloned
+					}
+				}
+			}
+			values[i].Bases = &bases
+		}
 	}
 	payload["unitContract"] = contract
 	payload["components"] = values
@@ -120,7 +134,11 @@ func confirmsRequestedUnitContract(request, result []byte) bool {
 	if json.Unmarshal(result, &output) != nil {
 		return false
 	}
-	if _, err := closedUnitContractObject(output.Contract, "formatVersion", "profile", "validation_scope", "component_count", "parameter_count"); err != nil {
+	fields := []string{"formatVersion", "profile", "validation_scope", "component_count", "parameter_count"}
+	if input.Contract.Profile == basedACInputUnitProfile {
+		fields = append(fields, "basis_count")
+	}
+	if _, err := closedUnitContractObject(output.Contract, fields...); err != nil {
 		return false
 	}
 	var confirmation struct {
@@ -129,17 +147,25 @@ func confirmsRequestedUnitContract(request, result []byte) bool {
 		Scope         string `json:"validation_scope"`
 		Components    int    `json:"component_count"`
 		Parameters    int    `json:"parameter_count"`
+		Bases         *int   `json:"basis_count"`
 	}
 	if json.Unmarshal(output.Contract, &confirmation) != nil {
 		return false
 	}
-	parameters := 0
+	parameters, bases := 0, 0
 	for _, component := range input.Components {
 		parameters += len(component.Params)
+		bases += len(component.ParameterBases)
 	}
 	scope := "request-declarations-only"
 	if input.Contract.Profile == scaledACInputUnitProfile {
 		scope = "request-declarations-with-scale-normalization"
+	}
+	if input.Contract.Profile == basedACInputUnitProfile {
+		scope = "request-declarations-with-parameter-bases"
+		if confirmation.Bases == nil || *confirmation.Bases != bases {
+			return false
+		}
 	}
 	return validInputUnitContract(input.Contract) && confirmation.FormatVersion == input.Contract.FormatVersion && confirmation.Profile == input.Contract.Profile &&
 		confirmation.Scope == scope && confirmation.Components == len(input.Components) && confirmation.Parameters == parameters

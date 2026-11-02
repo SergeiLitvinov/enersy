@@ -50,3 +50,15 @@ test('equal value strings cannot hide different or missing captured unit labels'
     expect(params.changed).toBe('10');
   } finally { await act(async () => root.unmount()); vi.unstubAllGlobals(); }
 });
+test('equal p.u. strings show different bases without restoring a missing captured base from the passport', async () => {
+  Object.assign(globalThis,{ IS_REACT_ACT_ENVIRONMENT:true });
+  const host=document.createElement('div'), root=createRoot(host);
+  const base={ profile:'ac-three-phase-rms-v1' as const,s_base_mva:10,v_base_kv:35 };
+  const source: ComponentProvenance={ id:'1',revision:'2',name:'Source',source:'project-passport',passport:{ versionId:'8',revision:1,sha256:'a'.repeat(64),document:{ formatVersion:2,componentTypeCode:'load',name:'Passport',manufacturer:'',source:'Fixture',license:'MIT',parameters:{ p:{ value:'0.1000',unit:'p.u.',base } } } } };
+  try {
+    await act(async()=>root.render(<ArchiveProvenance source={source} params={{ p:'0.1000' }} parameterUnits={{ p:'p.u.' }} declaration={{ formatVersion:2,units:{ p:'p.u.' },bases:{ p:{ ...base,s_base_mva:100 } } }} />));
+    expect(host.textContent).toContain('Sб 10 МВА'); expect(host.textContent).toContain('Sб 100 МВА'); expect(host.textContent).toContain('Исходные базисы различаются');
+    await act(async()=>root.render(<ArchiveProvenance source={source} params={{ p:'0.1000' }} parameterUnits={{ p:'p.u.' }} />));
+    expect(host.textContent).toContain('Базис в снимке не сохранён'); expect(host.textContent).not.toContain('Исходные базисы совпадают');
+  } finally { await act(async()=>root.unmount()); }
+});

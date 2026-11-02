@@ -1,8 +1,10 @@
 import type { ComponentProvenance } from '../../api/calculation-provenance';
 import { CapturedUnitLabel } from './CapturedUnitLabel';
 import './ArchiveProvenance.css';
+import { parameterSourceBase, type ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
+import { parameterBaseLabel, sameParameterBase } from '../../domain/parameter-base';
 
-export function ArchiveProvenance({ source, params, parameterUnits }: { source?: ComponentProvenance; params: Record<string, string>; parameterUnits?: Readonly<Record<string, string>> }) {
+export function ArchiveProvenance({ source, params, parameterUnits, declaration }: { source?: ComponentProvenance; params: Record<string, string>; parameterUnits?: Readonly<Record<string, string>>; declaration?: ParameterUnitDeclaration }) {
   if (!source) return <p className="result-source-note">Происхождение паспорта в этом архиве не сохранено. Текущий каталог не используется для его восстановления.</p>;
   const passport = source.passport;
   return <section aria-label="Происхождение параметров">
@@ -18,10 +20,13 @@ export function ArchiveProvenance({ source, params, parameterUnits }: { source?:
           const unit = parameterUnits && Object.prototype.hasOwnProperty.call(parameterUnits,key) ? parameterUnits[key] : undefined;
           const valueStatus = actual === undefined ? 'Отсутствует в экземпляре' : !original ? 'Дополнено в экземпляре' : actual === original.value ? 'Строки значений совпадают' : 'Строки значений различаются';
           const unitStatus = actual === undefined || !original ? undefined : unit === undefined ? 'Единица в снимке не сохранена' : unit === original.unit ? 'Обозначения единиц совпадают' : 'Обозначения единиц различаются';
+          const basis = parameterSourceBase(declaration,key);
+          const baseStatus = actual !== undefined && original?.unit === 'p.u.' && unit === 'p.u.'
+            ? !original.base ? 'Исходный базис паспорта не сохранён' : !basis ? 'Базис в снимке не сохранён' : sameParameterBase(original.base,basis) ? 'Исходные базисы совпадают' : 'Исходные базисы различаются' : undefined;
           return <tr key={key}><th scope="row">{key}</th>
-            <td><span>{original ? original.value === '' ? 'Пустая строка' : original.value : 'Не задано'}</span>{original && <small><CapturedUnitLabel value={original.unit} /></small>}</td>
-            <td><span>{actual === undefined ? 'Не задано' : actual === '' ? 'Пустая строка' : actual}</span>{actual !== undefined && <small><CapturedUnitLabel value={unit} /></small>}</td>
-            <td><span>{valueStatus}</span>{unitStatus && <small>{unitStatus}</small>}</td></tr>;
+            <td><span>{original ? original.value === '' ? 'Пустая строка' : original.value : 'Не задано'}</span>{original && <small><CapturedUnitLabel value={original.unit} /></small>}{original?.unit === 'p.u.' && <small>{parameterBaseLabel(original.base)}</small>}</td>
+            <td><span>{actual === undefined ? 'Не задано' : actual === '' ? 'Пустая строка' : actual}</span>{actual !== undefined && <small><CapturedUnitLabel value={unit} /></small>}{actual !== undefined && unit === 'p.u.' && <small>{parameterBaseLabel(basis)}</small>}</td>
+            <td><span>{valueStatus}</span>{unitStatus && <small>{unitStatus}</small>}{baseStatus && <small>{baseStatus}</small>}</td></tr>;
         })}
       </tbody></table></div>
     </>}

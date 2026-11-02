@@ -14,6 +14,18 @@ const component: EditorComponent = { id: 1, type: 'busbar', typeId: 1, revision:
   params: { u: '110', i: '2000', enabled: 'true' },
   paramTemplate: ['u', 'i', 'enabled'].map(key => ({ key, name: key, type: key === 'enabled' ? 'boolean' : 'number', default: '', unit: '' })) };
 const input = (key: string) => container.querySelector<HTMLInputElement>(`#param-1-${key}`)!;
+
+test('a source basis change blocks dirty text even when p.u. and the number remain identical', async () => {
+  const atomic = vi.fn();
+  const source: EditorComponent = { ...component, declaredParameterUnits: { formatVersion: 2, units: { u: 'p.u.' }, bases: { u: { profile: 'ac-three-phase-rms-v1', s_base_mva: 10, v_base_kv: 35 } } } };
+  await act(async () => root.render(<ComponentParams component={source} onSave={save} onSaveParams={atomic} />));
+  await type('u', '1.2000');
+  await act(async () => root.render(<ComponentParams component={{ ...source, revision: '2', params: { ...source.params, u: '1.2000' }, declaredParameterUnits: { formatVersion: 2, units: { u: 'p.u.' }, bases: { u: { profile: 'ac-three-phase-rms-v1', s_base_mva: 100, v_base_kv: 35 } } } }} onSave={save} onSaveParams={atomic} />));
+  expect(container.textContent).toContain('исходный базис изменились');
+  await type('u', '1.3000'); await act(async () => { input('u').focus(); input('u').blur(); });
+  expect(atomic).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  expect(container.querySelector('.parameter-base-note')?.textContent).toContain('Sб 100 МВА');
+});
 test('parameter editing displays an explicit instance unit instead of a changed template', async () => {
   const declared = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { u: 'kV' } }, paramTemplate: [{ key: 'u', name: 'U', type: 'number', default: '', unit: 'V' }] };
   await act(async () => root.render(<ComponentParams component={declared} onSave={save} />));
@@ -27,7 +39,7 @@ test('dirty parameter text is never saved under a newly declared unit, even if s
   await type('u', '220');
   await act(async () => root.render(<ComponentParams component={{ ...source, params: { ...source.params, u: '220' }, declaredParameterUnits: { formatVersion: 1, units: { u: 'В' } } }} onSave={save} />));
   expect(input('u').value).toBe('220');
-  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица изменилась');
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица или исходный базис изменились');
   await type('u', '330'); await act(async () => { input('u').focus(); input('u').blur(); });
   expect(save).not.toHaveBeenCalled();
   await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Вернуть сохранённое значение')!.click());
@@ -144,7 +156,7 @@ test('changed server units block the atomic edit too, while boolean controls kee
   await act(async () => root.render(<ComponentParams component={{ ...source, params: { ...source.params, u: '220' }, declaredParameterUnits: { formatVersion: 1, units: { u: 'В' } } }} onSave={save} onSaveParams={atomic} />));
   await act(async () => { input('u').focus(); input('u').blur(); });
   expect(atomic).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
-  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица изменилась');
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица или исходный базис изменились');
   await act(async () => input('enabled').click());
   expect(save).toHaveBeenCalledWith('enabled', 'false'); expect(atomic).not.toHaveBeenCalled();
 });

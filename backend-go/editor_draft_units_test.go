@@ -7,6 +7,40 @@ import (
 	"testing"
 )
 
+func TestEditorDraftCreationBasesSharedFixture(t *testing.T) {
+	raw, err := os.ReadFile("../tests/fixtures/editor-create-bases-v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := decodeEditorDraft(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, err := decodeEditorDraft(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := restored.Graph[0].Intent
+	declaration := intent.ParameterUnitDeclaration.declaration
+	if intent.Params["p"] != "0.1000" || declaration == nil || declaration.FormatVersion != 2 || declaration.Bases["p"] == nil || declaration.Bases["p"].SBaseMVA != 10 || declaration.Bases["q"].VBaseKV != 35 {
+		t.Fatal("journal lost source representation", string(encoded))
+	}
+	var base parameterBase
+	if json.Unmarshal(restored.Components[0].Intents[0].Base, &base) != nil || base.SBaseMVA != 100 {
+		t.Fatal("journal lost explicit basis edit")
+	}
+	for _, unit := range []string{`"MW"`, `null`} {
+		malformed := strings.Replace(string(raw), `"unit": "p.u."`, `"unit": `+unit, 1)
+		if _, err := decodeEditorDraft([]byte(malformed)); err == nil {
+			t.Fatal("basis edit without p.u. accepted")
+		}
+	}
+}
+
 func TestEditorDraftCreationUnitSharedFixture(t *testing.T) {
 	data, err := os.ReadFile("../tests/fixtures/editor-create-units-v1.json")
 	if err != nil {

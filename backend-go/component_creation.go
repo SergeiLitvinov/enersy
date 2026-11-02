@@ -205,7 +205,8 @@ func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentReq
 			unit, declared = req.unitDeclaration.Units[key]
 		}
 		if declared {
-			_, err = tx.ExecContext(ctx, `INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value,unit_format_version,declared_unit) VALUES($1,$2,$3,1,$4)`, id, key, params[key], unit)
+			_, profile, power, voltage := parameterBaseSQL(req.unitDeclaration, key)
+			_, err = tx.ExecContext(ctx, `INSERT INTO scheme_component_params(scheme_component_id,param_key,param_value,unit_format_version,declared_unit,per_unit_base_profile,per_unit_s_base_mva,per_unit_v_base_kv) VALUES($1,$2,$3,1,$4,$5,$6,$7)`, id, key, params[key], unit, profile, power, voltage)
 		} else {
 			_, err = tx.ExecContext(ctx, "INSERT INTO scheme_component_params (scheme_component_id,param_key,param_value) VALUES ($1,$2,$3)", id, key, params[key])
 		}

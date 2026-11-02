@@ -148,7 +148,12 @@ func applyComponentPatch(ctx context.Context, tx *sql.Tx, id int, patch componen
 		}
 		if patch.UnitDeclaration != nil {
 			if unit, present := patch.UnitDeclaration.Units[key]; present {
-				if _, err := tx.ExecContext(ctx, `UPDATE scheme_component_params SET unit_format_version=1,declared_unit=$3 WHERE scheme_component_id=$1 AND param_key=$2`, id, key, unit); err != nil {
+				changed, profile, power, voltage := parameterBaseSQL(patch.UnitDeclaration, key)
+				if _, err := tx.ExecContext(ctx, `UPDATE scheme_component_params SET unit_format_version=1,declared_unit=$3,
+per_unit_base_profile=CASE WHEN $3<>'p.u.' THEN NULL WHEN $4 THEN $5 ELSE per_unit_base_profile END,
+per_unit_s_base_mva=CASE WHEN $3<>'p.u.' THEN NULL WHEN $4 THEN $6 ELSE per_unit_s_base_mva END,
+per_unit_v_base_kv=CASE WHEN $3<>'p.u.' THEN NULL WHEN $4 THEN $7 ELSE per_unit_v_base_kv END
+WHERE scheme_component_id=$1 AND param_key=$2`, id, key, unit, changed, profile, power, voltage); err != nil {
 					return err
 				}
 			}

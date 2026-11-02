@@ -48,6 +48,7 @@ type editorComponentIntent struct {
 	Key    *string         `json:"key,omitempty"`
 	Value  *string         `json:"value,omitempty"`
 	Unit   json.RawMessage `json:"unit,omitempty"`
+	Base   json.RawMessage `json:"base,omitempty"`
 }
 type editorGraphDraft struct {
 	Intent editorGraphIntent `json:"intent"`
@@ -147,7 +148,7 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 		for _, intent := range draft.Intents {
 			switch intent.Kind {
 			case "pose":
-				if len(intent.Values) == 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 {
+				if len(intent.Values) == 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 || len(intent.Base) != 0 {
 					return payload, errEditorDraftPayload
 				}
 				patch := componentPatchRequest{Pose: intent.Values}
@@ -164,8 +165,15 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 						return payload, errEditorDraftPayload
 					}
 				}
+				if len(intent.Base) != 0 {
+					var unit string
+					var base *parameterBase
+					if json.Unmarshal(intent.Unit, &unit) != nil || unit != "p.u." || json.Unmarshal(intent.Base, &base) != nil {
+						return payload, errEditorDraftPayload
+					}
+				}
 			case "delete":
-				if len(intent.Values) != 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 {
+				if len(intent.Values) != 0 || intent.Key != nil || intent.Value != nil || len(intent.Unit) != 0 || len(intent.Base) != 0 {
 					return payload, errEditorDraftPayload
 				}
 			default:
@@ -235,7 +243,7 @@ func unambiguousDraftJSON(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	fields := map[string]bool{}
-	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision declaredParameterUnits parameterUnitDeclaration units unit", " ") {
+	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision declaredParameterUnits parameterUnitDeclaration units unit bases profile s_base_mva v_base_kv", " ") {
 		fields[field] = true
 	}
 	var value func(int, bool) bool
@@ -261,7 +269,7 @@ func unambiguousDraftJSON(data []byte) bool {
 					return false
 				}
 				seen[name] = true
-				if !value(depth+1, !parameters && (name == "params" || name == "units")) {
+				if !value(depth+1, !parameters && (name == "params" || name == "units" || name == "bases")) {
 					return false
 				}
 			}

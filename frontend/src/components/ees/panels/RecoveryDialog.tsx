@@ -4,16 +4,17 @@ import { Dialog } from '../../ui/Dialog';
 import type { ComponentDraft } from '../component-drafts';
 import { compareComponentDraft, type ComponentComparisonRow } from '../component-comparison';
 import type { SchemeTransport } from '../scheme-transport';
+import { parameterBaseLabel } from '../../../domain/parameter-base';
 
 const statusLabels: Record<ComponentComparisonRow['status'], string> = {
   pending: 'Можно сверить с исходной версией', server_changed: 'Изменено на сервере',
   already_applied: 'Уже совпадает', object_missing: 'Объект удалён',
-  unit_changed: 'Единица изменилась — требуется повторный ввод',
+  unit_changed: 'Единица или базис изменились — требуется повторный ввод',
 };
 const display = (value: ComponentComparisonRow['base']) => value === undefined ? 'Не задано'
   : value === '' ? 'Пустая строка' : typeof value === 'boolean' ? value ? 'Да' : 'Нет' : String(value);
 const displayField = (row: ComponentComparisonRow, side: 'base' | 'local' | 'server') =>
-  `${display(row[side])}${row.units ? ` (${row.units[side] ?? 'единица не зафиксирована'})` : ''}`;
+  `${display(row[side])}${row.units ? ` (${row.units[side] ?? 'единица не зафиксирована'})` : ''}${row.units?.[side] === 'p.u.' ? ` · ${parameterBaseLabel(row.bases?.[side])}` : ''}`;
 
 export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, readScheme = getScheme }: { draft: ComponentDraft; onClose: () => void; readScheme?: SchemeTransport['getScheme'];
   onResolve?: (draft: ComponentDraft, server: SchemeComponent, fields: ReadonlySet<string>, mode: 'apply' | 'accept') => Promise<void>;
@@ -71,7 +72,7 @@ export function RecoveryDialog({ draft, onClose, onResolve, onResolveDeletion, r
       </table></div>
       {rows.length === 0 && <p>В журнале нет изменённых полей положения; подтверждение операции всё равно требует проверки.</p>}
       <p className="dialog-intro">Выберите поля. «Применить мои значения» сохранит их на сервере; «Принять серверные» снимет только выбранные локальные правки. Остальные сохранятся в журнале. Удаление разрешается отдельно.</p>
-      {rows.some(row => row.status === 'unit_changed') && <p className="result-notice">Единица параметра отличается от исходной. Применение прежнего значения заблокировано: примите серверное значение и заново введите параметр в актуальной единице. Автоматический пересчёт не выполняется. Если единица не зафиксирована, её историческое значение неизвестно.</p>}
+      {rows.some(row => row.status === 'unit_changed') && <p className="result-notice">Единица или исходный базис параметра отличаются от исходных. Применение прежнего значения заблокировано: примите серверное значение и заново введите параметр в актуальной единице и базисе. Автоматический пересчёт не выполняется. Если единица или базис не зафиксированы, их историческое значение неизвестно.</p>}
       {hasDeletion && <section aria-label="Разрешение удаления" className="result-notice recovery-deletion">
         <p>Неподтверждённое удаление рассматривается отдельно. Правки полей останутся в журнале.</p>
         {server ? <>

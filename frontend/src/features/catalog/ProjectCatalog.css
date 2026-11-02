@@ -20,5 +20,7 @@
 .passport-editor .passport-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-block: 20px; }
 .passport-editor input, .passport-editor select, .passport-editor textarea { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-canvas); color: var(--text-primary); font: inherit; }
 .passport-editor h4 { margin-top: 24px; }
+.passport-parameter-editor { min-width: 0; display: grid; align-content: start; gap: 12px; }
+.passport-editor .parameter-base-fields { border: 1px solid var(--border-color); padding: 14px; border-radius: 10px; margin: 0; }
 .passport-editor > .projects-note { margin-block: 16px; }
 @media(max-width: 700px) { .passport-editor .passport-fields { grid-template-columns: 1fr; } .catalog-versions li { flex-direction: column; align-items: stretch; } .catalog-detail dl { grid-template-columns: 1fr; } }

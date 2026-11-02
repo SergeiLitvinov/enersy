@@ -1,4 +1,5 @@
-import { parameterUnitLabel, type ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
+import { parameterUnitLabel, parameterSourceBase, type ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
+import { parameterBaseLabel } from '../../../domain/parameter-base';
 import React, { useState } from 'react';
 import { EditorComponent } from '../editor-utils';
 import { SwitchStateControl } from './SwitchStateControl';
@@ -39,7 +40,7 @@ function ParameterInput({ id, confirmed, boolean, placeholder, unit, readOnly = 
       title={readOnly ? 'Сначала задайте значение и единицу кнопкой справа. Единица шаблона не подтверждает единицу экземпляра.' : undefined}
       aria-describedby={input.conflicted ? `${id}-unit-conflict` : undefined}
       onChange={event => { if (!readOnly) change(event.target.value); }} onBlur={event => { if (event.target.value !== confirmed) void commit(event.target.value); }} />}
-    {input.conflicted && <span id={`${id}-unit-conflict`} role="alert">Единица изменилась. Ввод не сохранён. <button type="button" className="tool-btn" onClick={() => setInput({ confirmed, value: confirmed, unit, currentUnit: unit, conflicted: false })}>Вернуть сохранённое значение</button></span>}
+    {input.conflicted && <span id={`${id}-unit-conflict`} role="alert">Единица или исходный базис изменились. Ввод не сохранён. <button type="button" className="tool-btn" onClick={() => setInput({ confirmed, value: confirmed, unit, currentUnit: unit, conflicted: false })}>Вернуть сохранённое значение</button></span>}
     {error && <span role="alert">{error}</span>}
   </div>;
 }
@@ -57,7 +58,7 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
       <h3 className="param-title">{component.name}</h3>
       {onSaveParams && <button type="button" className="tool-btn" disabled={!fields.length && !Object.keys(component.params).length} onClick={() => setUnitDialog('')}>Задать значение и единицу</button>}
       {unitDialog !== null && onSaveParams && <ParameterUnitDialog component={{ ...component, paramTemplate: fields }} initialParameterKey={unitDialog || undefined} onClose={() => setUnitDialog(null)}
-        onSave={(key, value, unit) => onSaveParams({ [key]: value }, { formatVersion: 1, units: { [key]: unit } })} />}
+        onSave={(key, value, unit, base) => onSaveParams({ [key]: value }, base ? { formatVersion: 2, units: { [key]: unit }, bases: { [key]: base } } : { formatVersion: 1, units: { [key]: unit } })} />}
       {component.projectPassportVersionId != null && <p className="catalog-hint">Паспорт проекта · версия #{component.projectPassportVersionId}. Редактируется копия параметров экземпляра; обновление паспорта её не меняет.</p>}
       {component.equipmentModelId != null && <p className="catalog-hint">Паспорт каталога #{component.equipmentModelId} · редактируется копия параметров экземпляра</p>}
       <p className="catalog-hint">Объект #{component.id} · {loadForm ? 'Профиль нагрузки применяется кнопкой; прочие поля сохраняются при выходе из поля.' : 'Текстовые значения сохраняются при выходе из поля.'} Подсказка не означает заданный параметр.</p>
@@ -67,13 +68,14 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
       {component.type === 'transformer' && <p className="catalog-hint">φ: от −180° до 180°; положительный угол — опережение НН на холостом ходу. Без значения ядро принимает 0° с допущением. Группа соединения и нейтраль этой моделью не определяются.</p>}
       {fields.filter(p => !(switchKind && p.key === 'status') && !(loadForm && loadProfileKeys.some(key => key === p.key))).map(p => {
         const unit = parameterUnitLabel(component.declaredParameterUnits, p.key, '');
+        const base = parameterSourceBase(component.declaredParameterUnits, p.key);
         const atomicNumeric = p.type === 'number' && onSaveParams;
         return (
         <div key={p.key} className="param-item">
           <label htmlFor={`param-${component.id}-${p.key}`}>{p.name}</label>
           <ParameterInput key={`${p.key}:${parameterResets?.[p.key] ?? 0}`} id={`param-${component.id}-${p.key}`}
             confirmed={component.params[p.key] ?? ''} boolean={p.type === 'boolean'} placeholder={p.default || 'Не задано'}
-            unit={unit} readOnly={Boolean(atomicNumeric && !unit)}
+            unit={JSON.stringify([unit, base?.profile ?? null, base?.s_base_mva ?? null, base?.v_base_kv ?? null])} readOnly={Boolean(atomicNumeric && (!unit || unit === 'p.u.' && !base))}
             onSave={value => atomicNumeric
               ? atomicNumeric({ [p.key]: value }, { formatVersion: 1, units: { [p.key]: unit } })
               : onSave(p.key, value)} />
@@ -81,6 +83,7 @@ export const ComponentParams: React.FC<ComponentParamsProps> = ({ component, onS
             title={unit ? `Единица экземпляра: ${unit}. Изменить значение и единицу вместе.` : `Единица экземпляра не задана. Подсказка шаблона: ${p.unit || 'нет'}.`}
             onClick={() => setUnitDialog(p.key)}>{unit || 'Ед.?'}</button>
             : <span className="param-unit">{unit || p.unit}</span>}
+          {unit === 'p.u.' && <small className="parameter-base-note">{parameterBaseLabel(base)}</small>}
         </div>
       ); })}
       {!component.paramTemplate?.length && <p className="placeholder-text">Загрузка...</p>}

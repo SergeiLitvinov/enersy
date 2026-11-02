@@ -22,10 +22,10 @@ func TestCreationUnitAcknowledgement(t *testing.T) {
 		{"missing declaration", func(r map[string]any) { delete(r, "declaredParameterUnits") }, false},
 		{"null declaration", func(r map[string]any) { r["declaredParameterUnits"] = nil }, false},
 		{"wrong unit", func(r map[string]any) {
-			r["declaredParameterUnits"] = &creationUnits{1, map[string]string{"voltage_nom": "кВ"}}
+			r["declaredParameterUnits"] = &creationUnits{FormatVersion: 1, Units: map[string]string{"voltage_nom": "кВ"}}
 		}, false},
 		{"wrong version", func(r map[string]any) {
-			r["declaredParameterUnits"] = &creationUnits{2, map[string]string{"voltage_nom": "В"}}
+			r["declaredParameterUnits"] = &creationUnits{FormatVersion: 3, Units: map[string]string{"voltage_nom": "В"}}
 		}, false},
 		{"rounded value", func(r map[string]any) { r["params"] = map[string]string{"voltage_nom": "110000"} }, false},
 		{"absent value", func(r map[string]any) { r["params"] = map[string]string{} }, false},
@@ -39,7 +39,7 @@ func TestCreationUnitAcknowledgement(t *testing.T) {
 					t.Error("lost original command identity")
 				}
 				receipt := map[string]any{"success": true, "id": "1", "revision": "1", "topologyRevision": "2", "commandId": command,
-					"deleted": false, "params": map[string]string{"voltage_nom": "110000.0000"}, "declaredParameterUnits": &creationUnits{1, map[string]string{"voltage_nom": "В"}}}
+					"deleted": false, "params": map[string]string{"voltage_nom": "110000.0000"}, "declaredParameterUnits": &creationUnits{FormatVersion: 1, Units: map[string]string{"voltage_nom": "В"}}}
 				tc.change(receipt)
 				w.Header().Set("Content-Type", "application/json")
 				if err := json.NewEncoder(w).Encode(receipt); err != nil {

@@ -1,8 +1,9 @@
 import type { ComponentParam } from '../../api/ees-api';
 import { copyCreationParams, copyCreationUnits } from '../../api/component-creation';
 import type { ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
+import { parameterBaseDraft } from '../../domain/parameter-base';
 
-export interface CreationParameterRow { id: number; key: string; value: string; unit: string }
+export interface CreationParameterRow { id: number; key: string; value: string; unit: string; power?: string; voltage?: string }
 export interface CreationParameters { params: Record<string, string>; parameterUnitDeclaration?: ParameterUnitDeclaration }
 
 /** Explicit overrides only. Neither template defaults nor passport values are inferred. */
@@ -20,5 +21,6 @@ export function creationParameters(rows: readonly CreationParameterRow[], templa
   }
   const params = copyCreationParams(Object.fromEntries(rows.map(row => [row.key, row.value])));
   const units = Object.fromEntries(rows.filter(row => row.unit !== '').map(row => [row.key, row.unit]));
-  return { params, ...(Object.keys(units).length ? { parameterUnitDeclaration: copyCreationUnits({ formatVersion: 1, units }, params) } : {}) };
+  const bases = Object.fromEntries(rows.filter(row => row.unit === 'p.u.').map(row => [row.key, parameterBaseDraft(row.power ?? '', row.voltage ?? '')]));
+  return { params, ...(Object.keys(units).length ? { parameterUnitDeclaration: copyCreationUnits(Object.keys(bases).length ? { formatVersion: 2, units, bases } : { formatVersion: 1, units }, params) } : {}) };
 }

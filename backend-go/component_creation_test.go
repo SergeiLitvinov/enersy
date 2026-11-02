@@ -56,7 +56,7 @@ func TestComponentCreationPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	for _, name := range []string{"000001_v1.up.sql"} {
+	for _, name := range []string{"000001_v1.up.sql", "000002_application_commands.up.sql", "000003_parameter_bases.up.sql"} {
 		data, err := os.ReadFile(filepath.Join("..", "database", "migrations", name))
 		if err != nil {
 			t.Fatal(err)

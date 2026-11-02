@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 	f := newStudyFixture(t)
 	auth := newAuthHTTP(f.store.database, "http://localhost", false)
 	var acknowledgements atomic.Int32
+	var commandAcknowledgements sync.Map
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/auth/") {
 			auth.ServeHTTP(w, r)
@@ -30,7 +32,13 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 			// acknowledgement. The transport must not silently replay the POST.
 			reply := httptest.NewRecorder()
 			(projectsHTTP{auth: auth}).ServeHTTP(reply, r)
-			if reply.Code == http.StatusCreated && acknowledgements.Add(1) == 1 {
+			lose := false
+			if reply.Code == http.StatusCreated {
+				acknowledgements.Add(1)
+				count, _ := commandAcknowledgements.LoadOrStore(r.Header.Get("Idempotency-Key"), &atomic.Int32{})
+				lose = count.(*atomic.Int32).Add(1) == 1
+			}
+			if lose {
 				connection, _, err := w.(http.Hijacker).Hijack()
 				if err != nil {
 					t.Error(err)
@@ -76,6 +84,7 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 	check(0, "read", false)
 	check(2, "read", true) // write opt-in never grants a viewer permission.
 	check(0, "write", true)
+	check(0, "write-based", true)
 	check(3, "denied", true)
 	if err := (sessionStore{database: f.store.database}).Revoke(context.Background(), f.tokens[0].Token, f.tokens[0].Identity.SessionID); err != nil {
 		t.Fatal(err)
@@ -85,10 +94,10 @@ func TestMCPExternalClientPostgres(t *testing.T) {
 	if err := f.store.database.QueryRow(`SELECT (SELECT count(*) FROM scheme_components WHERE scheme_id=$1),(SELECT count(*) FROM project_application_commands WHERE scheme_id=$1)`, f.scheme).Scan(&components, &receipts); err != nil {
 		t.Fatal(err)
 	}
-	if components != 3 || receipts != 1 {
+	if components != 4 || receipts != 2 {
 		t.Fatal("MCP wrote duplicate data or receipts", components, receipts)
 	}
-	if acknowledgements.Load() != 3 {
+	if acknowledgements.Load() != 6 {
 		t.Fatal("unexpected automatic or missing replay", acknowledgements.Load())
 	}
 }

@@ -1,4 +1,5 @@
-import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
+import { parseParameterUnitDeclaration, parameterSourceBase, type ParameterUnitDeclaration } from './parameter-unit-declaration';
+import { sameParameterBase } from '../domain/parameter-base';
 
 export interface ComponentCreationInput {
   schemeId: number; typeId: number; x: number; y: number; rotation: number; name: string;
@@ -19,7 +20,8 @@ export function copyCreationParams(raw: unknown): Record<string, string> {
 export function copyCreationUnits(raw: unknown, params: Readonly<Record<string, unknown>>): ParameterUnitDeclaration {
   const declaration = parseParameterUnitDeclaration(raw, params);
   if (Object.keys(declaration.units).length > 256) throw new Error('Слишком много единиц создания');
-  return { formatVersion: 1, units: Object.fromEntries(Object.entries(declaration.units).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) };
+  const sorted = <T,>(values: Record<string, T>) => Object.fromEntries(Object.entries(values).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+  return { formatVersion: declaration.formatVersion, units: sorted(declaration.units), ...(declaration.bases ? { bases: sorted(declaration.bases) } : {}) };
 }
 
 export function copyComponentCreation(input: ComponentCreationInput): ComponentCreationInput & { params: Record<string, string> } {
@@ -29,7 +31,8 @@ export function copyComponentCreation(input: ComponentCreationInput): ComponentC
 
 export function requireCreationUnits(requested: ParameterUnitDeclaration | undefined, params: Readonly<Record<string, string>>,
   created: { params: Readonly<Record<string, string>>; declaredParameterUnits?: ParameterUnitDeclaration }): void {
-  if (requested && Object.entries(requested.units).some(([key, unit]) => created.params[key] !== params[key] || created.declaredParameterUnits?.units[key] !== unit)) {
+  if (requested && (Object.entries(requested.units).some(([key, unit]) => created.params[key] !== params[key] || created.declaredParameterUnits?.units[key] !== unit) ||
+    Object.entries(requested.bases ?? {}).some(([key, base]) => !sameParameterBase(base, parameterSourceBase(created.declaredParameterUnits, key))))) {
     throw new Error('Сервер не подтвердил исходные значения и единицы создания. Перечитайте схему и сверьте журнал команды.');
   }
 }

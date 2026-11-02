@@ -3,6 +3,7 @@ import { parseComponentRevision, type ComponentWriteResult } from '../../api/com
 import { ComponentDrafts, type ComponentDraft, type ComponentIntent } from './component-drafts';
 import { prepareRecoveryPatch, validateRecoverySelection } from './component-comparison';
 import { GraphWrites } from './graph-writes';
+import { copyParameterUnits, mergeParameterUnits } from '../../api/parameter-unit-declaration';
 
 export type ComponentPose = Pick<SchemeComponent, 'x' | 'y' | 'rotation' | 'name'>;
 
@@ -87,7 +88,7 @@ export class ComponentWrites {
     const fields = new Set(selected);
     this.activity++;
     const compared = { ...server, params: { ...server.params } };
-    if (server.declaredParameterUnits) compared.declaredParameterUnits = { formatVersion: 1, units: { ...server.declaredParameterUnits.units } };
+    if (server.declaredParameterUnits) compared.declaredParameterUnits = copyParameterUnits(server.declaredParameterUnits);
     const entry = this.entry(compared);
     const result = entry.tail.then(async () => {
       if (!isCurrent()) return undefined;
@@ -100,8 +101,7 @@ export class ComponentWrites {
         confirmed.revision = parseComponentRevision(acknowledgement.revision);
         Object.assign(confirmed, prepared.patch.pose);
         confirmed.params = { ...confirmed.params, ...prepared.patch.params };
-        if (prepared.patch.parameterUnitDeclaration) confirmed.declaredParameterUnits = { formatVersion: 1,
-          units: { ...confirmed.declaredParameterUnits?.units, ...prepared.patch.parameterUnitDeclaration.units } };
+        if (prepared.patch.parameterUnitDeclaration) confirmed.declaredParameterUnits = mergeParameterUnits(confirmed.declaredParameterUnits, prepared.patch.parameterUnitDeclaration);
       }
       this.drafts.resolveReviewed(draft, fields, confirmed);
       entry.revision = confirmed.revision;

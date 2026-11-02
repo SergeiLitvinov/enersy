@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PassportVersion } from '../../../api/project-passports-api';
 import type { SchemeTransport } from '../scheme-transport';
 import type { ComponentParam } from '../../../api/ees-api';
+import { parameterBaseLabel } from '../../../domain/parameter-base';
 
 export function ProjectPassportPicker({ read, typeCode, selected, onSelect, disabled, template }: {
   read: NonNullable<SchemeTransport['projectPassports']>; typeCode: string;
@@ -45,7 +46,7 @@ export function ProjectPassportPicker({ read, typeCode, selected, onSelect, disa
         <p>Источник: {selected.document.source}</p><p>Условия использования: {selected.document.license}</p>
         <p className="passport-provenance">На схему будет скопирован этот набор значений. Черновик не подтверждает полноту данных для расчёта; отсутствующие параметры не подставляются.</p>
         <div className="passport-table-wrap"><table className="passport-table"><caption>Параметры выбранной версии</caption><thead><tr><th scope="col">Параметр</th><th scope="col">Значение</th><th scope="col">Единица паспорта</th></tr></thead><tbody>
-          {Object.entries(selected.document.parameters).map(([key, parameter]) => <tr key={key}><th scope="row">{template.find(item => item.key === key)?.name || key}</th><td>{parameter.value}</td><td>{parameter.unit || 'Не указана'}</td></tr>)}
+          {Object.entries(selected.document.parameters).map(([key, parameter]) => <tr key={key}><th scope="row">{template.find(item => item.key === key)?.name || key}</th><td>{parameter.value}</td><td>{parameter.unit || 'Не указана'}{parameter.unit === 'p.u.' && <small>{parameterBaseLabel(parameter.base)}</small>}</td></tr>)}
         </tbody></table></div>
       </>}
     </section>

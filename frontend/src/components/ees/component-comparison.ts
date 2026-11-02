@@ -1,6 +1,8 @@
 import type { ComponentPatch, SchemeComponent } from '../../api/ees-api';
 import { parseComponentRevision } from '../../api/component-revision';
 import type { ComponentDraft } from './component-drafts';
+import { sameParameterBase, type ParameterBase } from '../../domain/parameter-base';
+import { parameterSourceBase } from '../../api/parameter-unit-declaration';
 
 export interface ComponentComparisonRow {
   key: string;
@@ -10,6 +12,8 @@ export interface ComponentComparisonRow {
   server: string | number | boolean | undefined;
   units?: { base: string | undefined; local: string | undefined; server: string | undefined };
   unitEdit?: boolean;
+  baseEdit?: boolean;
+  bases?: { base: ParameterBase | null | undefined; local: ParameterBase | null | undefined; server: ParameterBase | null | undefined };
   status: 'pending' | 'server_changed' | 'already_applied' | 'object_missing' | 'unit_changed';
 }
 
@@ -26,14 +30,21 @@ export function compareComponentDraft(draft: ComponentDraft, server?: SchemeComp
     } else if (intent.kind === 'parameter') {
       const baseUnit = parameter(draft.base.declaredParameterUnits?.units, intent.key);
       const previous = touched.get(`parameter:${intent.key}`);
+      const localUnit = intent.unit ?? previous?.units?.local ?? baseUnit;
+      const baseBasis = parameterSourceBase(draft.base.declaredParameterUnits, intent.key);
+      const serverBasis = parameterSourceBase(server?.declaredParameterUnits, intent.key);
+      const baseEdit = Object.prototype.hasOwnProperty.call(intent, 'base');
+      const localBasis = localUnit === 'p.u.' ? (baseEdit ? intent.base : previous ? previous.bases?.local : baseBasis) : undefined;
       touched.set(`parameter:${intent.key}`, { label: `Параметр ${intent.key}`, base: parameter(draft.base.params, intent.key), local: intent.value, server: parameter(server?.params, intent.key),
-        units: { base: baseUnit, local: intent.unit ?? previous?.units?.local ?? baseUnit, server: parameter(server?.declaredParameterUnits?.units, intent.key) },
+        units: { base: baseUnit, local: localUnit, server: parameter(server?.declaredParameterUnits?.units, intent.key) },
+        ...(baseBasis || localBasis || serverBasis ? { bases: { base: baseBasis, local: localBasis, server: serverBasis } } : {}),
+        ...(baseEdit || previous?.baseEdit ? { baseEdit: true } : {}),
         ...(intent.unit === undefined && !previous?.unitEdit ? {} : { unitEdit: true }) });
     } else touched.set('delete', { label: 'Объект существует', base: true, local: false, server: Boolean(server) });
   }
   return [...touched].map(([key, row]) => ({ key, ...row, status: !server && key !== 'delete' ? 'object_missing'
-    : Object.is(row.local, row.server) && (!row.units || row.units.local === row.units.server) ? 'already_applied'
-    : row.units && row.units.base !== row.units.server ? 'unit_changed'
+    : Object.is(row.local, row.server) && (!row.units || row.units.local === row.units.server) && sameParameterBase(row.bases?.local, row.bases?.server) ? 'already_applied'
+    : row.units && (row.units.base !== row.units.server || !sameParameterBase(row.bases?.base, row.bases?.server)) ? 'unit_changed'
     : Object.is(row.base, row.server) ? 'pending' : 'server_changed' }));
 }
 
@@ -60,7 +71,7 @@ export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeCompon
   for (const key of selected) {
     const row = rows.get(key);
     if (!row || key === 'delete') throw new Error('Удаление выполняется отдельно от изменения полей');
-    if (row.status === 'unit_changed') throw new Error('Единица параметра изменилась. Примите серверное значение и заново задайте параметр в актуальной единице.');
+    if (row.status === 'unit_changed') throw new Error('Единица или исходный базис параметра изменились. Примите серверное значение и заново задайте параметр в актуальной единице и базисе.');
     if (row.status === 'already_applied') continue;
     if (key.startsWith('parameter:')) {
       if (typeof row.local !== 'string') throw new Error('Некорректное значение параметра');
@@ -69,6 +80,11 @@ export function prepareRecoveryPatch(draft: ComponentDraft, server: SchemeCompon
       if (row.unitEdit && row.units?.local !== undefined) {
         patch.parameterUnitDeclaration ??= { formatVersion: 1, units: {} };
         Object.defineProperty(patch.parameterUnitDeclaration.units, key.slice('parameter:'.length), { value: row.units.local, enumerable: true, configurable: true, writable: true });
+        if ((row.baseEdit || !sameParameterBase(row.bases?.base, row.bases?.local)) && row.units.local === 'p.u.') {
+          patch.parameterUnitDeclaration.formatVersion = 2;
+          patch.parameterUnitDeclaration.bases ??= {};
+          Object.defineProperty(patch.parameterUnitDeclaration.bases, key.slice('parameter:'.length), { value: row.bases?.local ? { ...row.bases.local } : null, enumerable: true, configurable: true, writable: true });
+        }
       }
     } else {
       patch.pose ??= {};

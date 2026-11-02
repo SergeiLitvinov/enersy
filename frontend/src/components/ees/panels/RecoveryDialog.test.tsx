@@ -37,6 +37,17 @@ test('a late earlier comparison cannot replace the refreshed server version', as
 
 const serverScheme: Scheme = { id: 1, name: '', description: '', created_at: '', updated_at: '', components: [{ ...draft.base, revision: '8', x: 100 }] };
 
+test('comparison exposes different p.u. source bases and prevents applying the old coefficient', async () => {
+  const source: ComponentDraft = { ...draft, base: { ...draft.base, params: { p: '0.1000' }, declaredParameterUnits: { formatVersion: 2, units: { p: 'p.u.' }, bases: { p: { profile: 'ac-three-phase-rms-v1', s_base_mva: 10, v_base_kv: 35 } } } },
+    intents: [{ kind: 'parameter', key: 'p', value: '0.2000' }] };
+  vi.mocked(getScheme).mockResolvedValue({ ...serverScheme, components: [{ ...source.base, revision: '8', declaredParameterUnits: { formatVersion: 2, units: { p: 'p.u.' }, bases: { p: { profile: 'ac-three-phase-rms-v1', s_base_mva: 100, v_base_kv: 35 } } } }] });
+  await act(async () => root.render(<RecoveryDialog draft={source} onClose={() => {}} onResolve={vi.fn()} />));
+  expect(container.textContent).toContain('Sб 10 МВА'); expect(container.textContent).toContain('Sб 100 МВА');
+  await chooseX();
+  expect(button('Применить мои значения').disabled).toBe(true);
+  expect(button('Принять серверные').disabled).toBe(false);
+});
+
 test('comparison shows original and current unit labels and marks changed units before matching numbers', async () => {
   const source: ComponentDraft = { ...draft, base: { ...draft.base, params: { p: '10' }, declaredParameterUnits: { formatVersion: 1, units: { p: 'МВт' } } },
     intents: [{ kind: 'parameter', key: 'p', value: '20' }] };
@@ -47,7 +58,7 @@ test('comparison shows original and current unit labels and marks changed units 
   expect(container.textContent).toContain('10 (МВт)');
   expect(container.textContent).toContain('20 (МВт)');
   expect(container.textContent).toContain('20 (Вт)');
-  expect(container.textContent).toContain('Единица изменилась');
+  expect(container.textContent).toContain('Единица или базис изменились');
   expect(container.textContent).not.toContain('Уже совпадает');
   await chooseX();
   expect(button('Применить мои значения').disabled).toBe(true);

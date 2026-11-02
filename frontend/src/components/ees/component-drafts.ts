@@ -1,10 +1,12 @@
 import type { SchemeComponent } from '../../api/ees-api';
 import type { ComponentPose } from './component-writes';
 import { parseComponentRevision } from '../../api/component-revision';
+import { copyParameterUnits, mergeParameterUnits, parameterSourceBase } from '../../api/parameter-unit-declaration';
+import { sameParameterBase, type ParameterBase } from '../../domain/parameter-base';
 
 export type ComponentIntent =
   | { kind: 'pose'; values: Partial<ComponentPose> }
-  | { kind: 'parameter'; key: string; value: string; unit?: string }
+  | { kind: 'parameter'; key: string; value: string; unit?: string; base?: ParameterBase | null }
   | { kind: 'delete' };
 
 export interface ComponentDraft {
@@ -20,11 +22,11 @@ const copyComponent = (component: SchemeComponent): SchemeComponent => ({
   id: component.id, revision: component.revision, type: component.type, typeId: component.typeId,
   name: component.name, x: component.x, y: component.y, rotation: component.rotation,
   equipmentModelId: component.equipmentModelId, params: { ...component.params },
-  ...(component.declaredParameterUnits ? { declaredParameterUnits: { formatVersion: 1, units: { ...component.declaredParameterUnits.units } } } : {}),
+  ...(component.declaredParameterUnits ? { declaredParameterUnits: copyParameterUnits(component.declaredParameterUnits) } : {}),
   ...(component.projectPassportVersionId == null ? {} : { projectPassportVersionId: component.projectPassportVersionId }),
 });
 const copyIntent = (intent: ComponentIntent): ComponentIntent => intent.kind === 'pose'
-  ? { kind: 'pose', values: { ...intent.values } } : { ...intent };
+  ? { kind: 'pose', values: { ...intent.values } } : intent.kind === 'parameter' && intent.base ? { ...intent, base: { ...intent.base } } : { ...intent };
 
 /** App-lifetime recovery journal. Reload updates the server baseline, not failed intents. */
 export class ComponentDrafts {
@@ -85,7 +87,10 @@ export class ComponentDrafts {
       if (intent.kind === 'pose') Object.assign(next, intent.values);
       else {
         next.params = { ...next.params, [intent.key]: intent.value };
-        if (intent.unit !== undefined) next.declaredParameterUnits = { formatVersion: 1, units: { ...next.declaredParameterUnits?.units, [intent.key]: intent.unit } };
+        if (intent.unit !== undefined) next.declaredParameterUnits = mergeParameterUnits(next.declaredParameterUnits, {
+          formatVersion: Object.prototype.hasOwnProperty.call(intent, 'base') ? 2 : 1, units: { [intent.key]: intent.unit },
+          ...(Object.prototype.hasOwnProperty.call(intent, 'base') ? { bases: { [intent.key]: intent.base ?? null } } : {}),
+        });
       }
       next.revision = revision;
       this.confirmed.set(ticket.key, next);
@@ -190,7 +195,7 @@ export class ComponentDrafts {
         ? draft.base.declaredParameterUnits.units[key] : undefined;
       const serverUnit = server.declaredParameterUnits && Object.prototype.hasOwnProperty.call(server.declaredParameterUnits.units, key)
         ? server.declaredParameterUnits.units[key] : undefined;
-      if (originalUnit !== serverUnit && [...draft.intents.values()].some(intent => intent.kind === 'parameter' && intent.key === key)) continue;
+      if ((originalUnit !== serverUnit || !sameParameterBase(parameterSourceBase(draft.base.declaredParameterUnits, key), parameterSourceBase(server.declaredParameterUnits, key))) && [...draft.intents.values()].some(intent => intent.kind === 'parameter' && intent.key === key)) continue;
       if (Object.prototype.hasOwnProperty.call(server.params, key)) {
         Object.defineProperty(draft.base.params, key, { value: server.params[key], enumerable: true, writable: true, configurable: true });
       } else delete draft.base.params[key];
@@ -198,7 +203,11 @@ export class ComponentDrafts {
       if (server.declaredParameterUnits && Object.prototype.hasOwnProperty.call(server.declaredParameterUnits.units, key)) {
         Object.defineProperty(units, key, { value: server.declaredParameterUnits.units[key], enumerable: true, writable: true, configurable: true });
       } else delete units[key];
-      if (Object.keys(units).length) draft.base.declaredParameterUnits = { formatVersion: 1, units };
+      const bases = copyParameterUnits(draft.base.declaredParameterUnits ?? { formatVersion: 1, units: {} }).bases ?? {};
+      const serverBase = parameterSourceBase(server.declaredParameterUnits, key);
+      if (serverBase) Object.defineProperty(bases, key, { value: { ...serverBase }, enumerable: true, writable: true, configurable: true });
+      else delete bases[key];
+      if (Object.keys(units).length) draft.base.declaredParameterUnits = Object.keys(bases).length ? { formatVersion: 2, units, bases } : { formatVersion: 1, units };
       else delete draft.base.declaredParameterUnits;
     }
     // Baseline values may originate in different revisions until all fields are resolved.

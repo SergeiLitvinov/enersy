@@ -26,8 +26,9 @@ const readOperation = "scheme.read.v1"
 const createOperation = "component.create.v1"
 
 type creationUnits struct {
-	FormatVersion int               `json:"formatVersion"`
-	Units         map[string]string `json:"units"`
+	FormatVersion int                      `json:"formatVersion"`
+	Units         map[string]string        `json:"units"`
+	Bases         map[string]*creationBase `json:"bases,omitempty"`
 }
 
 var errConfiguration = errors.New("invalid MCP configuration or session file")
@@ -324,13 +325,19 @@ func (b *bridge) invoke(ctx context.Context, op operation, arguments json.RawMes
 			return nil, errAPI
 		}
 		if units := requested.ParameterUnitDeclaration; units != nil {
-			if units.FormatVersion != 1 || len(units.Units) == 0 || receipt.DeclaredParameterUnits == nil || receipt.DeclaredParameterUnits.FormatVersion != 1 {
+			if !validCreationUnits(units, false) || !validCreationUnits(receipt.DeclaredParameterUnits, true) {
 				return nil, errAPI
 			}
 			for key, unit := range units.Units {
 				value, present := requested.Params[key]
 				actual, confirmed := receipt.Params[key]
 				if !present || !confirmed || actual != value || receipt.DeclaredParameterUnits.Units[key] != unit {
+					return nil, errAPI
+				}
+			}
+			for key, base := range units.Bases {
+				actual := receipt.DeclaredParameterUnits.Bases[key]
+				if base == nil && actual != nil || base != nil && (actual == nil || *actual != *base) {
 					return nil, errAPI
 				}
 			}

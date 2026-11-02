@@ -1,3 +1,4 @@
+import { parameterBaseLabel } from '../../domain/parameter-base';
 import { useEffect, useRef, useState } from 'react';
 import { listProjectPassports, readProjectPassport, type PassportVersion } from '../../api/project-passports-api';
 import { SessionError, type Project } from '../../api/projects-api';
@@ -48,7 +49,7 @@ function Catalog({ project, onBack, onUnavailable }: Props) {
     {opening && <p role="status">Открываем паспорт №{opening}…</p>}
     {selected && <article className="catalog-detail"><span className="eyebrow">Сохранённая версия {selected.revision} · №{selected.id}</span><h3 ref={detailHeading} tabIndex={-1}>{selected.document.name}</h3>
       <dl><dt>Производитель</dt><dd>{selected.document.manufacturer || 'Не указан'}</dd><dt>Источник</dt><dd>{selected.document.source}</dd><dt>Условия использования</dt><dd>{selected.document.license}</dd></dl>
-      <table><caption>Сохранённые параметры</caption><thead><tr><th>Ключ</th><th>Значение</th><th>Единица</th></tr></thead><tbody>{Object.entries(selected.document.parameters).map(([key, p]) => <tr key={key}><th scope="row">{key}</th><td>{p.value}</td><td>{p.unit || 'безразмерно'}</td></tr>)}</tbody></table>
+      <table><caption>Сохранённые параметры</caption><thead><tr><th>Ключ</th><th>Значение</th><th>Единица</th><th>Исходный базис</th></tr></thead><tbody>{Object.entries(selected.document.parameters).map(([key, p]) => <tr key={key}><th scope="row">{key}</th><td>{p.value}</td><td>{p.unit || 'безразмерно'}</td><td>{p.unit === 'p.u.' ? parameterBaseLabel(p.base) : 'Не требуется'}</td></tr>)}</tbody></table>
       <details><summary>Происхождение версии</summary><p>Автор №{selected.authorAccountId} · {new Date(selected.createdAt).toLocaleString('ru-RU')}. Предшественник: {selected.predecessorId ?? 'нет'}.</p><p className="catalog-digest">SHA-256: {selected.sha256}</p></details>
       {project.role !== 'viewer' && !form && <div className="catalog-actions"><button className="tool-btn primary" onClick={() => setForm({ original: selected, mode: 'revise' })}>Создать следующую версию</button><button className="tool-btn" onClick={() => setForm({ original: selected, mode: 'clone' })}>Клонировать как новый паспорт</button></div>}
     </article>}

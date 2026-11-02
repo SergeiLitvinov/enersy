@@ -1,14 +1,15 @@
 import { useId } from 'react';
 import type { ComponentParam } from '../../../api/ees-api';
 import type { CreationParameterRow } from '../../../features/catalog/creation-parameters';
+import { ParameterBaseFields } from '../../ui/ParameterBaseFields';
 
 export function CreationParametersForm({ rows, template, disabled, onChange }: {
   rows: CreationParameterRow[]; template: ComponentParam[]; disabled: boolean;
   onChange: (rows: CreationParameterRow[]) => void;
 }) {
   const listId = useId();
-  function update(id: number, field: 'key' | 'value' | 'unit', value: string) {
-    onChange(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+  function update(id: number, field: 'key' | 'value' | 'unit' | 'power' | 'voltage', value: string) {
+    onChange(rows.map(row => row.id === id ? { ...row, [field]: value, ...(field === 'unit' && row.unit === 'p.u.' && value !== 'p.u.' ? { power: '', voltage: '' } : {}) } : row));
   }
   return <details className="creation-parameters">
     <summary>Параметры экземпляра{rows.length ? ` · ${rows.length}` : ''}</summary>
@@ -23,6 +24,7 @@ export function CreationParametersForm({ rows, template, disabled, onChange }: {
         <label className="passport-field">Значение<input value={row.value} onChange={event => update(row.id, 'value', event.target.value)} placeholder="Не задано" /></label>
         <label className="passport-field">Единица<input value={row.unit} maxLength={64} onChange={event => update(row.id, 'unit', event.target.value)} placeholder="Укажите явно" /></label>
         <button className="tool-btn" type="button" aria-label={`Удалить параметр ${index + 1}`} onClick={() => onChange(rows.filter(item => item.id !== row.id))}>Удалить</button>
+        {row.unit === 'p.u.' && <ParameterBaseFields power={row.power ?? ''} voltage={row.voltage ?? ''} onChange={(field, value) => update(row.id, field, value)} />}
         {hint?.unit && <small className="creation-parameter-hint">Справочно, в шаблоне типа: {hint.unit}. Единица исходных данных этим не подтверждена.</small>}
       </fieldset>;
     })}</div>

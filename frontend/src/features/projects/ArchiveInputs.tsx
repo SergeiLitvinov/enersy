@@ -1,3 +1,5 @@
+import { parameterSourceBase } from '../../api/parameter-unit-declaration';
+import { parameterBaseLabel } from '../../domain/parameter-base';
 import { useState, type ReactNode } from 'react';
 import type { ArchiveInput } from '../../api/calculation-archives-api';
 import type { CalculationProvenance } from '../../api/calculation-provenance';
@@ -16,9 +18,9 @@ export function ArchiveInputs({ input, provenance }: { input: ArchiveInput; prov
   return <details className="result-details result-topology archive-inputs"><summary>Исходные данные · {input.components.length} объектов · {input.connections.length} связей</summary>
     <p className="result-source-note">Захваченные параметры, единицы, геометрия и соединения. Значения из текущего каталога и текущей схемы сюда не подставляются. Отсутствующие единицы не восстанавливаются. Выберите объект для просмотра параметров.</p>
     <Rows title="Оборудование снимка" headers={['Объект', 'Тип', 'Координаты на холсте', 'Поворот, °']} rows={input.components} render={c => <tr key={c.id}><td><button className="tool-btn" aria-pressed={selected === c.id} onClick={() => select(c.id)}>Объект №{c.id}</button></td><td title={c.type}>{Object.prototype.hasOwnProperty.call(typeNames, c.type) ? typeNames[c.type] : c.type}</td><td>{c.x}; {c.y}</td><td>{c.rotation}</td></tr>} />
-    {component && <><ArchiveProvenance source={provenance?.components.find(c => c.id === String(component.id))} params={component.params} parameterUnits={component.parameterUnits} /><Rows key={component.id} title={`Параметры объекта №${component.id}`} headers={['Параметр', 'Захваченное значение', 'Захваченная единица']} rows={Object.entries(component.params)} render={([key, value]) => {
+    {component && <><ArchiveProvenance source={provenance?.components.find(c => c.id === String(component.id))} params={component.params} parameterUnits={component.parameterUnits} declaration={component.declaredParameterUnits} /><Rows key={component.id} title={`Параметры объекта №${component.id}`} headers={['Параметр', 'Захваченное значение', 'Захваченная единица']} rows={Object.entries(component.params)} render={([key, value]) => {
       const unit = component.parameterUnits && Object.prototype.hasOwnProperty.call(component.parameterUnits, key) ? component.parameterUnits[key] : undefined;
-      return <tr key={key}><th scope="row">{key}</th><td>{value || 'Пустая строка'}</td><td className="archive-unit-value"><CapturedUnitLabel value={unit} /></td></tr>;
+      return <tr key={key}><th scope="row">{key}</th><td>{value || 'Пустая строка'}</td><td className="archive-unit-value"><CapturedUnitLabel value={unit} />{unit === 'p.u.' && <small>{parameterBaseLabel(parameterSourceBase(component.declaredParameterUnits,key))}</small>}</td></tr>;
     }} /></>}
     <Rows title="Соединения снимка" headers={['От объекта', 'Порт начала', 'К объекту', 'Порт конца']} rows={input.connections} render={(c, i) => <tr key={i}><td>№{c.from}</td><td>{c.fromPort}</td><td>№{c.to}</td><td>{c.toPort}</td></tr>} />
   </details>;

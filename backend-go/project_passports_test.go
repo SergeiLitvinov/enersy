@@ -21,7 +21,7 @@ func TestPassportDocumentValidation(t *testing.T) {
 		name   string
 		mutate func(*passportDocument)
 	}{
-		{"version", func(d *passportDocument) { d.FormatVersion = 2 }},
+		{"version", func(d *passportDocument) { d.FormatVersion = 3 }},
 		{"source", func(d *passportDocument) { d.Source = " " }},
 		{"license", func(d *passportDocument) { d.License = "" }},
 		{"name", func(d *passportDocument) { d.Name = "" }},
@@ -143,7 +143,7 @@ func TestProjectPassportsPostgres(t *testing.T) {
 	if w := post("", doc, nil); w.Code != 401 {
 		t.Fatalf("missing session: %d", w.Code)
 	}
-	for _, param := range []passportParameter{{"10", "MW"}, {"NaN", "МВт"}, {"Inf", "МВт"}, {"broken", "МВт"}, {"0x1p2", "МВт"}} {
+	for _, param := range []passportParameter{{Value: "10", Unit: "MW"}, {Value: "NaN", Unit: "МВт"}, {Value: "Inf", Unit: "МВт"}, {Value: "broken", Unit: "МВт"}, {Value: "0x1p2", Unit: "МВт"}} {
 		d := passportFixture()
 		d.Parameters["p"] = param
 		if w := post(tokens[0].Token, d, nil); w.Code != 400 {
@@ -151,7 +151,7 @@ func TestProjectPassportsPostgres(t *testing.T) {
 		}
 	}
 	unknown := passportFixture()
-	unknown.Parameters["unknown"] = passportParameter{"1", ""}
+	unknown.Parameters["unknown"] = passportParameter{Value: "1", Unit: ""}
 	if w := post(tokens[0].Token, unknown, nil); w.Code != 400 {
 		t.Fatal("unknown parameter accepted")
 	}
@@ -174,7 +174,7 @@ func TestProjectPassportsPostgres(t *testing.T) {
 		t.Fatalf("replay changed identity: %d %s", w.Code, w.Body)
 	}
 	changed := passportFixture()
-	changed.Parameters["p"] = passportParameter{"25", "МВт"}
+	changed.Parameters["p"] = passportParameter{Value: "25", Unit: "МВт"}
 	if w := request(http.MethodPost, path, tokens[0].Token, command, changed, nil); w.Code != 409 {
 		t.Fatal("changed command payload accepted")
 	}

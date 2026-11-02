@@ -109,11 +109,24 @@ func equipmentOperationSchema() map[string]any {
 // Keys of units must also be explicitly present in params. JSON Schema cannot
 // compare arbitrary sibling property sets; the shared creation service does it.
 func creationUnitOperationSchema() map[string]any {
-	return closedOperationSchema(map[string]any{
+	properties := map[string]any{
 		"formatVersion": map[string]any{"type": "integer", "const": 1},
 		"units": map[string]any{"type": "object", "minProperties": 1, "maxProperties": 256,
 			"propertyNames":        map[string]any{"minLength": 1, "maxLength": 50},
 			"additionalProperties": map[string]any{"type": "string", "minLength": 1, "maxLength": 64, "pattern": `^[^\x00-\x1f\x7f]+$`},
 			"description":          "Explicit instance units paired with values in params of this same request. No conversion or inference. Labels must have no surrounding whitespace or control characters; the service rechecks labels and value co-presence."},
-	}, []string{"formatVersion", "units"})
+	}
+	legacy := closedOperationSchema(properties, []string{"formatVersion", "units"})
+	based := map[string]any{"formatVersion": map[string]any{"type": "integer", "const": 2}, "units": properties["units"],
+		"bases": map[string]any{"type": "object", "minProperties": 1, "maxProperties": 256,
+			"propertyNames": map[string]any{"minLength": 1, "maxLength": 50},
+			"description":   "Original three-phase MVA and line RMS kV bases, independent of the Study. Each key requires p.u. and a value in this request. Null explicitly clears an inherited base.",
+			"additionalProperties": map[string]any{"anyOf": []any{
+				closedOperationSchema(map[string]any{"profile": map[string]any{"type": "string", "const": parameterBaseProfile},
+					"s_base_mva": map[string]any{"type": "number", "exclusiveMinimum": 0}, "v_base_kv": map[string]any{"type": "number", "exclusiveMinimum": 0}}, []string{"profile", "s_base_mva", "v_base_kv"}),
+				map[string]any{"type": "null"},
+			}},
+		},
+	}
+	return map[string]any{"anyOf": []any{legacy, closedOperationSchema(based, []string{"formatVersion", "units", "bases"})}}
 }

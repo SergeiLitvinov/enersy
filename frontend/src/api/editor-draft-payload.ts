@@ -1,5 +1,6 @@
 import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { copyCreationUnits } from './component-creation';
+import { parseParameterBase, type ParameterBase } from '../domain/parameter-base';
 
 /** Recovery data only. Decoding neither validates current topology nor sends commands. */
 export interface EditorDraftPose { x: number; y: number; rotation: number; name: string }
@@ -11,7 +12,7 @@ export interface EditorDraftBase extends EditorDraftPose {
 }
 export type EditorComponentIntent =
   | { kind: 'pose'; values: Partial<EditorDraftPose> }
-  | { kind: 'parameter'; key: string; value: string; unit?: string }
+  | { kind: 'parameter'; key: string; value: string; unit?: string; base?: ParameterBase | null }
   | { kind: 'delete' };
 export type EditorGraphIntent =
   | ({ kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string>; parameterUnitDeclaration?: ParameterUnitDeclaration } & EditorDraftPose)
@@ -100,11 +101,12 @@ function componentIntent(value: unknown): EditorComponentIntent {
   const kind = draftRecord(value).kind;
   if (kind === 'delete') { fields(value, ['kind']); return { kind }; }
   if (kind === 'parameter') {
-    const item = fields(value, ['kind', 'key', 'value'], ['unit']);
+    const item = fields(value, ['kind', 'key', 'value'], ['unit', 'base']);
     const key = text(item.key, 50, true), parameter = parameterValue(item.value);
     const unit = owns(item, 'unit') ? { unit: text(item.unit, 64, true) } : {};
     if (unit.unit !== undefined) parseParameterUnitDeclaration({ formatVersion: 1, units: { [key]: unit.unit } }, { [key]: parameter });
-    return { kind, key, value: parameter, ...unit };
+    if (owns(item, 'base') && unit.unit !== 'p.u.') return invalid();
+    return { kind, key, value: parameter, ...unit, ...(owns(item, 'base') ? { base: item.base === null ? null : parseParameterBase(item.base) } : {}) };
   }
   if (kind === 'pose') {
     const item = fields(value, ['kind', 'values']);

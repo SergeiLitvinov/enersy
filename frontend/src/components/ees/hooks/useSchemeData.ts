@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../../../api/ees-api';
 import { copyComponentCreation } from '../../../api/component-creation';
-import { parseParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
+import { parseParameterUnitDeclaration, mergeParameterUnits } from '../../../api/parameter-unit-declaration';
 import { EditorComponent, EditorConnection } from '../editor-utils';
 import { ComponentLibraryItem } from '../svg-components';
 import { useNotify } from '../../NotificationProvider';
@@ -254,10 +254,11 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
       const result = await writes.current.run(component, isCurrent,
         revision => dataAPI.patchComponent(id, { params, ...(parameterUnitDeclaration ? { parameterUnitDeclaration } : {}) }, revision),
         { schemeId: currentSchemeId, intent: Object.entries(params).map(([key, value]) => ({ kind: 'parameter', key, value,
-          ...(parameterUnitDeclaration && Object.prototype.hasOwnProperty.call(parameterUnitDeclaration.units, key) ? { unit: parameterUnitDeclaration.units[key] } : {}) })) });
+          ...(parameterUnitDeclaration && Object.prototype.hasOwnProperty.call(parameterUnitDeclaration.units, key) ? { unit: parameterUnitDeclaration.units[key] } : {}),
+          ...(parameterUnitDeclaration?.bases && Object.prototype.hasOwnProperty.call(parameterUnitDeclaration.bases, key) ? { base: parameterUnitDeclaration.bases[key] } : {}) })) });
       if (!result || !isCurrent()) throw new Error('Рабочий контекст изменился. Проверьте сохранение в исходной схеме.');
       setComponents(prev => prev.map(c => c.id === id ? { ...c, revision: result.revision, params: { ...c.params, ...params },
-        ...(parameterUnitDeclaration ? { declaredParameterUnits: { formatVersion: 1 as const, units: { ...c.declaredParameterUnits?.units, ...parameterUnitDeclaration.units } } } : {}) } : c));
+        ...(parameterUnitDeclaration ? { declaredParameterUnits: mergeParameterUnits(c.declaredParameterUnits, parameterUnitDeclaration) } : {}) } : c));
     } catch (error) {
       if (isCurrent()) refreshRecovery(version => version + 1);
       throw error;

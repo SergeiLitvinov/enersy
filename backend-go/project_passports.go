@@ -19,8 +19,9 @@ var errPassportQuota = errors.New("project passport quota exceeded")
 var passportNumber = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$`)
 
 type passportParameter struct {
-	Value string `json:"value"`
-	Unit  string `json:"unit"`
+	Value string         `json:"value"`
+	Unit  string         `json:"unit"`
+	Base  *parameterBase `json:"base,omitempty"`
 }
 type passportDocument struct {
 	FormatVersion     int                          `json:"formatVersion"`
@@ -47,12 +48,15 @@ func passportText(value string, maxLength int, required bool) bool {
 	return utf8.ValidString(value) && !strings.ContainsRune(value, 0) && utf8.RuneCountInString(value) <= maxLength && (!required || strings.TrimSpace(value) != "")
 }
 func validatePassportDocument(doc passportDocument) error {
-	if doc.FormatVersion != 1 || !passportText(doc.ComponentTypeCode, 50, true) || !passportText(doc.Name, 200, true) ||
+	if (doc.FormatVersion != 1 && doc.FormatVersion != 2) || !passportText(doc.ComponentTypeCode, 50, true) || !passportText(doc.Name, 200, true) ||
 		!passportText(doc.Manufacturer, 200, false) || !passportText(doc.Source, 4000, true) || !passportText(doc.License, 200, true) ||
 		len(doc.Parameters) == 0 || len(doc.Parameters) > 128 {
 		return errPassportInput
 	}
 	for key, param := range doc.Parameters {
+		if param.Base != nil && (doc.FormatVersion != 2 || param.Unit != "p.u." || !param.Base.valid()) {
+			return errPassportInput
+		}
 		if !passportText(key, 50, true) || !passportText(param.Value, 1000, true) || !passportText(param.Unit, 20, false) {
 			return errPassportInput
 		}
@@ -79,7 +83,11 @@ func checkPassportParameters(ctx context.Context, tx *sql.Tx, doc passportDocume
 		if !ok {
 			continue
 		}
-		if param.Unit != unit {
+		based := doc.FormatVersion == 2 && kind == "number" && param.Unit == "p.u." && param.Base != nil && param.Base.valid()
+		if param.Unit != unit && !based {
+			return errPassportInput
+		}
+		if param.Base != nil && !based {
 			return errPassportInput
 		}
 		switch kind {

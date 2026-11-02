@@ -33,6 +33,18 @@ function parameter_unit_scale(expected::AbstractString, label::AbstractString, p
     return scale
 end
 
+function normalization_number(text::AbstractString, path::AbstractString)
+    occursin(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$", text) || throw(contract_error("invalid_parameter",
+        "unit normalization requires a decimal number", detail=path))
+    value = tryparse(Float64, text)
+    (value !== nothing && isfinite(value)) || throw(contract_error("invalid_parameter",
+        "unit normalization requires a finite number", detail=path))
+    mantissa = first(split(text, ['e', 'E']; limit=2))
+    value == 0 && any(char -> '1' <= char <= '9', mantissa) && throw(contract_error("unrepresentable_parameter",
+        "nonzero input is outside the Float64 range", detail=path))
+    return value
+end
+
 function normalize_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString)
     validate_parameter_units(code, params, declared, path; complete=true, scaling=true)
     result = copy(params)
@@ -43,14 +55,7 @@ function normalize_parameter_units(code::AbstractString, params::Dict{String,Str
         get(AC_PARAMETER_KIND_SPECS[code], key, "number") == "boolean" && continue
         text = strip(params[key])
         isempty(text) && continue
-        occursin(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$", text) || throw(contract_error("invalid_parameter",
-            "unit normalization requires a decimal number", detail="$(path).$(key)"))
-        value = tryparse(Float64, text)
-        (value !== nothing && isfinite(value)) || throw(contract_error("invalid_parameter",
-            "unit normalization requires a finite number", detail="$(path).$(key)"))
-        mantissa = first(split(text, ['e', 'E']; limit=2))
-        value == 0 && any(char -> '1' <= char <= '9', mantissa) && throw(contract_error("unrepresentable_parameter",
-            "nonzero input is outside the Float64 range", detail="$(path).$(key)"))
+        value = normalization_number(text, "$(path).$(key)")
         # Canonical numeric strings remain intact after validation.
         scale == 1.0 && continue
         normalized = value * scale

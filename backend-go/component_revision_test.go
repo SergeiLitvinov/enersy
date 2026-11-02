@@ -11,7 +11,7 @@ import (
 
 func TestComponentRevisionPostgres(t *testing.T) {
 	database := migrationTestDatabase(t)
-	for _, name := range []string{"000001_v1.up.sql"} {
+	for _, name := range []string{"000001_v1.up.sql", "000002_application_commands.up.sql", "000003_parameter_bases.up.sql"} {
 		executeFixture(t, database, filepath.Join("..", "database", "migrations", name))
 	}
 	var id int

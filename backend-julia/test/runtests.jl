@@ -16,6 +16,7 @@ include("transformer_reflection.jl")
 include("parameter_units.jl")
 include("unit_contract.jl")
 include("unit_normalization.jl")
+include("parameter_bases.jl")
 include("model_definitions.jl")
 include("ac_reference.jl")
 withenv("S_BASE_MVA" => "50") do

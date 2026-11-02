@@ -138,7 +138,7 @@ function request_unit_contract(json)
     version isa Integer && !(version isa Bool) && version == 1 ||
         throw(contract_error("unsupported_unit_contract_version", "unsupported unit contract formatVersion", detail="\$.unitContract.formatVersion"))
     profile = require_field(raw,:profile,"\$.unitContract")
-    profile isa AbstractString && profile in (AC_INPUT_UNIT_PROFILE, AC_SCALED_INPUT_UNIT_PROFILE) ||
+    profile isa AbstractString && profile in (AC_INPUT_UNIT_PROFILE, AC_SCALED_INPUT_UNIT_PROFILE, AC_BASED_INPUT_UNIT_PROFILE) ||
         throw(contract_error("unsupported_unit_contract_profile", "unsupported unit convention profile", detail="\$.unitContract.profile"))
     (;formatVersion=1,profile=String(profile))
 end

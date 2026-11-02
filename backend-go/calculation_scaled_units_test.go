@@ -94,7 +94,7 @@ func TestScaledUnitProfileNeverInfersCatalogUnits(t *testing.T) {
 	}
 	component := calculationComponent{ID: 1, Type: "load", Params: map[string]string{"p": "10000000.0000", "q": "3"},
 		ParameterUnits:         map[string]string{"p": "MW", "q": "Mvar"},
-		DeclaredParameterUnits: &parameterUnitDeclaration{1, map[string]string{"p": "W"}}}
+		DeclaredParameterUnits: &parameterUnitDeclaration{FormatVersion: 1, Units: map[string]string{"p": "W"}}}
 	payload := map[string]any{}
 	applyInputUnitContract(payload, contract, []calculationComponent{component})
 	wire, err := json.Marshal(payload)

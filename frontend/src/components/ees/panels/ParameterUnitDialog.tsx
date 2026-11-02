@@ -1,5 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
-import { parseParameterUnitDeclaration, parameterUnitLabel } from '../../../api/parameter-unit-declaration';
+import { parseParameterUnitDeclaration, parameterUnitLabel, parameterSourceBase } from '../../../api/parameter-unit-declaration';
+import { parameterBaseDraft, type ParameterBase } from '../../../domain/parameter-base';
+import { ParameterBaseFields } from '../../ui/ParameterBaseFields';
 import type { EditorComponent } from '../editor-utils';
 import { Dialog } from '../../ui/Dialog';
 import './ParameterUnitDialog.css';
@@ -8,11 +10,13 @@ import './ParameterUnitDialog.css';
 export function ParameterUnitDialog({ component, initialParameterKey, onClose, onSave }: {
   component: EditorComponent; onClose: () => void;
   initialParameterKey?: string;
-  onSave: (key: string, value: string, unit: string) => Promise<void>;
+  onSave: (key: string, value: string, unit: string, base?: ParameterBase) => Promise<void>;
 }) {
   const fields = [...new Set([...(component.paramTemplate ?? []).map(field => field.key), ...Object.keys(component.params)])];
   const initial = (key: string) => ({ key, value: Object.prototype.hasOwnProperty.call(component.params, key) ? component.params[key] : '',
-    unit: parameterUnitLabel(component.declaredParameterUnits, key, '') });
+    unit: parameterUnitLabel(component.declaredParameterUnits, key, ''),
+    power: parameterSourceBase(component.declaredParameterUnits, key)?.s_base_mva.toString() ?? '',
+    voltage: parameterSourceBase(component.declaredParameterUnits, key)?.v_base_kv.toString() ?? '' });
   const [draft, setDraft] = useState(() => initial(initialParameterKey ?? fields[0] ?? ''));
   const [source] = useState(() => ({ id: component.id, revision: component.revision }));
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -23,12 +27,20 @@ export function ParameterUnitDialog({ component, initialParameterKey, onClose, o
     parseParameterUnitDeclaration({ formatVersion: 1, units: { [draft.key]: draft.unit } }, { [draft.key]: draft.value });
     if (!draft.value.trim() || draft.value.includes('\0') || new TextEncoder().encode(draft.value).length > 16384) invalid = 'Введите значение параметра без подстановки по умолчанию.';
   } catch { invalid = 'Укажите единицу явно: от 1 до 64 символов без окружающих пробелов и управляющих символов.'; }
+  if (!invalid && draft.unit === 'p.u.') {
+    try { parameterBaseDraft(draft.power, draft.voltage); }
+    catch (reason) { invalid = reason instanceof Error ? reason.message : 'Укажите исходные базисы.'; }
+  }
   const field = component.paramTemplate?.find(field => field.key === draft.key);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (pending.current || changed || invalid) return;
     pending.current = true; setBusy(true); setError('');
-    try { await onSave(draft.key, draft.value, draft.unit); onClose(); }
+    try {
+      if (draft.unit === 'p.u.') await onSave(draft.key, draft.value, draft.unit, parameterBaseDraft(draft.power, draft.voltage));
+      else await onSave(draft.key, draft.value, draft.unit);
+      onClose();
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Сохранение значения и единицы не подтверждено.'); }
     finally { pending.current = false; setBusy(false); }
   };
@@ -41,7 +53,8 @@ export function ParameterUnitDialog({ component, initialParameterKey, onClose, o
           {fields.map(key => <option key={key} value={key}>{component.paramTemplate?.find(field => field.key === key)?.name ?? key} · {key}</option>)}
         </select></label>
         <label htmlFor={`${id}-value`}>Значение<input id={`${id}-value`} type="text" value={draft.value} onChange={event => { setDraft({ ...draft, value: event.target.value }); setError(''); }} /></label>
-        <label htmlFor={`${id}-unit`}>Единица<input id={`${id}-unit`} type="text" value={draft.unit} placeholder={field?.unit || 'Например: МВт, кВ, Ом или 1'} onChange={event => { setDraft({ ...draft, unit: event.target.value }); setError(''); }} /></label>
+        <label htmlFor={`${id}-unit`}>Единица<input id={`${id}-unit`} type="text" value={draft.unit} placeholder={field?.unit || 'Например: МВт, кВ, Ом или 1'} onChange={event => { setDraft({ ...draft, unit: event.target.value, ...(draft.unit === 'p.u.' && event.target.value !== 'p.u.' ? { power: '', voltage: '' } : {}) }); setError(''); }} /></label>
+        {draft.unit === 'p.u.' && <ParameterBaseFields power={draft.power} voltage={draft.voltage} onChange={(field, value) => { setDraft({ ...draft, [field]: value }); setError(''); }} />}
         <p className="dialog-intro">{field?.unit ? `Подсказка текущего шаблона: ${field.unit}. Она не заполняет единицу автоматически.` : 'Для безразмерной величины явно укажите 1, если это соответствует выбранной модели.'} Обозначение и физическую применимость проверяет расчётная модель; сохранение не означает подтверждения достоверности.</p>
         {changed && <p role="alert">Оборудование изменилось после открытия окна. Закройте его и заново проверьте актуальные значение и единицу.</p>}
         {invalid && <p role="status">{invalid}</p>}

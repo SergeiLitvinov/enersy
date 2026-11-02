@@ -1,0 +1,88 @@
+{
+  "formatVersion": 1,
+  "components": [
+    {
+      "componentId": "101",
+      "base": {
+        "id": "101",
+        "typeId": "1",
+        "type": "generator",
+        "equipmentModelId": null,
+        "revision": "9007199254740993",
+        "name": "Generator",
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "params": {
+          "p": "0.1000"
+        },
+        "declaredParameterUnits": {
+          "formatVersion": 2,
+          "units": {
+            "p": "p.u."
+          },
+          "bases": {
+            "p": {
+              "profile": "ac-three-phase-rms-v1",
+              "s_base_mva": 10,
+              "v_base_kv": 35
+            }
+          }
+        }
+      },
+      "intents": [
+        {
+          "kind": "parameter",
+          "key": "p",
+          "value": "0.2000",
+          "unit": "p.u.",
+          "base": {
+            "profile": "ac-three-phase-rms-v1",
+            "s_base_mva": 100,
+            "v_base_kv": 35
+          }
+        }
+      ],
+      "reason": "Lost acknowledgement of value and unit"
+    }
+  ],
+  "graph": [
+    {
+      "intent": {
+        "kind": "create-component",
+        "commandId": "11111111-1111-4111-8111-000000000099",
+        "expectedTopologyRevision": "0",
+        "typeId": "9",
+        "name": "Нагрузка",
+        "x": 10,
+        "y": 20,
+        "rotation": 0,
+        "equipmentModelId": null,
+        "params": {
+          "p": "0.1000",
+          "q": "0.0300"
+        },
+        "parameterUnitDeclaration": {
+          "formatVersion": 2,
+          "units": {
+            "p": "p.u.",
+            "q": "p.u."
+          },
+          "bases": {
+            "p": {
+              "profile": "ac-three-phase-rms-v1",
+              "s_base_mva": 10,
+              "v_base_kv": 35
+            },
+            "q": {
+              "profile": "ac-three-phase-rms-v1",
+              "s_base_mva": 10,
+              "v_base_kv": 35
+            }
+          }
+        }
+      },
+      "reason": "Lost acknowledgement"
+    }
+  ]
+}

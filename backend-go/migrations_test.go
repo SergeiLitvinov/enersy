@@ -94,8 +94,8 @@ func TestApplicationCommandsUpgradeFromV1Postgres(t *testing.T) {
  (SELECT version FROM schema_migrations),
  (SELECT description FROM circuit_schemes WHERE name='Saved before v2'),
  (SELECT count(*) FROM equipment_models),
- (SELECT count(*) FROM project_application_commands)`).Scan(&seal, &version, &description, &models, &receipts); err != nil || seal != originalSeal || version != 2 || description != "Сохранённая схема" || models != 90 || receipts != 0 {
-		t.Fatal("v2 upgrade changed v1 data or seal", seal, version, description, models, receipts, err)
+ (SELECT count(*) FROM project_application_commands)`).Scan(&seal, &version, &description, &models, &receipts); err != nil || seal != originalSeal || version != 3 || description != "Сохранённая схема" || models != 90 || receipts != 0 {
+		t.Fatal("upgrade changed v1 data or seal", seal, version, description, models, receipts, err)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestMigrationCompatibilityPostgres(t *testing.T) {
 		dirty   bool
 		want    string
 	}{
-		{"future", 3, false, "newer than supported"},
+		{"future", 4, false, "newer than supported"},
 		{"unpublished version", 0, false, "absent from migration source"},
 		{"retired pre-v1", 20261030001, false, "newer than supported"},
 		{"dirty", 1, true, "manual recovery required"},
@@ -169,7 +169,7 @@ func TestMigrationDeploymentPostgres(t *testing.T) {
 		t.Fatal("second migration changed schema or catalog")
 	}
 	var version int
-	if err := fresh.QueryRow("SELECT version FROM schema_migrations").Scan(&version); err != nil || version != 2 {
+	if err := fresh.QueryRow("SELECT version FROM schema_migrations").Scan(&version); err != nil || version != 3 {
 		t.Fatal(version, err)
 	}
 	for _, table := range []string{"users", "circuit_nodes", "calculation_results", "calculation_node_results", "calculation_branch_results"} {

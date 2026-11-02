@@ -40,8 +40,12 @@ func copyProjectPassport(ctx context.Context, tx *sql.Tx, project int64, req cre
 	}
 	params := make(map[string]string, len(version.Document.Parameters)+len(req.Params))
 	units := map[string]string{}
+	bases := map[string]*parameterBase{}
 	for key, p := range version.Document.Parameters {
 		params[key] = p.Value
+		if p.Base != nil {
+			bases[key] = p.Base
+		}
 		if p.Unit != "" {
 			if !validParameterUnitLabel(p.Unit) {
 				return copiedProjectPassport{}, creationError("Обозначение единицы паспорта не поддерживается форматом декларации", 400)
@@ -84,8 +88,6 @@ func copyProjectPassport(ctx context.Context, tx *sql.Tx, project int64, req cre
 		}
 	}
 	result := copiedProjectPassport{Params: params}
-	if len(units) > 0 {
-		result.Declaration = &parameterUnitDeclaration{1, units}
-	}
+	result.Declaration = parameterUnits(units, bases)
 	return result, nil
 }

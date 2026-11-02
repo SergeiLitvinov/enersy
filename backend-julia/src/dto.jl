@@ -216,7 +216,7 @@ end
 
 # --- сборка DTO -----------------------------------------------------------------
 
-function parse_component(raw, path::AbstractString; complete_units::Bool=false, scaling::Bool=false)
+function parse_component(raw, path::AbstractString; complete_units::Bool=false, scaling::Bool=false, based::Bool=false)
     require_object(raw, path)
     id = as_int(require_field(raw, :id, path), "$(path).id"; positive=true)
     code = lowercase(as_string(require_field(raw, :type, path), "$(path).type"))
@@ -225,13 +225,17 @@ function parse_component(raw, path::AbstractString; complete_units::Bool=false, 
     else
         Dict{String,String}()
     end
+    _json_hasfield(raw, :parameterBases) && !based && throw(contract_error("unsupported_parameter_bases", "parameterBases requires the based AC v3 profile", detail="$(code)#$(id).parameterBases"))
     if _json_hasfield(raw, :parameterUnits)
-        if scaling
+        if based
+            bases = require_field(raw, :parameterBases, path)
+            params = normalize_based_parameter_units(code, params, _json_field(raw, :parameterUnits), bases, "$(code)#$(id)")
+        elseif scaling
             params = normalize_parameter_units(code, params, _json_field(raw, :parameterUnits), "$(code)#$(id).parameterUnits")
         else
             validate_parameter_units(code, params, _json_field(raw, :parameterUnits), "$(code)#$(id).parameterUnits"; complete=complete_units)
         end
-    elseif complete_units || scaling
+    elseif complete_units || scaling || based
         throw(contract_error("missing_parameter_units", "unitContract requires parameterUnits for every component", detail="$(code)#$(id).parameterUnits"))
     end
     x = _json_hasfield(raw, :x) ? as_number(_json_field(raw, :x), "$(path).x") : 0.0
@@ -274,7 +278,8 @@ function parse_calculate_request(json; default_s_base_mva::Real=100.0)
     unit_contract = request_unit_contract(json)
     comps_raw = require_array(require_field(json, :components,     "\$"), "\$.components")
     scaling = unit_contract !== nothing && unit_contract.profile == AC_SCALED_INPUT_UNIT_PROFILE
-    components = [parse_component(c, "\$.components[$(i)]"; complete_units=unit_contract !== nothing, scaling) for (i, c) in enumerate(comps_raw)]
+    based = unit_contract !== nothing && unit_contract.profile == AC_BASED_INPUT_UNIT_PROFILE
+    components = [parse_component(c, "\$.components[$(i)]"; complete_units=unit_contract !== nothing, scaling, based) for (i, c) in enumerate(comps_raw)]
     ids = Set{Int}()
     for c in components
         c.id in ids &&

@@ -111,8 +111,11 @@ function handle_calculate(json; backends=(julia_backend(),))
     contract = request_unit_contract(json)
     if contract !== nothing
         result["input_unit_contract"] = Dict("formatVersion"=>contract.formatVersion,"profile"=>contract.profile,
-            "validation_scope"=>(contract.profile == AC_SCALED_INPUT_UNIT_PROFILE ? "request-declarations-with-scale-normalization" : "request-declarations-only"),"component_count"=>length(components),
+            "validation_scope"=>(contract.profile == AC_BASED_INPUT_UNIT_PROFILE ? "request-declarations-with-parameter-bases" : contract.profile == AC_SCALED_INPUT_UNIT_PROFILE ? "request-declarations-with-scale-normalization" : "request-declarations-only"),"component_count"=>length(components),
             "parameter_count"=>sum(length(component.params) for component in components))
+        if contract.profile == AC_BASED_INPUT_UNIT_PROFILE
+            result["input_unit_contract"]["basis_count"] = sum(length(_json_field(component, :parameterBases)) for component in _json_field(json, :components))
+        end
     end
     return result
 end

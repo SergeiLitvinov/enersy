@@ -478,3 +478,4 @@ export async function calculateScheme(schemeId: number, method: string = 'newton
 export type { Identity } from './projects-api';
 export type { StudySourceRevision } from './study-source-revisions';
 export * from './study-runs-api';
+export type { ParameterBase } from '../domain/parameter-base';

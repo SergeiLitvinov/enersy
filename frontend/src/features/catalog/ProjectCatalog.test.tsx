@@ -23,6 +23,53 @@ beforeEach(() => {
   vi.mocked(catalog.getComponentParams).mockResolvedValue([{ key: 'power_nom', name: 'Номинальная мощность', type: 'number', unit: 'МВА', default: '999' }]);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
+
+const base = { profile: 'ac-three-phase-rms-v1' as const, s_base_mva: 10, v_base_kv: 35 };
+const basedVersion = (): api.PassportVersion => ({ ...version, document: { ...version.document, formatVersion: 2, parameters: { power_nom: { value: '0.1000', unit: 'p.u.', base: { ...base } } } } });
+async function fill(input: HTMLInputElement, value: string) {
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,value); input.dispatchEvent(new Event('input',{ bubbles:true })); });
+}
+async function selectUnit(unit: string) {
+  const select = host.querySelector('.passport-parameter-editor select')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')!.set!.call(select,unit); select.dispatchEvent(new Event('change',{ bubbles:true })); });
+}
+
+test('revising p.u. preserves its source base, exact coefficient and uncertain-save identity', async () => {
+  const original = basedVersion();
+  vi.mocked(api.saveProjectPassport).mockRejectedValueOnce(new Error('offline'));
+  await act(async () => root.render(<PassportForm projectId="8" original={original} mode="revise" onSaved={() => {}} onCancel={() => {}} onUnavailable={() => {}} />));
+  const inputs = host.querySelectorAll<HTMLInputElement>('.parameter-base-fields input');
+  expect([...inputs].map(input => input.value)).toEqual(['10','35']);
+  expect(host.textContent).not.toContain('Сохранение заблокировано');
+  await fill(host.querySelector<HTMLInputElement>('.passport-parameter-editor input')!,'0.2000');
+  await click('Сохранить версию паспорта');
+  const first = vi.mocked(api.saveProjectPassport).mock.calls[0][1];
+  expect(first.document.parameters.power_nom).toEqual({ value:'0.2000', unit:'p.u.', base });
+  expect(first.document.formatVersion).toBe(2);
+  expect(original.document.parameters.power_nom.value).toBe('0.1000');
+  original.document.parameters.power_nom.base!.s_base_mva=999;
+  expect(first.document.parameters.power_nom.base).toEqual(base);
+  await click('Повторить исходное сохранение');
+  expect(vi.mocked(api.saveProjectPassport).mock.calls[1][1]).toEqual(first);
+});
+
+test('new p.u. representation requires explicit bases and changing back to dimensional clears only the copy', async () => {
+  await act(async () => root.render(<PassportForm projectId="8" original={version} mode="clone" onSaved={() => {}} onCancel={() => {}} onUnavailable={() => {}} />));
+  await selectUnit('p.u.');
+  const inputs = host.querySelectorAll<HTMLInputElement>('.parameter-base-fields input');
+  expect([...inputs].map(input => input.value)).toEqual(['','']);
+  await click('Сохранить версию паспорта'); expect(api.saveProjectPassport).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Sб и Uб');
+  await fill(inputs[0],'10'); await fill(inputs[1],'35');
+  await click('Сохранить версию паспорта');
+  expect(vi.mocked(api.saveProjectPassport).mock.calls[0][1].document.parameters.power_nom.base).toEqual(base);
+  // Remount an independent clone of the immutable based source.
+  await act(async () => root.render(<PassportForm key="based" projectId="8" original={basedVersion()} mode="clone" onSaved={() => {}} onCancel={() => {}} onUnavailable={() => {}} />));
+  await selectUnit('МВА');
+  expect(host.querySelector('.parameter-base-fields')).toBeNull();
+  await click('Сохранить версию паспорта');
+  expect(vi.mocked(api.saveProjectPassport).mock.calls[1][1].document.parameters.power_nom).toEqual({ value:'0.1000',unit:'МВА' });
+});
 test('viewer reads stored parameters and cannot create, revise or clone', async () => {
   await act(async () => root.render(<ProjectCatalog project={{ ...project, role: 'viewer' }} onBack={() => {}} />));
   await click('Открыть паспорт №1'); expect(host.textContent).toContain('10.00'); expect(host.textContent).not.toContain('999');
