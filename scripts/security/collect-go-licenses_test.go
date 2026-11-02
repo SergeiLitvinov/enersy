@@ -20,6 +20,225 @@ func currentSDKRoot(t *testing.T) string {
 	return strings.TrimSpace(string(root))
 }
 
+func TestGoSourceProloguesPreserveAllGroupsAndBytes(t *testing.T) {
+	root := t.TempDir()
+	header := "\ufeff//go:build linux\r\n\r\n// Copyright © Автор\r\n// Permission is in LICENSE.\r\n\r\n/* Additional authors and terms. */\r\n\r\n"
+	for _, name := range []string{"a.go", "b.go"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(header+"package fixture\r\n// Copyright after package is retained too.\r\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "plain.go"), []byte("package fixture\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	notices := map[string]string{}
+	r, err := collectGoSourceAttributions(root, []string{"b.go", "plain.go", "a.go", "a.go"}, notices)
+	if err != nil || len(r.Files) != 3 || len(notices) != 2 {
+		t.Fatalf("files=%+v texts=%d err=%v", r.Files, len(notices), err)
+	}
+	for i, name := range []string{"a.go", "b.go", "plain.go"} {
+		file := r.Files[i]
+		if file.Name != name {
+			t.Fatal("unstable source order", file)
+		}
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil || file.SourceSHA256 != digest(data) {
+			t.Fatal("source fingerprint does not match", err)
+		}
+		if name == "plain.go" {
+			if file.HeaderBytes != 0 || file.HeaderSHA256 != "" {
+				t.Fatal("invented source header", file)
+			}
+		} else if file.HeaderBytes != len(header) || notices[file.HeaderSHA256] != header || file.HeaderSHA256 != digest([]byte(header)) {
+			t.Fatal("prologue lost bytes or separate attribution groups", file)
+		}
+	}
+	encoded, err := json.Marshal(notices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]string
+	if err = json.Unmarshal(encoded, &decoded); err != nil || decoded[digest([]byte(header))] != header {
+		t.Fatal("JSON changed attribution bytes", err)
+	}
+}
+
+func TestGoSourceProloguesRejectInvalidEvidence(t *testing.T) {
+	for _, kind := range []string{"invalid-utf8", "invalid-package", "invalid-body", "oversized", "outside-link", "directory", "missing", "parent-path", "absolute-path", "wrong-extension"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			name := "source.go"
+			path := filepath.Join(root, name)
+			data := []byte("// Attribution\npackage fixture\n")
+			switch kind {
+			case "invalid-utf8":
+				data = []byte{0xff}
+			case "invalid-package":
+				data = []byte("// Attribution\nnot_a_package\n")
+			case "invalid-body":
+				data = []byte("package fixture\n/* Unterminated attribution")
+			case "oversized":
+				data = []byte(strings.Repeat("a", maxGoSourceBytes+1))
+			case "outside-link":
+				outside := filepath.Join(t.TempDir(), name)
+				if err := os.WriteFile(outside, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, path); err != nil {
+					t.Fatal(err)
+				}
+				data = nil
+			case "directory":
+				if err := os.Mkdir(path, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				data = nil
+			case "missing":
+				data = nil
+			case "parent-path":
+				name = filepath.Join("..", "source.go")
+				data = nil
+			case "absolute-path":
+				name = path
+			case "wrong-extension":
+				name = "source.txt"
+				path = filepath.Join(root, name)
+			}
+			if data != nil {
+				if err := os.WriteFile(path, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := collectGoSourceAttributions(root, []string{name}, map[string]string{}); err == nil {
+				t.Fatal("unsafe source evidence accepted")
+			}
+		})
+	}
+}
+
+func TestSourceCommentsRetainPostPackageCRLFAndIgnoreStrings(t *testing.T) {
+	root := t.TempDir()
+	header := "// Author in the prologue\r\n\r\n"
+	block := "/* Copyright © additional authors\r\n * Permission and disclaimer\r\n */"
+	inner := "// Условия внутри функции\r\n\t// Additional terms\r"
+	last := "// Final attribution without newline"
+	source := header + "package fixture\r\n" + block + "\r\nvar fake = \"/* Copyright not a comment */\"\r\nvar raw = `// Copyright not a comment\r\n/* not a comment either */`\r\nfunc f() {\r\n\t" + inner + "\n\t_ = fake\r\n}\r\n" + last
+	if err := os.WriteFile(filepath.Join(root, "source.go"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	notices := map[string]string{}
+	r, err := collectGoSourceAttributions(root, []string{"source.go"}, notices)
+	if err != nil || len(r.Files) != 1 || len(r.Files[0].Comments) != 3 || len(notices) != 4 {
+		t.Fatalf("inventory=%+v texts=%d err=%v", r, len(notices), err)
+	}
+	for i, expected := range []string{block, inner, last} {
+		comment := r.Files[0].Comments[i]
+		if source[comment.StartByte:comment.EndByte] != expected || notices[comment.SHA256] != expected || digest([]byte(expected)) != comment.SHA256 {
+			t.Fatal("source comment byte range changed", comment)
+		}
+	}
+}
+
+func TestSourcePackagePathsKeepModuleBoundaries(t *testing.T) {
+	root := t.TempDir()
+	packages := []goPackage{
+		{Standard: true, Dir: filepath.Join(root, "src", "fixture"), GoFiles: []string{"sdk.go"}},
+		{Module: &goModule{Path: "example.org/dependency"}, Dir: filepath.Join(root, "fixture"), GoFiles: []string{"module.go"}},
+	}
+	for _, tc := range []struct{ module, expected string }{{"go", filepath.Join("src", "fixture", "sdk.go")}, {"example.org/dependency", filepath.Join("fixture", "module.go")}} {
+		names, err := packageSourceNames(packages, root, tc.module)
+		if err != nil || len(names) != 1 || names[0] != tc.expected {
+			t.Fatalf("module=%s names=%v err=%v", tc.module, names, err)
+		}
+	}
+	for _, pkg := range []goPackage{
+		{Standard: true, Dir: t.TempDir(), GoFiles: []string{"external.go"}},
+		{Standard: true, Dir: root, GoFiles: []string{"../external.go"}},
+		{Standard: true, Dir: root, CgoFiles: []string{"cgo.go"}},
+	} {
+		if _, err := packageSourceNames([]goPackage{pkg}, root, "go"); err == nil {
+			t.Fatal("source scope mismatch accepted")
+		}
+	}
+}
+
+func TestSourcePackagesRefuseOtherBuildConfigurations(t *testing.T) {
+	for _, setting := range []debug.BuildSetting{{Key: "GOOS", Value: "another-os"}, {Key: "GOARCH", Value: "another-arch"}, {Key: "CGO_ENABLED", Value: "1"}, {Key: "GOAMD64", Value: "v3"}, {Key: "GOARM64", Value: "v9.0"}, {Key: "GOEXPERIMENT", Value: "another-experiment"}, {Key: "GOFIPS140", Value: "latest"}, {Key: "-compiler", Value: "gccgo"}, {Key: "-tags", Value: "custom"}, {Key: "-tags", Value: "false"}, {Key: "-race", Value: "true"}, {Key: "-asan", Value: "true"}, {Key: "-msan", Value: "true"}} {
+		t.Run(setting.Key, func(t *testing.T) {
+			if _, err := sourcePackages(context.Background(), &debug.BuildInfo{Settings: []debug.BuildSetting{setting}}, map[string]string{}); err == nil {
+				t.Fatal("binary and source selection mismatch accepted")
+			}
+		})
+	}
+	for _, env := range []map[string]string{{"CGO_ENABLED": "1", "GOARCH": "amd64"}, {"CGO_ENABLED": "0", "GOARCH": "386"}} {
+		if _, err := sourcePackages(context.Background(), &debug.BuildInfo{}, env); err == nil {
+			t.Fatal("unsupported source variant accepted")
+		}
+	}
+}
+
+func TestSourcePackageModulesMatchTheBinary(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Path: "example.org/main"}, Deps: []*debug.Module{{Path: "example.org/dep", Version: "v1.0.0"}}}
+	for _, pkg := range []goPackage{{Standard: true}, {Module: &goModule{Path: info.Main.Path}}, {Module: &goModule{Path: "example.org/dep", Version: "v1.0.0"}}} {
+		if err := validateSourcePackageModules([]goPackage{pkg}, info); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, pkg := range []goPackage{{}, {Module: &goModule{Path: "example.org/unknown", Version: "v1.0.0"}}, {Module: &goModule{Path: "example.org/dep", Version: "v2.0.0"}}, {Module: &goModule{Path: "example.org/dep", Version: "v1.0.0", Replace: &goModule{Path: "replacement"}}}} {
+		if err := validateSourcePackageModules([]goPackage{pkg}, info); err == nil {
+			t.Fatal("source graph for a different binary accepted")
+		}
+	}
+}
+
+func TestSourcePackagesRejectUnrecordedExperiments(t *testing.T) {
+	info := &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "GOOS", Value: "linux"}, {Key: "GOARCH", Value: "amd64"}, {Key: "CGO_ENABLED", Value: "0"}}}
+	for _, key := range []string{"GOEXPERIMENT", "GOFIPS140"} {
+		env := map[string]string{"GOOS": "linux", "GOARCH": "amd64", "CGO_ENABLED": "0", key: "custom"}
+		if _, err := sourcePackages(context.Background(), info, env); err == nil {
+			t.Fatal("environment selects source features absent from the binary")
+		}
+	}
+}
+
+func TestGoMetadataIgnoresAmbientBuildFlags(t *testing.T) {
+	t.Setenv("GOFLAGS", "-tags=unreviewed -race")
+	output, err := goOutput(context.Background(), "env", "GOFLAGS")
+	if err != nil || strings.TrimSpace(string(output)) != "-mod=readonly" {
+		t.Fatal("ambient flags influence metadata source selection", err)
+	}
+}
+
+func TestActualSDKRetainsInlineFiatAndSunTerms(t *testing.T) {
+	conditions := map[string][]string{
+		"src/crypto/internal/fips140/edwards25519/scalar.go": {"The fiat-crypto Authors", "Redistribution and use in source and binary forms", "SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."},
+		"src/math/acosh.go": {"Copyright (C) 1993 by Sun Microsystems", "Permission to use, copy, modify, and distribute", "is preserved."},
+	}
+	names := []string{}
+	for name := range conditions {
+		names = append(names, name)
+	}
+	notices := map[string]string{}
+	r, err := collectGoSourceAttributions(currentSDKRoot(t), names, notices)
+	if err != nil || len(r.Files) != 2 {
+		t.Fatal("cannot inventory actual SDK inline notices", err)
+	}
+	for _, file := range r.Files {
+		found := false
+		for _, comment := range file.Comments {
+			text := notices[comment.SHA256]
+			complete := true
+			for _, condition := range conditions[file.Name] {
+				complete = complete && strings.Contains(text, condition)
+			}
+			found = found || complete
+		}
+		if !found {
+			t.Fatal("complete inline copyright, conditions and disclaimer missing", file.Name)
+		}
+	}
+}
+
 func TestNoticesPreserveExactText(t *testing.T) {
 	root := t.TempDir()
 	text := "\ufeffCopyright © Авторы\r\nPermission and disclaimer\r\n"

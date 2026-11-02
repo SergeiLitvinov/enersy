@@ -47,6 +47,23 @@ Digest фиксирует содержимое базового образа, д
 
 При обновлении Node сначала выбрать поддерживаемую ветку, проверить содержимое образа и новую точную версию, затем согласованно изменить `.node-version` и digest во всех Node Dockerfile/Compose. После установки по lock-файлам выполнить сборку, типизацию, линтер, тесты и аудиты frontend/сайта. При обновлении nginx проверить оба proxy через `tests/integration/Test-ProxyDns.ps1`: смена IP контейнеров, сохранение путей и query-параметров, восстановление DNS без перезагрузки proxy. Не заменять digest автоматически при каждом запуске. Изменение этих образов не обновляет PostgreSQL и не требует изменения пользовательской БД.
 
+### Закреплённые действия GitHub Actions — 2026-11-02 {#ci-action-baseline}
+
+Workflow использует полные commit SHA официальных действий. Версия в комментарии нужна для сопровождения; выполнение выбирает SHA, поэтому перенос major-тега не меняет следующий запуск.
+
+| Действие | Проверенный выпуск | Commit SHA | Runtime действия |
+| --- | --- | --- | --- |
+| [actions/checkout](https://github.com/actions/checkout/releases/tag/v7.0.1) | 7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` | Node 24 |
+| [actions/setup-node](https://github.com/actions/setup-node/releases/tag/v7.1.0) | 7.1.0 | `949feb2413d6458794dcd2491c4babbbce0c15c1` | Node 24 |
+| [actions/upload-artifact](https://github.com/actions/upload-artifact/releases/tag/v7.0.2) | 7.0.2 | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` | Node 24 |
+| [pnpm/action-setup](https://github.com/pnpm/action-setup/releases/tag/v6.1.0) | 6.1.0 | `ea17c68df8912ef543352723c149a84f56e3d413` | Node 24 |
+
+Сверены официальные release/tag/commit и `action.yml` каждого точного SHA. Node runtime действия отличается от Node приложения: frontend/docs по-прежнему получают 24.22.1 из `.node-version`, pnpm — 11.19.0. Автоматический npm-cache у setup-node явно отключён; существующий явный pnpm-cache документации сохранён. Обновление setup-node 7 меняет обработку `NODE_AUTH_TOKEN`; текущий workflow не настраивает приватный registry/token, поэтому этот сценарий не используется. Checkout 7 ограничивает опасный checkout fork-кода для `pull_request_target`/`workflow_run`; здесь используются `push`/`pull_request`. ZIP-формат и параметры сохранения артефактов остаются прежними.
+
+Все прямые `ubuntu-latest` заменены на `ubuntu-24.04`; существующая матрица `ubuntu-24.04`/`ubuntu-24.04-arm` сохранена. Это фиксирует семейство ОС, но не содержимое обновляемого hosted runner и его системных пакетов. Node 24 action требует runner не ниже 2.327.1; для authenticated Git внутри Docker checkout указывает 2.329.0. Успешный предыдущий ARM64-прогон использовал 2.338.2. Собственные runner этим не аттестуются.
+
+Локально workflow прошёл actionlint. Независимый разбор YAML сверил все 23 `uses` с официальным `action.yml` каждого закреплённого SHA: все refs полные, runtime — `node24`, неизвестных inputs нет. Метаданные и результат — `.cache/base07-action-metadata.json`, `.cache/base07-action-compatibility.json`. Это статическая проверка, код действий локально не выполнялся. Удалённое выполнение новых SHA ещё не подтверждено: [успешная матрица bce769b](#baseline-ci-bce769b) использовала прежние действия и не заменяет проверку этого обновления. При следующем изменении action сначала проверить официальные release notes, runtime/минимальный runner и используемые inputs, затем закрепить полный SHA и выполнить матрицу. Не обновлять refs автоматически во время сборки.
+
 ## Сборка и проверки Go API {#go-baseline}
 
 Сборочный SDK API — Go 1.26.10; модуль требует Go 1.26.0. Dockerfile, интеграционные клиенты Go и генератор эталона каталога используют закреплённый Alpine-образ SDK. `GOTOOLCHAIN=local` запрещает незаметную загрузку другого компилятора. Production-бинарный файл собирается с `CGO_ENABLED=0`, `-mod=readonly` и `-trimpath`. Runtime — Alpine 3.24.3 по digest; корневые сертификаты уже входят в этот образ, поэтому установка пакетов через плавающий APK-репозиторий больше не нужна.
@@ -317,4 +334,14 @@ Workflow в целом завершился failure: npm/pnpm audit обнару
 
 После исправления на одноразовой PostgreSQL-базе прошёл весь сценарий двух пользователей/трёх независимых сессий: роли, приватные схемы, CAS, создание/replay/удаление, черновики, отзыв доступа и отсутствие Origin. Приватный TypeScript-клиент, анонимный и приватный Go→Julia reference, ZIP-эталон, точные расчётные архивы и смена DNS прокси также проверены локально. Для Julia в revision-стенде добавлен настоящий `/ready` healthcheck; потребитель архива ожидает healthy, а не только запуска процесса.
 
-Полная локальная amd64-поставка с `-UseCache` прошла с новой подготовкой worker: аудит БД/каталога, frontend/docs/два proxy, независимый PYPOWER-эталон и очистка. Квитанция — `.cache/release-check/20261102-170751-1403c33916ac4b0b9d1db6a28d10e17d/release.json`. Это запуск с кэшем на Docker Desktop Linux amd64. Новая нативная ARM64-приёмка требует удалённого запуска исправленного коммита. Локальные журналы — `.cache/ci-*`, исходная сводка CI — `.cache/base07-ci-ea733ba-receipt.json`. BASE-07/08 пока остаются открытыми.
+Полная локальная amd64-поставка с `-UseCache` прошла с новой подготовкой worker: аудит БД/каталога, frontend/docs/два proxy, независимый PYPOWER-эталон и очистка. Квитанция — `.cache/release-check/20261102-170751-1403c33916ac4b0b9d1db6a28d10e17d/release.json`. Это запуск с кэшем на Docker Desktop Linux amd64. На этом этапе новая нативная ARM64-приёмка требовала удалённого запуска исправленного коммита; его результат приведён ниже. Локальные журналы — `.cache/ci-*`, исходная сводка CI — `.cache/base07-ci-ea733ba-receipt.json`. BASE-07/08 пока остаются открытыми.
+
+### Подтверждённая матрица Linux amd64/arm64 — 2026-11-02 {#baseline-ci-bce769b}
+
+[Workflow 41490642246](https://github.com/SergeiLitvinov/enersy/actions/runs/41490642246) для точного коммита `bce769b56ce9e3b27d20553c9fb8f659e45c084a` завершился `success`: все 13 заданий прошли. Подтверждены Go API/MCP и Rust/WASM обеих архитектур, конечные Julia SDK-образы обеих архитектур, frontend, генерация документации, Julia numerical/HTTP regression, Julia/Rust ABI и Docker-интеграции. Это проверка указанного коммита, а не будущих изменений.
+
+Чистая поставка без instruction cache прошла на нативных [amd64](https://github.com/SergeiLitvinov/enersy/actions/runs/41490642246/job/125432415588) и [ARM64](https://github.com/SergeiLitvinov/enersy/actions/runs/41490642246/job/125432415185) runner. ARM64-квитанция подтверждает Linux/aarch64, Docker 28.0.4, семь образов с платформами `linux/arm64` и `linux/arm64/v8`, `buildCache=false`, `status=passed`, `cleanup=completed`. Аудит БД v1 с текущей версией 2 не нашёл замечаний в своей области. Каталог совпал во всех 604 проверяемых записях: 13 типов, 77 шаблонов параметров, 90 моделей, 389 параметров моделей, 35 портов.
+
+На ARM64 реальный HTTP-сценарий Go → Julia с подготовкой worker до readiness прошёл независимый PYPOWER-эталон нагруженного трансформатора. Допуски сохранены: `1e-8` p.u. для напряжения/мощности узла, `1e-8` рад для угла и `1e-6` МВт/Мвар для потоков ветвей. Проверены оба proxy, frontend, руководство, MIT-тексты и отказ malformed-body до расчёта. После сценария accounts/members/schemes равны нулю; одноразовый стенд удалён. Study worker здесь проверяется на readiness; приватный Run и его права имеют отдельные интеграционные проверки.
+
+ARM64-артефакт `clean-release-acceptance-arm64` №13164466706 скачан и прочитан как данные без выполнения кода; SHA-256 ZIP — `a1ed48af0057e2944cf321d82370c5bda630bedfba8b32c97168a4791eb08baf`. Локальные доказательства — `.cache/ci-bce-arm64-release.json` и `.cache/base07-ci-bce769b-receipt.json`. Этот прогон закрывает прежний пробел полной ARM64-поставки. Он не доказывает масштаб больших сетей, весь набор физики, лицензионную совместимость или полноту аудита всех зависимостей; BASE-07/08 остаются открытыми.

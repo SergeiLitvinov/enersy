@@ -52,3 +52,17 @@ test('changed physical context blocks calculation and exposes a review action',a
   await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Границы напряжения"]')!.click());
   expect(review).toHaveBeenCalledOnce();
 });
+
+test('unresolved write disables calculation until review completes', async () => {
+  const reason = 'Сначала разрешите неподтверждённые правки оборудования.';
+  await act(async () => root.render(<CanvasToolbar {...baseProps} calculationBlockedReason={reason} />));
+  const button = host.querySelector<HTMLButtonElement>('.calculate-button')!;
+  expect(button.disabled).toBe(true);
+  expect(button.title).toBe(reason);
+  await act(async () => button.click());
+  expect(baseProps.onCalculate).not.toHaveBeenCalled();
+  await act(async () => root.render(<CanvasToolbar {...baseProps} />));
+  expect(button.disabled).toBe(false);
+  await act(async () => button.click());
+  expect(baseProps.onCalculate).toHaveBeenCalledOnce();
+});

@@ -73,5 +73,32 @@
     "sourceURL": "https://raw.githubusercontent.com/rollup/rollup/3722484c33c58b3ab0cbbfcca09b8f267d420329/LICENSE-CORE.md",
     "reviewedUtc": "2026-11-01",
     "reason": "Exact npm release gitHead and SRI checked against the lock. The native package source manifest matches the installed manifest except the release version placeholder, and explicitly declares MIT. Preserve the full Rollup core MIT notice from the same commit. Covers Rollup-owned code only; Rust dependencies and other native binary notices still require separate review."
+  },
+  {
+    "name": "natural-compare",
+    "version": "1.4.0",
+    "manifestSha256": "3d99911ccfa0ca34ae0c68bfd32c038b952542e55db7c649c37b11dd1573f6af",
+    "file": "natural-compare-1.4.0-author-MIT.txt",
+    "sha256": "353fe762ba595bf1ffe786acf0f5984bb164205901d74f258af195fc8228c67d",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "eec83eee67cfac84d6db30cdd65363f155673770",
+    "sourceURL": "https://raw.githubusercontent.com/litejs/natural-compare-lite/eec83eee67cfac84d6db30cdd65363f155673770/README.md",
+    "linkedNotice": {
+      "file": "README.md",
+      "sha256": "ced6cb1fe6ee15a32c63ea8c7e0425454e80456a890c6df3909429530566d40a",
+      "declaredURL": "http://lauri.rooden.ee/mit-license.txt",
+      "retrievedURL": "https://lauri.rooden.ee/mit-license.txt"
+    },
+    "reviewedUtc": "2026-11-02",
+    "reason": "The exact npm tarball SRI matches the lock and all three installed files. Its license section matches the gitHead README and explicitly links this author-owned full MIT text. The published README differs only in unrelated external links. Preserve the retrieved bytes and the package README attribution (including 2012-2015) separately; no copyright dates or generic template were invented. Website content is a reviewed snapshot, not an immutable commit."
+  },
+  {
+    "name": "natural-compare",
+    "version": "1.4.0",
+    "manifestSha256": "3d99911ccfa0ca34ae0c68bfd32c038b952542e55db7c649c37b11dd1573f6af",
+    "file": "README.md",
+    "sha256": "ced6cb1fe6ee15a32c63ea8c7e0425454e80456a890c6df3909429530566d40a",
+    "reviewedUtc": "2026-11-02",
+    "reason": "Preserve the exact published copyright years, author attribution and original MIT link together with the separately reviewed full author notice; this README alone is not the full MIT text."
   }
 ]

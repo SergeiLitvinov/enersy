@@ -172,3 +172,58 @@ test('one release retains both the full upstream license and embedded authorship
   await writeFile(path.join(origin, upstream.file), 'Changed license');
   await assert.rejects(collectNodeLicenses(root, lock, sources, origin), /notice content changed/);
 });
+
+test('linked author notice is bound to the exact published declaration without network or code execution', async t => {
+  const digest = value => createHash('sha256').update(value).digest('hex');
+  const { root, lock, add } = await fixture(t);
+  const declaredURL = 'http://author.example/mit-license.txt';
+  const attribution = `Copyright © Author, 2012–2015\r\n[MIT License](${declaredURL})\r\n`;
+  const directory = await add('linked', 'linked', '1.0.0', 'MIT', { 'README.md': attribution });
+  await writeFile(path.join(directory, 'index.js'), 'throw new Error("package code must not run")');
+  const origin = path.join(root, 'reviewed');
+  await mkdir(origin);
+  const license = '\ufeffCopyright © Author\r\nFull permission and disclaimer\r\n';
+  await writeFile(path.join(origin, 'linked-MIT.txt'), license);
+  const source = { name: 'linked', version: '1.0.0', file: 'linked-MIT.txt',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: digest(license),
+    kind: 'reviewed-upstream', sourceCommit: 'a'.repeat(40), sourceURL: `https://example.org/${'a'.repeat(40)}/README.md`,
+    linkedNotice: { file: 'README.md', sha256: digest(attribution), declaredURL, retrievedURL: 'https://author.example/mit-license.txt' } };
+  const embedded = { name: source.name, version: source.version, manifestSha256: source.manifestSha256,
+    file: 'README.md', sha256: digest(attribution) };
+  const report = await collectNodeLicenses(root, lock, [source, embedded], origin);
+  assert.equal(report.incompleteEvidenceCount, 0);
+  assert.equal(report.notices[digest(license)].text, license);
+  assert.equal(report.notices[digest(attribution)].text, attribution);
+  assert.deepEqual(report.packages[0].noticeFiles[0].linkedNotice, source.linkedNotice);
+  await writeFile(path.join(directory, 'README.md'), attribution + 'Changed attribution');
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), /Linked declaration content changed/);
+  await writeFile(path.join(directory, 'README.md'), attribution);
+  await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, linkedNotice: { ...source.linkedNotice,
+    declaredURL: `${declaredURL}?other`, retrievedURL: 'https://author.example/mit-license.txt?other' } }], origin), /link is absent/);
+  await rm(path.join(directory, 'README.md'));
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), { code: 'ENOENT' });
+  const outside = path.join(root, 'private.md');
+  await writeFile(outside, attribution);
+  await symlink(outside, path.join(directory, 'README.md'));
+  await assert.rejects(collectNodeLicenses(root, lock, [source], origin), /escapes/);
+});
+
+test('linked notice review refuses changed targets and ambiguous reference metadata', async t => {
+  const digest = value => createHash('sha256').update(value).digest('hex');
+  const { root, lock, add } = await fixture(t);
+  const directory = await add('linked', 'linked', '1.0.0', 'MIT', {});
+  const source = { name: 'linked', version: '1.0.0', file: 'MIT.txt',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: 'b'.repeat(64),
+    kind: 'reviewed-upstream', sourceCommit: 'a'.repeat(40), sourceURL: `https://example.org/${'a'.repeat(40)}/README.md`,
+    linkedNotice: { file: 'README.md', sha256: 'c'.repeat(64), declaredURL: 'http://author.example/mit.txt', retrievedURL: 'https://author.example/mit.txt' } };
+  for (const change of [
+    { file: '../README.md' }, { sha256: 'invalid' }, { declaredURL: 'file:///private' },
+    { retrievedURL: 'http://author.example/mit.txt' }, { retrievedURL: 'https://other.example/mit.txt' },
+    { retrievedURL: 'https://author.example/other.txt' }, { retrievedURL: 'https://user:password@author.example/mit.txt' },
+    { retrievedURL: 'https://author.example/mit.txt#fragment' }, { extra: true },
+  ]) {
+    await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, linkedNotice: { ...source.linkedNotice, ...change } }]), /Invalid linked|changed the author/);
+  }
+  await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, sourceURL: `https://example.org/${'a'.repeat(40)}/other.md` }]), /Invalid linked/);
+  await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, kind: undefined }]), /Invalid linked/);
+});

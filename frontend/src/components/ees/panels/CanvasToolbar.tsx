@@ -12,12 +12,13 @@ interface CanvasToolbarProps {
   onBackendChange: (backend: ComputeBackendId) => void; onBackendReload: () => void;
   currentSchemeId?: number; selectedComponent: number | null; selectedConnection: number | null; zoomPercent: number;
   calcMethod: string; modelGroup: string; isCalculating: boolean; hasResult: boolean;
+  calculationBlockedReason?: string;
   onCalcMethodChange: (method: string) => void; onModelGroupChange: (group: string) => void; onCalculate: () => void; onShowResult: () => void;
   onDeleteComponent: () => void; onDeleteConnection: () => void; onZoomIn: () => void; onZoomOut: () => void; onResetView: () => void;
 }
 const GROUP_LABELS: Record<string, string> = { 'three-phase': 'Симметричный AC-режим', 'phase-coordinates': 'Фазные координаты', 'symmetrical-components': 'Симметричные составляющие' };
 const METHOD_LABELS: Record<string, string> = { 'newton-raphson': 'Ньютон–Рафсон', direct: 'Прямой метод' };
-export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, calculationBlockedReason, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
   const [capabilities, setCapabilities] = useState<ComputeCapability[]>([]);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [message, setMessage] = useState('Проверка возможностей…'); const [retry, setRetry] = useState(0);
@@ -39,7 +40,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limi
       <button className="icon-button" aria-label="Обновить список движков" title={backendMessage || 'Обновить список движков'} onClick={onBackendReload} disabled={isCalculating}><Icon name="reset" /></button>
       {backendMessage && <span role="status" className="capability-badge">{backendMessage}</span>}
       <label className="execution-budget">Лимит, мс <input aria-label="Бюджет времени, мс" className="method-select" type="number" min="1" max="20000" step="1" value={Number.isNaN(maxTimeMs) ? '' : maxTimeMs} disabled={isCalculating} onChange={e => onMaxTimeChange(e.currentTarget.valueAsNumber)} /></label>
-      <button className="tool-btn primary calculate-button" onClick={onCalculate} disabled={!currentSchemeId || !available || isCalculating} title={message || selected?.reasons.join('; ')}><Icon name="play" />{isCalculating ? 'Расчёт…' : 'Рассчитать'}</button>
+      <button className="tool-btn primary calculate-button" onClick={onCalculate} disabled={!currentSchemeId || !available || isCalculating || Boolean(calculationBlockedReason)} title={calculationBlockedReason || message || selected?.reasons.join('; ')}><Icon name="play" />{isCalculating ? 'Расчёт…' : 'Рассчитать'}</button>
       <select aria-label="Группа расчётной модели" className="group-select" value={modelGroup} disabled={isCalculating || !groups.length} onChange={e => onModelGroupChange(e.target.value)}>{(groups.length ? groups : [modelGroup]).map(group => <option key={group} value={group} disabled={!capabilities.some(c => c.model_group === group && c.status !== 'unsupported')}>{GROUP_LABELS[group] || group}</option>)}</select>
       <select aria-label="Метод расчёта" className="method-select" value={calcMethod} disabled={isCalculating || !methods.length} onChange={e => onCalcMethodChange(e.target.value)}>{(methods.length ? methods : [{ method: calcMethod, status: 'unsupported' }]).map(method => <option key={method.method} value={method.method} disabled={method.status === 'unsupported'}>{METHOD_LABELS[method.method] || method.method}</option>)}</select>
       <span className="capability-badge" role="status" title={selected?.reasons.join('; ')}>{message || (selected?.status === 'experimental' ? 'Экспериментальный' : selected?.status === 'validated' ? 'Проверен' : selected?.status === 'deprecated' ? 'Устаревает' : 'Не поддержан')}</span>

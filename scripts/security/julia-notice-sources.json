@@ -82,5 +82,9 @@
       "file": "data/mozilla-cacerts-2026-08-13-linux-arm64.json",
       "sha256": "10218a595bd065ff889095d044fdbc0e937a1fd6586a9151cfed3f201a343589"
     }
-  ]
+  ],
+  "stdlibSources": {
+    "file": "stdlib/julia-1.13.2-sources.json",
+    "sha256": "b4f252055eb729aed48b734bd8cea4ebb9a8cf8b105bdfae37c9a4c1e8dd466f"
+  }
 }

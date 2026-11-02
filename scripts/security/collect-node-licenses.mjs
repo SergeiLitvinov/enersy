@@ -7,6 +7,27 @@ const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const noticeName = /^(?:licen[cs]e|copying|notice|copyright)(?:[._-].*)?$|^third.*(?:notice|licen[cs]e).*$/i;
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
+function validateLinkedNotice(source) {
+  const reference = source.linkedNotice;
+  if (reference === undefined) return;
+  if (source.kind !== 'reviewed-upstream' || !reference || Array.isArray(reference) ||
+      Object.keys(reference).sort().join(',') !== 'declaredURL,file,retrievedURL,sha256' ||
+      typeof reference.file !== 'string' || !reference.file || /[/\\]/.test(reference.file) ||
+      reference.file === '.' || reference.file === '..' || !/^[a-f0-9]{64}$/.test(reference.sha256 ?? '') ||
+      !source.sourceURL.endsWith(`/${reference.file}`)) throw new Error('Invalid linked notice reference');
+  let declared, retrieved;
+  try {
+    declared = new URL(reference.declaredURL);
+    retrieved = new URL(reference.retrievedURL);
+  } catch { throw new Error('Invalid linked notice URL'); }
+  if (!['http:', 'https:'].includes(declared.protocol) || retrieved.protocol !== 'https:' ||
+      declared.username || declared.password || retrieved.username || retrieved.password || declared.hash || retrieved.hash) {
+    throw new Error('Invalid linked notice URL');
+  }
+  declared.protocol = 'https:';
+  if (declared.href !== retrieved.href) throw new Error('Linked notice retrieval changed the author reference');
+}
+
 /** Inventory an installed npm/pnpm tree without importing package code.
  * Declared licenses and captured notices still require release review.
  */
@@ -26,6 +47,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
         !/^[a-f0-9]{40}$/.test(source.sourceCommit ?? '') ||
         typeof source.sourceURL !== 'string' || !source.sourceURL.startsWith('https://') ||
         !source.sourceURL.includes(`/${source.sourceCommit}/`))) throw new Error('Invalid reviewed upstream source');
+    validateLinkedNotice(source);
     const key = `${source.name}@${source.version}`;
     const sources = reviewed.get(key) ?? [];
     if (sources.some(item => item.file === source.file)) throw new Error('Duplicate reviewed notice source');
@@ -65,6 +87,16 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
         const origin = await realpath(upstreamRoot);
         file = await realpath(path.join(origin, item));
         if (!file.startsWith(origin + path.sep)) throw new Error('Reviewed upstream notice escapes its root');
+        if (source.linkedNotice) {
+          const reference = source.linkedNotice;
+          const declaration = await safePath(path.join(directory, reference.file));
+          if (!declaration.startsWith(directory + path.sep)) throw new Error('Linked declaration escapes its package');
+          const metadata = await stat(declaration);
+          if (!metadata.isFile() || metadata.size === 0 || metadata.size > 1024 * 1024) throw new Error('Invalid linked declaration file');
+          const bytes = await readFile(declaration);
+          if (sha256(bytes) !== reference.sha256) throw new Error('Linked declaration content changed');
+          if (!utf8.decode(bytes).includes(`](${reference.declaredURL})`)) throw new Error('Author notice link is absent from the reviewed declaration');
+        }
       } else {
         file = await safePath(path.join(directory, item));
         if (source && !file.startsWith(directory + path.sep)) throw new Error('Reviewed notice escapes its package');
@@ -80,7 +112,8 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       files.push({ name: item, sha256: digest, ...(source ? { kind: source.kind ?? 'reviewed-embedded',
         ...(typeof source.reason === 'string' ? { reviewReason: source.reason } : {}),
         ...(typeof source.reviewedUtc === 'string' ? { reviewedUtc: source.reviewedUtc } : {}),
-        ...(source.kind === 'reviewed-upstream' ? { sourceCommit: source.sourceCommit, sourceURL: source.sourceURL } : {}) } : {}) });
+        ...(source.kind === 'reviewed-upstream' ? { sourceCommit: source.sourceCommit, sourceURL: source.sourceURL,
+          ...(source.linkedNotice ? { linkedNotice: { ...source.linkedNotice } } : {}) } : {}) } : {}) });
     }
     for (const item of (await readdir(directory)).sort()) {
       if (!noticeName.test(item)) continue;
@@ -151,6 +184,7 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       'Package license metadata and notice files are evidence, not a license compatibility decision',
       'A captured package root notice does not establish coverage of native binary dependencies; reviewReason preserves narrower reviewed scopes',
       'Embedded and upstream notices are included only for explicitly reviewed name/version, manifest and file hashes',
+      'Author-linked notices are reviewed byte snapshots bound to an installed declaration and explicit URL; links are not fetched during inventory',
       'Non-npm dependencies, operating-system packages and other non-root notice files require separate review',
     ],
   };

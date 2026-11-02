@@ -412,6 +412,84 @@ function verify_supplements(current, config, index, directory, notices)
     captured, rows
 end
 
+function reviewed_stdlib_sources(directory, config; runtime_version=string(VERSION), runtime_commit=Base.GIT_VERSION_INFO.commit)
+    reference = get(config,"stdlibSources",nothing)
+    reference === nothing && return nothing
+    reference isa AbstractDict && Set(keys(reference)) == Set(["file","sha256"]) || error("Invalid stdlib source reference")
+    relative = relative_file(reference["file"])
+    startswith(relative,"stdlib/") && occursin(r"\A[a-f0-9]{64}\z",reference["sha256"]) || error("Invalid stdlib source reference identity")
+    file = checked_file(directory,relative)
+    0 < filesize(file) <= 1024*1024 && file_digest(file) == reference["sha256"] || error("Stdlib source index checksum/size mismatch")
+    index = JSON.parse(read(file,String),Dict{String,Any})
+    Set(keys(index)) == Set(["formatVersion","scope","juliaVersion","juliaCommit","archiveUrl","archiveSha256","runtimeLicense","packages"]) &&
+        index["formatVersion"] === 1 && index["scope"] == "julia-stdlib-reviewed-source-bindings" || error("Invalid stdlib source index schema")
+    index["juliaVersion"] == runtime_version && index["juliaCommit"] == runtime_commit &&
+        occursin(r"\A[a-f0-9]{40}\z",runtime_commit) || error("Stdlib source index runtime mismatch")
+    index["archiveUrl"] == "https://codeload.github.com/JuliaLang/julia/tar.gz/$runtime_commit" &&
+        occursin(r"\A[a-f0-9]{64}\z",index["archiveSha256"]) || error("Invalid stdlib upstream source identity")
+    license = index["runtimeLicense"]
+    license isa AbstractDict && Set(keys(license)) == Set(["file","sha256"]) && license["file"] == "LICENSE.md" &&
+        occursin(r"\A[a-f0-9]{64}\z",license["sha256"]) || error("Invalid stdlib runtime license binding")
+    packages = index["packages"]
+    packages isa AbstractVector && 1 <= length(packages) <= 100 || error("Invalid stdlib source package list")
+    names, uuids = Set{String}(), Set{String}()
+    for package in packages
+        package isa AbstractDict && Set(keys(package)) == Set(["name","uuid","version","projectSha256","sourceFiles"]) || error("Invalid stdlib package source binding")
+        name = package["name"]
+        name isa AbstractString && occursin(r"\A[A-Za-z][A-Za-z0-9_]*\z",name) && !(name in names) || error("Invalid or duplicate stdlib name")
+        uuid = package["uuid"]
+        string(Base.UUID(uuid)) == uuid && !(uuid in uuids) || error("Invalid or duplicate stdlib UUID")
+        string(VersionNumber(package["version"])) == package["version"] &&
+            occursin(r"\A[a-f0-9]{64}\z",package["projectSha256"]) || error("Invalid stdlib source version/project hash")
+        push!(names,name); push!(uuids,uuid)
+        files = package["sourceFiles"]
+        files isa AbstractVector && 1 <= length(files) <= 1000 || error("Invalid stdlib source file list")
+        paths = Set{String}()
+        for source in files
+            source isa AbstractDict && Set(keys(source)) == Set(["file","sha256"]) || error("Invalid stdlib source file binding")
+            path = relative_file(source["file"])
+            startswith(path,"src/") && endswith(path,".jl") && !(path in paths) &&
+                occursin(r"\A[a-f0-9]{64}\z",source["sha256"]) || error("Invalid or duplicate stdlib source file")
+            push!(paths,path)
+        end
+    end
+    (;reference, index)
+end
+
+function capture_stdlib_sources(record, info, reviewed, notices; stdlib=realpath(Sys.STDLIB), runtime_root=realpath(joinpath(Sys.BINDIR,"..")))
+    reviewed === nothing && return nothing
+    bindings = filter(row->row["name"] == record["name"],reviewed.index["packages"])
+    isempty(bindings) && return nothing
+    binding = only(bindings)
+    record["source"] == "julia-stdlib" && record["uuid"] == binding["uuid"] && record["version"] == binding["version"] &&
+        record["projectSha256"] == binding["projectSha256"] || error("Stdlib source binding package identity mismatch")
+    directory = realpath(info.source)
+    directory == realpath(joinpath(stdlib,record["name"])) || error("Stdlib source binding directory mismatch")
+    source_root = joinpath(directory,"src")
+    isdir(source_root) && !islink(source_root) || error("Invalid stdlib source directory")
+    actual = Set{String}()
+    for (root,dirs,files) in walkdir(source_root)
+        any(name->islink(joinpath(root,name)),vcat(dirs,files)) && error("Stdlib source links need separate review")
+        for name in files
+            endswith(name,".jl") || error("Additional stdlib source resource needs review")
+            push!(actual,replace(relpath(joinpath(root,name),directory),'\\'=>'/'))
+        end
+    end
+    actual == Set(source["file"] for source in binding["sourceFiles"]) || error("Stdlib source file set changed")
+    sources = []
+    for source in sort(binding["sourceFiles"];by=row->row["file"])
+        captured = capture_text(directory,source["file"],notices;expected=source["sha256"])
+        startswith(notices[captured["sha256"]],"# This file is a part of Julia. License is MIT: https://julialang.org/license") || error("Stdlib source MIT declaration changed")
+        push!(sources,captured)
+    end
+    license = reviewed.index["runtimeLicense"]
+    runtime_license = capture_text(runtime_root,license["file"],notices;expected=license["sha256"])
+    Dict("scope"=>"reviewed-stdlib-src-files-and-explicit-mit-declarations", "sourceFiles"=>sources,
+        "runtimeLicense"=>runtime_license,"sourceIndex"=>reviewed.reference,
+        "archiveUrl"=>reviewed.index["archiveUrl"],"archiveSha256"=>reviewed.index["archiveSha256"],
+        "juliaCommit"=>reviewed.index["juliaCommit"])
+end
+
 function package_notice_record(name, entry, info, notices; stdlib=realpath(Sys.STDLIB), package_roots=[joinpath(depot,"packages") for depot in DEPOT_PATH])
     info.name == name && string(info.version) == get(entry,"version",string(info.version)) || error("Locked Julia package identity mismatch")
     directory = realpath(info.source)
@@ -450,6 +528,7 @@ function inventory(source_directory, config_file; project_license="/usr/share/li
     notices = Dict{String,String}()
     thirdparty, components = verify_supplements(current,config,index,source_directory,notices)
     data_sources = verify_sdk_data_sources(current,config,index,source_directory,notices)
+    stdlib_sources = reviewed_stdlib_sources(source_directory,config)
     sdk = Dict(component["uuid"]=>component for component in components)
     dependencies = Pkg.dependencies()
     records = []
@@ -459,13 +538,19 @@ function inventory(source_directory, config_file; project_license="/usr/share/li
         uuid = Base.UUID(entry["uuid"])
         haskey(dependencies,uuid) || error("Locked dependency is not installed")
         record = package_notice_record(name,entry,dependencies[uuid],notices)
+        source_evidence = capture_stdlib_sources(record,dependencies[uuid],stdlib_sources,notices)
+        if source_evidence !== nothing
+            record["reviewedStdlibSources"] = source_evidence
+        end
         supplemental = haskey(sdk,entry["uuid"]) && any(a->!isempty(get(a,"noticeFiles",[])),sdk[entry["uuid"]]["artifacts"])
         if isempty(record["noticeFiles"]) && supplemental
             record["noticeStatus"] = "sdk_artifact_notice_files"
+        elseif isempty(record["noticeFiles"]) && source_evidence !== nothing
+            record["noticeStatus"] = "reviewed_stdlib_source_and_runtime_license"
         elseif isempty(record["noticeFiles"]) && record["source"] == "julia-stdlib"
             record["noticeStatus"] = "runtime_index_only"
         end
-        record["incompleteEvidence"] = isempty(record["noticeFiles"]) && !supplemental
+        record["incompleteEvidence"] = isempty(record["noticeFiles"]) && !supplemental && source_evidence === nothing
         push!(records,record)
     end
     runtime_root = realpath(joinpath(Sys.BINDIR,".."))

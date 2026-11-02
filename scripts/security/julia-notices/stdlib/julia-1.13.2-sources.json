@@ -1,0 +1,250 @@
+{
+  "formatVersion": 1,
+  "scope": "julia-stdlib-reviewed-source-bindings",
+  "juliaVersion": "1.13.2",
+  "juliaCommit": "45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "archiveUrl": "https://codeload.github.com/JuliaLang/julia/tar.gz/45b6d15e34bbd2003a31acce0b1847b63dad029c",
+  "archiveSha256": "087cee19f6a77a5d0613187915ceb4572b4600a9942698e4313678d7490f2648",
+  "runtimeLicense": {
+    "file": "LICENSE.md",
+    "sha256": "590d71f5c9696d9a93bdace9183cde676a617e841e0862f3b59f8c9f428cfe82"
+  },
+  "packages": [
+    {
+      "name": "Artifacts",
+      "uuid": "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
+      "version": "1.11.0",
+      "projectSha256": "829883ec596b976d465bbdf7f46b3796e0e0f3949ee7525374dae15203ee2d1c",
+      "sourceFiles": [
+        {
+          "file": "src/Artifacts.jl",
+          "sha256": "3b3f87672ea42b610118e4a87a17209068f0a0ae08742ecb808679175ab6b4b4"
+        }
+      ]
+    },
+    {
+      "name": "Base64",
+      "uuid": "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f",
+      "version": "1.11.0",
+      "projectSha256": "64d8a66ba0758a3d79cd665d642fdcaf7ecce1986496451ec411d29f53a21dbe",
+      "sourceFiles": [
+        {
+          "file": "src/Base64.jl",
+          "sha256": "778543f5b8399ac8aa821402b45a0be1aa4de5d1a2a47a53c3d7981f89b41bd6"
+        },
+        {
+          "file": "src/buffer.jl",
+          "sha256": "0ca740fa4654581b4cf537cd2e040e28f097ac00a3533def328078a461869863"
+        },
+        {
+          "file": "src/decode.jl",
+          "sha256": "a2c2249591eca16434508915d7ecde3d4a772a77610f978b0608d6daefe483c6"
+        },
+        {
+          "file": "src/encode.jl",
+          "sha256": "d13341e9ecace2c8b33456c2a2b3e28c062b4a96ce4084ff05b8fa202f0300b8"
+        }
+      ]
+    },
+    {
+      "name": "Dates",
+      "uuid": "ade2ca70-3891-5945-98fb-dc099432e06a",
+      "version": "1.11.0",
+      "projectSha256": "6915c06f4595a7e6b84ccba6577e8beaf0b6628ce9ea773d7e930c6af9074c38",
+      "sourceFiles": [
+        {
+          "file": "src/Dates.jl",
+          "sha256": "b7565e8b4a8e2b9f6f80c7dea12f5e5d33355b2ded1e9d5ea173f0b8f8a0830f"
+        },
+        {
+          "file": "src/accessors.jl",
+          "sha256": "c7be134251eb2fa47a88b96e2e64638dfb7db3fa863f084b9fbd100ee56bff95"
+        },
+        {
+          "file": "src/adjusters.jl",
+          "sha256": "51e64aa139e1178c5f5e422adad55e0e8747284125c2599c97bee341abf5eecc"
+        },
+        {
+          "file": "src/arithmetic.jl",
+          "sha256": "a3e22c8f353fe4bafbcc6504559348b2100b976d306a1b05a5d66eaf31b09092"
+        },
+        {
+          "file": "src/conversions.jl",
+          "sha256": "acf237e7780e34d32a525bad4a511e277e2f8eb9f011e351d9f27d2f69833983"
+        },
+        {
+          "file": "src/deprecated.jl",
+          "sha256": "ee1454e353aaf954eab1423c295bea1e172ff045495d0ceee1d789e47a125b71"
+        },
+        {
+          "file": "src/io.jl",
+          "sha256": "3474bd6af090c275302c625981704de44db6f34158f2bc399d0e05ef1e4b85a4"
+        },
+        {
+          "file": "src/parse.jl",
+          "sha256": "b43c3bd9f82bac0deeaba47d2b5d7c01980b6cff25a0c0c7783beea9c2bb22e9"
+        },
+        {
+          "file": "src/periods.jl",
+          "sha256": "36e04474262152f52cefe8729d1111e83b6e3ead075b3947c16f3bf66760825d"
+        },
+        {
+          "file": "src/query.jl",
+          "sha256": "46d25ab2c00a23ccbad2fb645bafd917c35278571a59938360b25a7629aee46c"
+        },
+        {
+          "file": "src/ranges.jl",
+          "sha256": "d67556fc2701e1dbdc1a877c3b1985cff8df0d2d9d4cf2daca8e84873fa9afa6"
+        },
+        {
+          "file": "src/rounding.jl",
+          "sha256": "c81525a7c625e13de33837d03780655c333a84eae0595708ceded495ab11c7fb"
+        },
+        {
+          "file": "src/types.jl",
+          "sha256": "9f30cb1102a69c800e420a2c569d0277993d3369e51529c90ca51ed93fd3e075"
+        }
+      ]
+    },
+    {
+      "name": "Libdl",
+      "uuid": "8f399da3-3557-5675-b5ff-fb832c97cbdb",
+      "version": "1.11.0",
+      "projectSha256": "6a4b431e9fe3a0c560523a131bf36e39078f8e65dca289a7f9293157c6286e04",
+      "sourceFiles": [
+        {
+          "file": "src/Libdl.jl",
+          "sha256": "d6ceeb9ad7a4124ee69fbfe6bf05ef1013f27df2041abda10e935aa532449c63"
+        }
+      ]
+    },
+    {
+      "name": "Logging",
+      "uuid": "56ddb016-857b-54e1-b83d-db4d58db5568",
+      "version": "1.11.0",
+      "projectSha256": "6ddceb7e31833c5074c6aec786893e98ae1dc7328b85d8239a98f6e836f6ee55",
+      "sourceFiles": [
+        {
+          "file": "src/Logging.jl",
+          "sha256": "83af58d7f55648e3a24e9201a8a87df5f282b8a6d4605d60be2a39d41e4ea9a6"
+        }
+      ]
+    },
+    {
+      "name": "Printf",
+      "uuid": "de0858da-6303-5e67-8744-51eddeeeb8d7",
+      "version": "1.11.0",
+      "projectSha256": "139442f5c0c11f50e026afe065e4e4b72a068b0bb946ec3469abb9bf62438d6c",
+      "sourceFiles": [
+        {
+          "file": "src/Printf.jl",
+          "sha256": "4fbabd99d94a3047baaffca5381ceed4fff21f1192f1b6ec18bf4c31942500ff"
+        }
+      ]
+    },
+    {
+      "name": "Random",
+      "uuid": "9a3f8284-a2c9-5f02-9a11-845980a1fd5c",
+      "version": "1.11.0",
+      "projectSha256": "52476c63986d328c02707776522fff128731c9d49a9cfaa8e8a2b432bccfa3a0",
+      "sourceFiles": [
+        {
+          "file": "src/DSFMT.jl",
+          "sha256": "4c033ff64f4d0c0cc4f71ed1530a190b5ccee1204fbb5081f270b6f5062f94ae"
+        },
+        {
+          "file": "src/MersenneTwister.jl",
+          "sha256": "1e3228f340fe489526be36ad82b5b36a2ceea9226b0aaf27ec4627dc0c6e7b5a"
+        },
+        {
+          "file": "src/RNGs.jl",
+          "sha256": "8fc0d618a23193bb0c3e4b29741452e07dc891ecead58d123ab7ff4cf0c8dfd6"
+        },
+        {
+          "file": "src/Random.jl",
+          "sha256": "e9ef6338d04ab2575e7498d021632c34e7450d4eac696d5bfbecbab4e09a650f"
+        },
+        {
+          "file": "src/Xoshiro.jl",
+          "sha256": "4a71b4858966c392a62348ebc954fe279502a96528fd59257c456f5067a9f065"
+        },
+        {
+          "file": "src/XoshiroSimd.jl",
+          "sha256": "55fdc4f0e6cd2c39edfccb38d49e29468e71961ab8182cdb0abfb2c8549b743f"
+        },
+        {
+          "file": "src/generation.jl",
+          "sha256": "e86d9de7264f5bbd2c683db0c5997c6dbc1326f7e50e4a33763e70915b5249a8"
+        },
+        {
+          "file": "src/misc.jl",
+          "sha256": "f572ee9b0f3de7e9ac6dda826272cc710f26d7d1ea0895f721249db15d15e910"
+        },
+        {
+          "file": "src/normal.jl",
+          "sha256": "56e9192493e137a96e064f7dd240110a53c5144a584df096f82779ddb8e414c1"
+        }
+      ]
+    },
+    {
+      "name": "Serialization",
+      "uuid": "9e88b42a-f829-5b0c-bbe9-9e923198166b",
+      "version": "1.11.0",
+      "projectSha256": "a78dbe66d8295a9619bf0ddb72a55b3a860e8967b676068e644813b793f6ba6c",
+      "sourceFiles": [
+        {
+          "file": "src/Serialization.jl",
+          "sha256": "3d69974b98a18cbc10d0586b8585bf96ff538ba84d1bec7798e334efd9930aef"
+        }
+      ]
+    },
+    {
+      "name": "Sockets",
+      "uuid": "6462fe0b-24de-5631-8697-dd941f90decc",
+      "version": "1.11.0",
+      "projectSha256": "6bf0a28c4d5ac4b24a1209f7a7e67a3662bf7775bbd1e2f5be79953847f4f0b6",
+      "sourceFiles": [
+        {
+          "file": "src/IPAddr.jl",
+          "sha256": "c98ec7d05665ba223a5f67785c79af27f3c7a6bab250e21384bdc2597e8c456b"
+        },
+        {
+          "file": "src/PipeServer.jl",
+          "sha256": "b44cf8a2d67865e30f7021b5142e50ad10aa3456576322fad4fe4d958349e2bd"
+        },
+        {
+          "file": "src/Sockets.jl",
+          "sha256": "d2778b8490a97714edd153ef366f1e93016cbaa6fc4097fad00f5b11c52c3d94"
+        },
+        {
+          "file": "src/addrinfo.jl",
+          "sha256": "be12c71c61918e544c945bcb130d4c03491d52f43e21f7a6ee24d1f58890d99a"
+        }
+      ]
+    },
+    {
+      "name": "UUIDs",
+      "uuid": "cf7118a7-6976-5b1a-9a39-7adc72f591a4",
+      "version": "1.11.0",
+      "projectSha256": "3947ab013c6800dcfd7299ad062a13522c961f91ac3a2341f08dbf476abbce4c",
+      "sourceFiles": [
+        {
+          "file": "src/UUIDs.jl",
+          "sha256": "fb4b8770b2356bed9e5aceb23c3d1ad4ec5ecc831b4a1ddfd01e9a8388eddee1"
+        }
+      ]
+    },
+    {
+      "name": "Unicode",
+      "uuid": "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5",
+      "version": "1.11.0",
+      "projectSha256": "94015651fbfb2a01b14c63933619308714c6155b28320f4d1c8b436cc6fab64f",
+      "sourceFiles": [
+        {
+          "file": "src/Unicode.jl",
+          "sha256": "02305d5d944b1e77428cf4228119e2a6c36255a4b0f49977fdee36948bcc2c68"
+        }
+      ]
+    }
+  ]
+}

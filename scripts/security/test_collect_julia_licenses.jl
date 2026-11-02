@@ -4,6 +4,137 @@ const JN = JuliaNoticeInventory
 const NOTICE_TEST_SOURCES = isempty(ARGS) ? joinpath(@__DIR__,"julia-notices") : only(ARGS)
 isdir(NOTICE_TEST_SOURCES) || error("Notice test source directory not found: $(NOTICE_TEST_SOURCES)")
 
+function stdlib_notice_fixture(root)
+    uuid = "11111111-2222-3333-4444-555555555555"
+    stdlib = joinpath(root,"stdlib")
+    package = joinpath(stdlib,"Example")
+    mkpath(joinpath(package,"src"))
+    sources = joinpath(root,"notices")
+    mkpath(joinpath(sources,"stdlib"))
+    project = "name = \"Example\"\nuuid = \"$uuid\"\nversion = \"1.2.3\"\n"
+    write(joinpath(package,"Project.toml"),project)
+    text = "# This file is a part of Julia. License is MIT: https://julialang.org/license\r\n# Copyright © Авторы\r\nmodule Example\r\n# Additional attribution after code\r\nend\r\n"
+    write(joinpath(package,"src","Example.jl"),text)
+    license = "\ufeffCopyright © contributors\r\nMIT permission and disclaimer\r\n"
+    write(joinpath(root,"LICENSE.md"),license)
+    binding = Dict("name"=>"Example","uuid"=>uuid,"version"=>"1.2.3","projectSha256"=>JN.digest(codeunits(project)),
+        "sourceFiles"=>[Dict("file"=>"src/Example.jl","sha256"=>JN.digest(codeunits(text)))])
+    commit = "a"^40
+    index = Dict("formatVersion"=>1,"scope"=>"julia-stdlib-reviewed-source-bindings","juliaVersion"=>"1.2.3","juliaCommit"=>commit,
+        "archiveUrl"=>"https://codeload.github.com/JuliaLang/julia/tar.gz/$commit","archiveSha256"=>"b"^64,
+        "runtimeLicense"=>Dict("file"=>"LICENSE.md","sha256"=>JN.digest(codeunits(license))),"packages"=>[binding])
+    function save_index()
+        file = joinpath(sources,"stdlib","index.json")
+        write(file,JSON.json(index))
+        Dict("stdlibSources"=>Dict("file"=>"stdlib/index.json","sha256"=>JN.file_digest(file)))
+    end
+    config = save_index()
+    read_index() = JN.reviewed_stdlib_sources(sources,config;runtime_version="1.2.3",runtime_commit=commit)
+    info = (;name="Example",version=v"1.2.3",source=package,tree_hash=nothing)
+    entry = Dict("uuid"=>uuid,"version"=>"1.2.3")
+    record() = JN.package_notice_record("Example",entry,info,Dict{String,String}();stdlib,package_roots=[])
+    capture(notices=Dict{String,String}()) = JN.capture_stdlib_sources(record(),info,read_index(),notices;stdlib,runtime_root=root)
+    (;root,stdlib,package,sources,index,config,save_index,read_index,record,capture,info,text,license)
+end
+
+@testset "Reviewed stdlib sources retain exact code and runtime license" begin
+    mktempdir() do root
+        fixture = stdlib_notice_fixture(root)
+        notices = Dict{String,String}()
+        evidence = fixture.capture(notices)
+        source = only(evidence["sourceFiles"])
+        @test notices[source["sha256"]] == fixture.text
+        @test source["bytes"] == sizeof(fixture.text)
+        @test notices[evidence["runtimeLicense"]["sha256"]] == fixture.license
+        @test evidence["juliaCommit"] == "a"^40
+        @test evidence["sourceIndex"] == fixture.config["stdlibSources"]
+        @test fixture.record()["noticeStatus"] == "no_package_notice_file"
+        @test JN.reviewed_stdlib_sources(fixture.sources,Dict()) === nothing
+        @test JN.capture_stdlib_sources(fixture.record(),fixture.info,nothing,notices;stdlib=fixture.stdlib,runtime_root=root) === nothing
+        unreviewed = fixture.record()
+        unreviewed["name"] = "UnreviewedStdlib"
+        @test JN.capture_stdlib_sources(unreviewed,fixture.info,fixture.read_index(),notices;stdlib=fixture.stdlib,runtime_root=root) === nothing
+        decoded = JSON.parse(JSON.json(notices),Dict{String,String})
+        @test decoded == notices
+    end
+end
+
+@testset "Stdlib source bindings reject changed or incomplete SDK contents" begin
+    for kind in ("source","mit-declaration","project","license","missing-source","extra-source","extra-resource","source-link","directory-link","source-root-link","wrong-uuid","wrong-version","not-stdlib")
+        @testset "$kind" begin
+            mktempdir() do root
+                f = stdlib_notice_fixture(root)
+                source = joinpath(f.package,"src","Example.jl")
+                if kind == "source"
+                    write(source,f.text*"# changed\n")
+                elseif kind == "mit-declaration"
+                    write(source,replace(f.text,"License is MIT"=>"License is unknown"))
+                    first(first(f.index["packages"])["sourceFiles"])["sha256"] = JN.file_digest(source)
+                    merge!(f.config,f.save_index())
+                elseif kind == "project"
+                    write(joinpath(f.package,"Project.toml"),read(joinpath(f.package,"Project.toml"),String)*"description = \"changed\"\n")
+                elseif kind == "license"
+                    write(joinpath(root,"LICENSE.md"),"Changed permission")
+                elseif kind == "missing-source"
+                    rm(source)
+                elseif kind == "extra-source"
+                    write(joinpath(f.package,"src","extra.jl"),"# New source\n")
+                elseif kind == "extra-resource"
+                    write(joinpath(f.package,"src","data.bin"),"New resource")
+                elseif kind == "source-link"
+                    outside = joinpath(root,"outside.jl")
+                    write(outside,f.text)
+                    rm(source); symlink(outside,source)
+                elseif kind == "directory-link"
+                    symlink(root,joinpath(f.package,"src","alias"))
+                elseif kind == "source-root-link"
+                    mv(joinpath(f.package,"src"),joinpath(root,"moved-src"))
+                    symlink(joinpath(root,"moved-src"),joinpath(f.package,"src"))
+                else
+                    record = f.record()
+                    key = kind == "wrong-uuid" ? "uuid" : kind == "wrong-version" ? "version" : "source"
+                    record[key] = "changed"
+                    @test_throws ErrorException JN.capture_stdlib_sources(record,f.info,f.read_index(),Dict{String,String}();stdlib=f.stdlib,runtime_root=root)
+                    return
+                end
+                @test_throws ErrorException f.capture()
+            end
+        end
+    end
+end
+
+@testset "Stdlib source index rejects stale or ambiguous bindings" begin
+    for kind in ("checksum","runtime","archive","license-path","duplicate-package","duplicate-file","bad-path","source-hash","unknown-field")
+        mktempdir() do root
+            f = stdlib_notice_fixture(root)
+            if kind == "checksum"
+                f.config["stdlibSources"]["sha256"] = "0"^64
+            else
+                if kind == "runtime"
+                    f.index["juliaCommit"] = "c"^40
+                elseif kind == "archive"
+                    f.index["archiveUrl"] = "https://example.invalid/source.tar.gz"
+                elseif kind == "license-path"
+                    f.index["runtimeLicense"]["file"] = "../LICENSE.md"
+                elseif kind == "duplicate-package"
+                    push!(f.index["packages"],deepcopy(first(f.index["packages"])))
+                elseif kind == "duplicate-file"
+                    files = first(f.index["packages"])["sourceFiles"]
+                    push!(files,deepcopy(first(files)))
+                elseif kind == "bad-path"
+                    first(first(f.index["packages"])["sourceFiles"])["file"] = "src/../private.jl"
+                elseif kind == "source-hash"
+                    first(first(f.index["packages"])["sourceFiles"])["sha256"] = "invalid"
+                else
+                    f.index["unknown"] = true
+                end
+                merge!(f.config,f.save_index())
+            end
+            @test_throws ErrorException f.read_index()
+        end
+    end
+end
+
 @testset "Bundled SDK data fingerprints do not execute certificate stubs" begin
     mktempdir() do root
         stdlib = joinpath(root,"stdlib")

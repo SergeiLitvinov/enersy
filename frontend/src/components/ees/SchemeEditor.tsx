@@ -101,7 +101,9 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     let previousWidth = window.innerWidth;
     const resize = () => {
       const nextWidth = window.innerWidth;
-      if (previousWidth > 1000 && nextWidth <= 1000) { setLibraryVisible(false); setInspectorVisible(false); }
+      // Keep the inspector mounted: its parameter/unit forms may contain
+      // unsubmitted input. Close the catalog to avoid overlapping sidebars.
+      if (previousWidth > 1000 && nextWidth <= 1000) setLibraryVisible(false);
       previousWidth = nextWidth;
     };
     window.addEventListener('resize', resize);
@@ -360,6 +362,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           onBackendChange={setComputeBackend}
           onBackendReload={backendChoices.reload}
           isCalculating={isCalculating}
+          calculationBlockedReason={failedGraph.length > 0 ? 'Сначала сверьте неподтверждённые изменения состава схемы.' : failedDrafts.length > 0 ? 'Сначала разрешите неподтверждённые правки оборудования.' : undefined}
           hasResult={Boolean(lastResult)}
           onShowResult={() => setResultsVisible(true)}
           onCalcMethodChange={setCalcMethod}
