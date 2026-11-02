@@ -86,6 +86,10 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+.parameter-unit-action { min-width: 0; padding: 5px 2px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--bg-card); cursor: pointer; font-family: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.parameter-unit-action:hover { color: var(--accent-blue); border-color: var(--border-active); }
+.parameter-unit-action:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.param-item input[readonly] { color: var(--text-secondary); border-style: dashed; }
 .parameter-value-input { min-width: 0; }
 .parameter-value-input input { box-sizing: border-box; width: 100%; }
 .parameter-value-input [role="alert"] { display: block; margin-top: 8px; color: var(--text-primary); font-size: 11px; line-height: 1.5; }

@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { EditorComponent } from '../editor-utils';
 import { ComponentParams } from './ComponentParams';
 
+vi.mock('../../ui/Dialog', () => ({ Dialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
+
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 const save = vi.fn();
@@ -94,4 +96,55 @@ test('explicit acceptance also resets boolean input and clears a removed server 
   await act(async () => input('enabled').click());
   await render({ i: '2000', enabled: 'true' }, { u: 1, enabled: 1 });
   expect(input('u').value).toBe(''); expect(input('enabled').checked).toBe(true);
+});
+
+
+test('an undeclared numeric field is read-only and opens its own value/unit form without template inference', async () => {
+  const atomic = vi.fn();
+  const source = { ...component, paramTemplate: component.paramTemplate!.map(p => ({ ...p, unit: p.key === 'i' ? 'A' : '' })) };
+  await act(async () => root.render(<ComponentParams component={source} onSave={save} onSaveParams={atomic} />));
+  expect(input('i').readOnly).toBe(true);
+  expect(input('i').placeholder).toBe('Не задано');
+  await type('i', '3000');
+  await act(async () => { input('i').focus(); input('i').blur(); });
+  expect(save).not.toHaveBeenCalled(); expect(atomic).not.toHaveBeenCalled();
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Задать значение и единицу: i"]')!.click());
+  const form = container.querySelector('form')!;
+  expect(form.querySelector('select')!.value).toBe('i');
+  const fields = form.querySelectorAll('input');
+  expect(fields[0].value).toBe('2000'); expect(fields[1].value).toBe(''); expect(fields[1].placeholder).toBe('A');
+  await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(atomic).not.toHaveBeenCalled();
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(fields[1], 'A');
+    fields[1].dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(atomic).toHaveBeenCalledWith({ i: '2000' }, { formatVersion: 1, units: { i: 'A' } });
+  expect(save).not.toHaveBeenCalled();
+});
+
+test('ordinary declared numeric edits send the original explicit unit atomically and preserve a rejected draft', async () => {
+  const atomic = vi.fn().mockRejectedValue(new Error('Revision conflict; review the journal'));
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { u: 'кВ' } } };
+  await act(async () => root.render(<ComponentParams component={source} onSave={save} onSaveParams={atomic} />));
+  expect(input('u').readOnly).toBe(false);
+  await type('u', '220.0000');
+  await act(async () => { input('u').focus(); input('u').blur(); });
+  expect(atomic).toHaveBeenCalledWith({ u: '220.0000' }, { formatVersion: 1, units: { u: 'кВ' } });
+  expect(save).not.toHaveBeenCalled(); expect(input('u').value).toBe('220.0000');
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('Revision conflict');
+});
+
+test('changed server units block the atomic edit too, while boolean controls keep their existing path', async () => {
+  const atomic = vi.fn();
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { u: 'кВ' } } };
+  await act(async () => root.render(<ComponentParams component={source} onSave={save} onSaveParams={atomic} />));
+  await type('u', '220');
+  await act(async () => root.render(<ComponentParams component={{ ...source, params: { ...source.params, u: '220' }, declaredParameterUnits: { formatVersion: 1, units: { u: 'В' } } }} onSave={save} onSaveParams={atomic} />));
+  await act(async () => { input('u').focus(); input('u').blur(); });
+  expect(atomic).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('Единица изменилась');
+  await act(async () => input('enabled').click());
+  expect(save).toHaveBeenCalledWith('enabled', 'false'); expect(atomic).not.toHaveBeenCalled();
 });

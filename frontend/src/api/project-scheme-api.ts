@@ -1,6 +1,7 @@
 import { draftUUID } from './editor-draft-payload';
 import { ComponentWriteError, componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite } from './component-revision';
 import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
+import { copyCreationParams, copyCreationUnits, requireCreationUnits } from './component-creation';
 import { calculationErrorMessage, parseCalculationResult, type ComponentPatch, type CalculationResult } from './ees-api';
 import { AC_INPUT_UNIT_PROFILE, requireInputUnitContract } from './input-unit-contract';
 import { archiveId } from './calculation-archives-api';
@@ -11,6 +12,7 @@ import { parseTerminalVoltageLimits, requireOperatingLimits, type TerminalVoltag
 /** Wire IDs/revisions remain strings. Conversion belongs only to the renderer adapter. */
 export interface ProjectSchemeScope { projectId: string; schemeId: string }
 export interface ProjectComponentInput {
+  parameterUnitDeclaration?: ParameterUnitDeclaration;
   projectPassportVersionId?: string | null;
   typeId: string; equipmentModelId: string | null; x: number; y: number; rotation: number;
   name: string; params: Record<string, string>;
@@ -65,6 +67,8 @@ async function json(response: Response, signal: AbortSignal): Promise<unknown> {
 }
 
 export async function createProjectComponent(scope: ProjectSchemeScope, input: ProjectComponentInput, signal: AbortSignal, command?: { commandId: string; expectedTopologyRevision: string; identity?: { accountId: string; sessionId: string } }): Promise<ProjectCreatedComponent & { commandId?: string; deleted?: boolean; topologyRevision?: string }> {
+  const params = copyCreationParams(input.params);
+  input = { ...input, params, ...(input.parameterUnitDeclaration === undefined ? {} : { parameterUnitDeclaration: copyCreationUnits(input.parameterUnitDeclaration, params) }) };
   const typeId = id(input.typeId, true);
   const equipmentModelId = input.equipmentModelId === null ? null : id(input.equipmentModelId, true);
   const passportId = input.projectPassportVersionId == null ? null : id(input.projectPassportVersionId);
@@ -80,6 +84,7 @@ export async function createProjectComponent(scope: ProjectSchemeScope, input: P
   if (confirmedPassport !== passportId) throw new Error('Сервер не подтвердил выбранную версию проектного паспорта');
   if (modelId !== equipmentModelId) throw new Error('Сервер не подтвердил выбранную паспортную модель');
   const parsed = parseCreatedComponent({ ...data, id: Number(componentId), equipmentModelId: modelId === null ? null : Number(modelId) });
+  requireCreationUnits(input.parameterUnitDeclaration, params, parsed);
   etag(response, parsed.revision);
   return { ...parsed, id: componentId, equipmentModelId: modelId, projectPassportVersionId: confirmedPassport, ...(confirmation ? { ...confirmation, deleted: confirmation.deleted as boolean } : {}) };
 }

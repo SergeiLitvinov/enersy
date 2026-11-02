@@ -15,7 +15,8 @@ import (
 )
 
 type createComponentRequest struct {
-	unitDeclaration          *parameterUnitDeclaration // Derived internally from an immutable passport; never decoded from JSON.
+	unitDeclaration          *parameterUnitDeclaration // Copied internally from an immutable passport; never decoded from JSON.
+	UnitDeclaration          creationUnitDeclaration   `json:"parameterUnitDeclaration,omitzero"`
 	SchemeID                 int                       `json:"schemeId"`
 	TypeID                   int                       `json:"typeId"`
 	X                        float64                   `json:"x"`
@@ -55,6 +56,9 @@ func validateComponentCreation(req createComponentRequest) error {
 		if err := validateComponentParameter(key, value); err != nil {
 			return err
 		}
+	}
+	if err := req.UnitDeclaration.validate(req.Params); err != nil {
+		return creationError(err.Error(), http.StatusBadRequest)
 	}
 	return nil
 }
@@ -143,10 +147,15 @@ func handleComponents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	writeJSON(w, map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)})
+	body := map[string]any{"id": id, "success": true, "params": params, "equipmentModelId": req.EquipmentModelID, "revision": strconv.FormatInt(revision, 10)}
+	if declaration := creationParameterUnits(req); declaration != nil {
+		body["declaredParameterUnits"] = declaration
+	}
+	writeJSON(w, body)
 }
 
 func createComponentInTx(ctx context.Context, tx *sql.Tx, req createComponentRequest) (int, map[string]string, int64, error) {
+	req.unitDeclaration = creationParameterUnits(req)
 	var err error
 	var exists bool
 	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM component_types WHERE id=$1)", req.TypeID).Scan(&exists); err != nil {

@@ -55,22 +55,23 @@ type editorGraphDraft struct {
 	Phase  json.RawMessage   `json:"phase,omitempty"`
 }
 type editorGraphIntent struct {
-	ProjectPassportVersionID *string           `json:"projectPassportVersionId,omitempty"`
-	Kind                     string            `json:"kind"`
-	TypeID                   *string           `json:"typeId,omitempty"`
-	Name                     *string           `json:"name,omitempty"`
-	X                        *float64          `json:"x,omitempty"`
-	Y                        *float64          `json:"y,omitempty"`
-	Rotation                 *int              `json:"rotation,omitempty"`
-	EquipmentModelID         *string           `json:"equipmentModelId,omitempty"`
-	Params                   map[string]string `json:"params,omitempty"`
-	CommandID                *string           `json:"commandId,omitempty"`
-	From                     *string           `json:"from,omitempty"`
-	To                       *string           `json:"to,omitempty"`
-	FromPort                 *string           `json:"fromPort,omitempty"`
-	ToPort                   *string           `json:"toPort,omitempty"`
-	ID                       *string           `json:"id,omitempty"`
-	ExpectedTopologyRevision json.RawMessage   `json:"expectedTopologyRevision,omitempty"`
+	ParameterUnitDeclaration creationUnitDeclaration `json:"parameterUnitDeclaration,omitzero"`
+	ProjectPassportVersionID *string                 `json:"projectPassportVersionId,omitempty"`
+	Kind                     string                  `json:"kind"`
+	TypeID                   *string                 `json:"typeId,omitempty"`
+	Name                     *string                 `json:"name,omitempty"`
+	X                        *float64                `json:"x,omitempty"`
+	Y                        *float64                `json:"y,omitempty"`
+	Rotation                 *int                    `json:"rotation,omitempty"`
+	EquipmentModelID         *string                 `json:"equipmentModelId,omitempty"`
+	Params                   creationParameters      `json:"params,omitempty"`
+	CommandID                *string                 `json:"commandId,omitempty"`
+	From                     *string                 `json:"from,omitempty"`
+	To                       *string                 `json:"to,omitempty"`
+	FromPort                 *string                 `json:"fromPort,omitempty"`
+	ToPort                   *string                 `json:"toPort,omitempty"`
+	ID                       *string                 `json:"id,omitempty"`
+	ExpectedTopologyRevision json.RawMessage         `json:"expectedTopologyRevision,omitempty"`
 }
 
 func draftText(value string, limit int) bool {
@@ -190,10 +191,13 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 			return payload, errEditorDraftPayload
 		}
 		i := draft.Intent
-		creation := i.TypeID != nil || i.Name != nil || i.X != nil || i.Y != nil || i.Rotation != nil || i.EquipmentModelID != nil || i.ProjectPassportVersionID != nil || i.Params != nil
+		creation := i.TypeID != nil || i.Name != nil || i.X != nil || i.Y != nil || i.Rotation != nil || i.EquipmentModelID != nil || i.ProjectPassportVersionID != nil || i.Params != nil || !i.ParameterUnitDeclaration.IsZero()
 		connection := i.CommandID != nil || i.From != nil || i.To != nil || i.FromPort != nil || i.ToPort != nil
 		switch i.Kind {
 		case "create-component":
+			if i.ParameterUnitDeclaration.validate(i.Params) != nil {
+				return payload, errEditorDraftPayload
+			}
 			if !draftPassport(i.EquipmentModelID, i.ProjectPassportVersionID) {
 				return payload, errEditorDraftPayload
 			}
@@ -231,7 +235,7 @@ func unambiguousDraftJSON(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	fields := map[string]bool{}
-	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision declaredParameterUnits units unit", " ") {
+	for _, field := range strings.Split("formatVersion components graph componentId base intents reason phase id typeId type equipmentModelId projectPassportVersionId revision name x y rotation params kind values key value intent commandId from to fromPort toPort expectedTopologyRevision declaredParameterUnits parameterUnitDeclaration units unit", " ") {
 		fields[field] = true
 	}
 	var value func(int, bool) bool

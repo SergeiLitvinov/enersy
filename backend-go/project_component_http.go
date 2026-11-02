@@ -67,14 +67,15 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			return true
 		}
 		var input struct {
-			TypeID                   string            `json:"typeId"`
-			EquipmentModelID         *string           `json:"equipmentModelId"`
-			ProjectPassportVersionID *string           `json:"projectPassportVersionId"`
-			X                        float64           `json:"x"`
-			Y                        float64           `json:"y"`
-			Rotation                 int               `json:"rotation"`
-			Name                     string            `json:"name"`
-			Params                   map[string]string `json:"params"`
+			TypeID                   string                  `json:"typeId"`
+			EquipmentModelID         *string                 `json:"equipmentModelId"`
+			ProjectPassportVersionID *string                 `json:"projectPassportVersionId"`
+			X                        float64                 `json:"x"`
+			Y                        float64                 `json:"y"`
+			Rotation                 int                     `json:"rotation"`
+			Name                     string                  `json:"name"`
+			Params                   creationParameters      `json:"params"`
+			UnitDeclaration          creationUnitDeclaration `json:"parameterUnitDeclaration,omitzero"`
 		}
 		if !decodeComponentMutation(w, r, &input) {
 			return true
@@ -102,7 +103,7 @@ func (handler projectsHTTP) components(w http.ResponseWriter, r *http.Request) b
 			}
 			passport = &value
 		}
-		req := createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params}
+		req := createComponentRequest{SchemeID: scheme, TypeID: typeID, EquipmentModelID: model, ProjectPassportVersionID: passport, X: input.X, Y: input.Y, Rotation: input.Rotation, Name: input.Name, Params: input.Params, UnitDeclaration: input.UnitDeclaration}
 		var created projectComponentCreation
 		var receipt *createEquipmentReceipt
 		keys := r.Header.Values("Idempotency-Key")

@@ -71,6 +71,7 @@ func createProjectComponentInTx(ctx context.Context, tx *sql.Tx, project int64, 
 		req.Params = copied.Params
 		req.unitDeclaration = copied.Declaration
 	}
+	req.unitDeclaration = creationParameterUnits(req)
 	id, params, revision, err := createComponentInTx(ctx, tx, req)
 	if err != nil {
 		return projectComponentCreation{}, err

@@ -5,14 +5,15 @@ import { Dialog } from '../../ui/Dialog';
 import './ParameterUnitDialog.css';
 
 /** A declaration changes the meaning of the supplied value; it never converts it. */
-export function ParameterUnitDialog({ component, onClose, onSave }: {
+export function ParameterUnitDialog({ component, initialParameterKey, onClose, onSave }: {
   component: EditorComponent; onClose: () => void;
+  initialParameterKey?: string;
   onSave: (key: string, value: string, unit: string) => Promise<void>;
 }) {
   const fields = [...new Set([...(component.paramTemplate ?? []).map(field => field.key), ...Object.keys(component.params)])];
   const initial = (key: string) => ({ key, value: Object.prototype.hasOwnProperty.call(component.params, key) ? component.params[key] : '',
     unit: parameterUnitLabel(component.declaredParameterUnits, key, '') });
-  const [draft, setDraft] = useState(() => initial(fields[0] ?? ''));
+  const [draft, setDraft] = useState(() => initial(initialParameterKey ?? fields[0] ?? ''));
   const [source] = useState(() => ({ id: component.id, revision: component.revision }));
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const pending = useRef(false), id = useId();

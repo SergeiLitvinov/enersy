@@ -19,6 +19,7 @@ export type SchemeTransport = Pick<typeof api,
     completeComponentReplay?: (commandId: string) => void;
     retryComponentCreation?: (intent: Extract<EditorGraphIntent, { kind: 'create-component' }>) => Promise<{ success: true; id: number; commandId: string }>;
     projectPassports?: (signal: AbortSignal, after?: string) => ReturnType<typeof listProjectPassports>;
+    createComponent?: (input: api.ComponentCreationInput, capture?: GraphDispatchCapture) => ReturnType<typeof api.createComponent>;
     addComponent: (...args: [...Parameters<typeof api.addComponent>, capture?: GraphDispatchCapture, projectPassportVersionId?: string | null]) => ReturnType<typeof api.addComponent>;
     addConnection: (...args: [...Parameters<typeof api.addConnection>, capture?: GraphDispatchCapture]) => ReturnType<typeof api.addConnection>;
     deleteConnection: (id: number, capture?: GraphDispatchCapture) => ReturnType<typeof api.deleteConnection>;

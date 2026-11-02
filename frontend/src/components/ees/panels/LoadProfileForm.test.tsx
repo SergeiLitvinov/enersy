@@ -3,9 +3,11 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { LoadProfileForm } from './LoadProfileForm';
+import { loadProfileUnits } from '../../../domain/load-profile';
+import type { ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
 
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
-const save = vi.fn<(values: Readonly<Record<string, string>>) => Promise<void>>();
+const save = vi.fn<(values: Readonly<Record<string, string>>, declaration: ParameterUnitDeclaration) => Promise<void>>();
 const initial = { p: '10', q: '3', voltage_nom: '10' };
 test('the load editor displays declared labels without converting numeric strings', async () => {
   await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'MW', voltage_nom: 'kV' } }} />));
@@ -34,6 +36,7 @@ async function mode(value: string) {
   const el = host.querySelector('select')!;
   await act(async () => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); });
 }
+async function acknowledge() { await act(async () => host.querySelector<HTMLInputElement>('#load-5-units')!.click()); }
 const submit = () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); save.mockReset(); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
@@ -47,14 +50,14 @@ test('does not autosave or invent ZIP fractions and submits one complete profile
   for (const el of host.querySelectorAll<HTMLInputElement>('.load-fractions input')) {
     await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, el.getAttribute('aria-label')!.includes('мощность') ? '1' : '0'); el.dispatchEvent(new Event('input', { bubbles: true })); });
   }
-  save.mockResolvedValue(); await act(async () => submit());
+  await acknowledge(); save.mockResolvedValue(); await act(async () => submit());
   expect(save).toHaveBeenCalledTimes(1);
   expect(save.mock.calls[0][0]).toMatchObject({ p: '10', q: '3', voltage_nom: '10', zip_enabled: 'true', zip_p_z: '0', zip_p_i: '0', zip_p_p: '1', zip_q_p: '1' });
   expect(host.textContent).toContain('Профиль сохранён');
 });
 
 test('prevents repeated same-batch submit and retains values when saving fails', async () => {
-  await render(); await input('p', '12');
+  await render(); await input('p', '12'); await acknowledge();
   let reject!: (error: Error) => void;
   save.mockReturnValue(new Promise<void>((_, no) => { reject = no; }));
   await act(async () => { submit(); submit(); }); expect(save).toHaveBeenCalledTimes(1);
@@ -77,4 +80,62 @@ test('review resets only the accepted fields of a local form', async () => {
   await render(initial, { p: 1 });
   expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('10');
   expect(host.querySelector<HTMLInputElement>('#load-5-q')!.value).toBe('6');
+});
+
+
+test('no profile writes without an explicit declaration; declaring units preserves exact numeric strings', async () => {
+  await render(); await input('p', '12.0000');
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('Единица не задана');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await acknowledge();
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('12.0000');
+  await act(async () => submit());
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0][0]).toMatchObject({ p: '12.0000', zip_enabled: 'false', zip_p_z: '' });
+  expect(save.mock.calls[0][1]).toEqual({ formatVersion: 1, units: { p: 'МВт', q: 'Мвар', voltage_nom: 'кВ', zip_enabled: '1', zip_p_z: '1', zip_p_i: '1', zip_p_p: '1', zip_q_z: '1', zip_q_i: '1', zip_q_p: '1' } });
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+});
+
+test('a new declaration is an explicit relabelling, with a warning and no automatic scale conversion', async () => {
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'W', q: 'Mvar', voltage_nom: 'kV' } }} />));
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('W');
+  await acknowledge();
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('МВт');
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('10');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('не пересчитывает');
+  await acknowledge(); await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+});
+
+test('a successful value/unit acknowledgement does not conflict with its own unit changes', async () => {
+  await render(); await input('p', '12.0000'); await acknowledge();
+  await act(async () => submit());
+  const patch = save.mock.calls[0][0];
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={patch} onSave={save} unitDeclaration={{ formatVersion: 1, units: { ...loadProfileUnits } }} />));
+  expect(host.querySelector('[role=alert]')).toBeNull();
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('12.0000');
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+  await input('p', '13.0000');
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={patch} onSave={save} unitDeclaration={{ formatVersion: 1, units: { ...loadProfileUnits } }} parameterResets={{ q: 1 }} />));
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('13.0000');
+});
+
+test('server unit changes invalidate an already acknowledged declaration even before numeric edits', async () => {
+  await render(); await acknowledge();
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={initial} onSave={save} unitDeclaration={{ formatVersion: 1, units: { p: 'W' } }} />));
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  expect(host.querySelector('[role=alert]')?.textContent).toBeTruthy();
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Вернуть сохранённый')!.click());
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('W');
+});
+
+
+test('a no-op acknowledgement cannot erase newer text during a later unrelated review reset', async () => {
+  const params = { ...initial, zip_enabled: 'false', zip_p_z: '', zip_p_i: '', zip_p_p: '', zip_q_z: '', zip_q_i: '', zip_q_p: '' };
+  const declaration = { formatVersion: 1 as const, units: { ...loadProfileUnits } };
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} unitDeclaration={declaration} />));
+  await acknowledge(); await act(async () => submit()); expect(save).toHaveBeenCalledOnce();
+  await input('p', '12.0000');
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} unitDeclaration={declaration} parameterResets={{ q: 1 }} />));
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('12.0000');
 });

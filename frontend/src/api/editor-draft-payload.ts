@@ -1,4 +1,5 @@
 import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
+import { copyCreationUnits } from './component-creation';
 
 /** Recovery data only. Decoding neither validates current topology nor sends commands. */
 export interface EditorDraftPose { x: number; y: number; rotation: number; name: string }
@@ -13,7 +14,7 @@ export type EditorComponentIntent =
   | { kind: 'parameter'; key: string; value: string; unit?: string }
   | { kind: 'delete' };
 export type EditorGraphIntent =
-  | ({ kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string> } & EditorDraftPose)
+  | ({ kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: string; equipmentModelId: string | null; projectPassportVersionId?: string | null; params: Record<string, string>; parameterUnitDeclaration?: ParameterUnitDeclaration } & EditorDraftPose)
   | { kind: 'create-connection'; commandId: string; from: string; to: string; fromPort: string; toPort: string; expectedTopologyRevision: string }
   | { kind: 'delete-connection'; id: string; expectedTopologyRevision: string };
 export interface EditorDraftPayload {
@@ -121,10 +122,12 @@ function componentIntent(value: unknown): EditorComponentIntent {
 function graphIntent(value: unknown): EditorGraphIntent {
   const kind = draftRecord(value).kind;
   if (kind === 'create-component') {
-    const item = fields(value, ['kind', 'typeId', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId', 'commandId', 'expectedTopologyRevision']);
+    const item = fields(value, ['kind', 'typeId', 'name', 'x', 'y', 'rotation', 'params'], ['equipmentModelId', 'projectPassportVersionId', 'commandId', 'expectedTopologyRevision', 'parameterUnitDeclaration']);
     const protectedCommand = owns(item, 'commandId') || owns(item, 'expectedTopologyRevision')
       ? { commandId: draftUUID(item.commandId), expectedTopologyRevision: draftRevision(item.expectedTopologyRevision, true) } : {};
-    return { kind, ...protectedCommand, typeId: draftId(item.typeId), ...pose(item), ...passport(item), equipmentModelId: model(item.equipmentModelId), params: params(item.params) };
+    const values = params(item.params);
+    return { kind, ...protectedCommand, typeId: draftId(item.typeId), ...pose(item), ...passport(item), equipmentModelId: model(item.equipmentModelId), params: values,
+      ...(owns(item, 'parameterUnitDeclaration') ? { parameterUnitDeclaration: copyCreationUnits(item.parameterUnitDeclaration, values) } : {}) };
   }
   if (kind === 'create-connection') {
     const item = fields(value, ['kind', 'commandId', 'from', 'to', 'fromPort', 'toPort', 'expectedTopologyRevision']);

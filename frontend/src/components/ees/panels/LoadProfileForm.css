@@ -12,7 +12,10 @@
 .load-fractions th { text-align: left; font-weight: 500; line-height: 1.5; }
 .load-fractions th:first-child { width: 48%; }
 .load-fractions td, .load-fractions th { padding: 5px 3px; }
+.load-fraction-unit { display: block; margin-top: 3px; font-size: 10px; color: var(--text-secondary); overflow-wrap: anywhere; }
 .load-profile-form .load-profile-equation { padding: 10px; border-radius: 8px; background: var(--bg-card); overflow-wrap: anywhere; }
 .load-profile-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.load-unit-declaration { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; line-height: 1.6; color: var(--text-primary); }
+.load-unit-declaration input[type="checkbox"] { width: 16px; height: 16px; margin: 2px 0 0; padding: 0; accent-color: var(--accent-blue); }
 .load-profile-actions button { white-space: normal; font-size: 11px; }
 .load-profile-form [role="alert"], .load-profile-form .load-profile-validation { color: var(--text-primary); border-left: 3px solid var(--accent-blue); padding-left: 8px; }

@@ -2,9 +2,11 @@ import type { SchemeComponent, SchemeConnection } from '../../api/ees-api';
 import { parseEditorDraftPayload, type EditorGraphIntent } from '../../api/editor-draft-payload';
 import { parseEditorDraftPayloadV2, type EditorGraphEntryV2 } from '../../api/editor-draft-phases';
 import type { GraphDispatchCapture } from './scheme-transport';
+import { copyCreationUnits } from '../../api/component-creation';
+import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
 
 export type GraphIntent =
-  | { kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: number; name: string; x: number; y: number; equipmentModelId: number | null; projectPassportVersionId?: string | null; rotation?: number; params?: Record<string, string> }
+  | { kind: 'create-component'; commandId?: string; expectedTopologyRevision?: string; typeId: number; name: string; x: number; y: number; equipmentModelId: number | null; projectPassportVersionId?: string | null; rotation?: number; params?: Record<string, string>; parameterUnitDeclaration?: ParameterUnitDeclaration }
   | { kind: 'create-connection'; commandId: string; from: number; to: number; fromPort: string; toPort: string }
   | { kind: 'delete-connection'; id: number };
 
@@ -12,14 +14,16 @@ export interface GraphFailure { id: number; intent: GraphIntent; reason: string 
 export interface GraphSnapshot { id: number; components: SchemeComponent[]; connections: SchemeConnection[] }
 export interface GraphReview { schemeId: number; failures: GraphFailure[]; server: GraphSnapshot }
 const copyIntent = (intent: GraphIntent): GraphIntent => intent.kind === 'create-component'
-  ? { ...intent, ...(intent.params === undefined ? {} : { params: { ...intent.params } }) } : { ...intent };
+  ? { ...intent, ...(intent.params === undefined ? {} : { params: { ...intent.params } }),
+    ...(intent.parameterUnitDeclaration === undefined ? {} : { parameterUnitDeclaration: copyCreationUnits(intent.parameterUnitDeclaration, intent.params ?? {}) }) } : { ...intent };
 const copyFailure = (failure: GraphFailure): GraphFailure => ({ ...failure, intent: copyIntent(failure.intent) });
 const copyDispatch = (intent: EditorGraphIntent): EditorGraphIntent =>
   parseEditorDraftPayload({ formatVersion: 1, components: [], graph: [{ intent, reason: '' }] }).graph[0].intent;
 type JournalEntry = { intent: GraphIntent; reason: string; dispatch?: EditorGraphIntent; restoredUnprepared?: boolean };
 const copySnapshot = (snapshot: GraphSnapshot): GraphSnapshot => ({
   id: snapshot.id,
-  components: snapshot.components.map(component => ({ ...component, params: { ...component.params } })),
+  components: snapshot.components.map(component => ({ ...component, params: { ...component.params },
+    ...(component.declaredParameterUnits ? { declaredParameterUnits: parseParameterUnitDeclaration(component.declaredParameterUnits, component.params) } : {}) })),
   connections: snapshot.connections.map(connection => ({ ...connection, validationErrors: connection.validationErrors?.slice() })),
 });
 
@@ -52,6 +56,7 @@ export class GraphWrites {
             copied.name === captured.name && copied.x === captured.x && copied.y === captured.y && copied.rotation === captured.rotation &&
             copied.equipmentModelId === (captured.equipmentModelId === null ? null : String(captured.equipmentModelId)) &&
             (copied.projectPassportVersionId ?? null) === (captured.projectPassportVersionId ?? null) &&
+            JSON.stringify(copied.parameterUnitDeclaration ?? null) === JSON.stringify(captured.parameterUnitDeclaration ?? null) &&
             JSON.stringify(Object.entries(copied.params).sort()) === JSON.stringify(Object.entries(captured.params ?? {}).sort()));
       if (!matches || (entry.dispatch && JSON.stringify(entry.dispatch) !== JSON.stringify(copied))) throw new Error('Команда журнала не совпадает с отправляемым намерением');
       entry.dispatch = copied;
@@ -111,7 +116,8 @@ export class GraphWrites {
     if (this.failureEntries.get(failure)?.restoredUnprepared) {
       throw new Error('Исходная ревизия команды неизвестна. Примите серверную схему после сверки; новое соединение создавайте отдельным намерением.');
     }
-    const intent = failure.intent.kind === 'create-component' ? { ...failure.intent, params: { ...failure.intent.params } } : { ...failure.intent };
+    const intent = failure.intent.kind === 'create-component' ? { ...failure.intent, params: { ...failure.intent.params },
+      ...(failure.intent.parameterUnitDeclaration ? { parameterUnitDeclaration: copyCreationUnits(failure.intent.parameterUnitDeclaration, failure.intent.params ?? {}) } : {}) } : { ...failure.intent };
     const commandId = failure.intent.commandId;
     this.reviews.delete(review);
     return this.track(schemeId, async () => {

@@ -21,6 +21,8 @@ export type { CalculationLoad } from './calculation-loads';
 export type { CalculationBranch, CalculationShunt } from './calculation-flows';
 // frontend/src/api/ees-api.ts
 import { componentRevisionHeaders, parseComponentRevision, parseCreatedComponent, readComponentWrite, type ComponentWriteResult, type CreatedComponent } from './component-revision';
+import { copyComponentCreation, requireCreationUnits, type ComponentCreationInput } from './component-creation';
+export type { ComponentCreationInput } from './component-creation';
 export type { ComponentWriteResult, CreatedComponent } from './component-revision';
 
 const API_BASE = '/api/ees';
@@ -343,13 +345,22 @@ export async function addComponent(
   equipmentModelId: number | null = null,
   params: Record<string, string> = {}
 ): Promise<CreatedComponent> {
+  return createComponent({ schemeId, typeId, x, y, rotation, name, equipmentModelId, params });
+}
+
+/** Object-based creation supports explicit units without shifting editor callback arguments. */
+export async function createComponent(input: ComponentCreationInput): Promise<CreatedComponent> {
+  const captured = copyComponentCreation(input);
+  if (captured.projectPassportVersionId != null) throw new Error('Проектный паспорт требует приватного транспорта');
   const response = await fetch(`${API_BASE}/components`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ schemeId, typeId, x, y, rotation, name, equipmentModelId, params }),
+    body: JSON.stringify({ ...captured, equipmentModelId: captured.equipmentModelId ?? null }),
   });
   if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(typeof failure.error === 'string' ? failure.error : 'Не удалось сохранить оборудование'); }
-  return parseCreatedComponent(await response.json());
+  const created = parseCreatedComponent(await response.json());
+  requireCreationUnits(captured.parameterUnitDeclaration, captured.params, created);
+  return created;
 }
 
 export async function updateComponent(

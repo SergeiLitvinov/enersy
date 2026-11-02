@@ -7,6 +7,35 @@ import (
 	"testing"
 )
 
+func TestEditorDraftCreationUnitSharedFixture(t *testing.T) {
+	data, err := os.ReadFile("../tests/fixtures/editor-create-units-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := decodeEditorDraft(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, err := decodeEditorDraft(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := restored.Graph[0].Intent
+	if intent.Params["p"] != "1.2300" || intent.ParameterUnitDeclaration.declaration == nil || intent.ParameterUnitDeclaration.declaration.Units["p"] != "МВт" {
+		t.Fatal("lost original creation value or unit")
+	}
+	for _, raw := range []string{`null`, `{"formatVersion":2,"units":{"p":"MW"}}`, `{"formatVersion":1,"units":{"absent":"MW"}}`} {
+		invalid := strings.Replace(string(data), `{ "formatVersion": 1, "units": { "p": "МВт", "q": "Мвар" } }`, raw, 1)
+		if _, err := decodeEditorDraft([]byte(invalid)); err == nil {
+			t.Fatalf("accepted malformed creation declaration %s", raw)
+		}
+	}
+}
+
 func TestEditorDraftUnitIntentSharedFixture(t *testing.T) {
 	data, err := os.ReadFile("../tests/fixtures/editor-draft-units-v2.json")
 	if err != nil {

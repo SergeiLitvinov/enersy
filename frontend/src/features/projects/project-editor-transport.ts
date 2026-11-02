@@ -1,4 +1,6 @@
 import * as catalog from '../../api/ees-api';
+import { copyComponentCreation, copyCreationUnits } from '../../api/component-creation';
+import type { GraphDispatchCapture } from '../../components/ees/scheme-transport';
 import { listProjectPassports } from '../../api/project-passports-api';
 import { ComponentWriteError } from '../../api/component-revision';
 import * as commands from '../../api/project-scheme-api';
@@ -24,7 +26,7 @@ function equipmentIntent(value: unknown): Extract<EditorGraphIntent, { kind: 'cr
 }
 function equipmentInput(intent: Extract<EditorGraphIntent, { kind: 'create-component' }>): commands.ProjectComponentInput {
   return { typeId: intent.typeId, equipmentModelId: intent.equipmentModelId, x: intent.x, y: intent.y, rotation: intent.rotation,
-    name: intent.name, params: { ...intent.params }, ...(intent.projectPassportVersionId == null ? {} : { projectPassportVersionId: intent.projectPassportVersionId }) };
+    name: intent.name, params: { ...intent.params }, ...(intent.parameterUnitDeclaration ? { parameterUnitDeclaration: copyCreationUnits(intent.parameterUnitDeclaration, intent.params) } : {}), ...(intent.projectPassportVersionId == null ? {} : { projectPassportVersionId: intent.projectPassportVersionId }) };
 }
 function equipmentIdentity(intent: Extract<EditorGraphIntent, { kind: 'create-component' }>): string {
   return JSON.stringify({ ...intent, params: Object.entries(intent.params).sort(([a], [b]) => a.localeCompare(b)) });
@@ -106,6 +108,35 @@ export function createProjectEditorTransport(options: ProjectEditorTransportOpti
     return key;
   }
   const unsupported = async (): Promise<never> => { throw new Error('Создавайте схемы в навигаторе проекта. Удаление приватной схемы пока не подключено'); };
+  const createComponent = (original: catalog.ComponentCreationInput, capture?: GraphDispatchCapture) => {
+    const input = copyComponentCreation(original);
+    const { schemeId: id, typeId, x, y, rotation, name } = input;
+    const equipmentModelId = input.equipmentModelId ?? null;
+    const projectPassportVersionId = input.projectPassportVersionId ?? null;
+    return structural(async () => {
+      checkScheme(id);
+      const before = current();
+      const inputParams = { ...input.params };
+      const commandId = catalog.newConnectionCommandId();
+      const intent = equipmentIntent({ kind: 'create-component', commandId, expectedTopologyRevision: before.topologyRevision,
+        typeId: graphId(typeId), x, y, rotation, name,
+        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
+        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: { ...inputParams },
+        ...(input.parameterUnitDeclaration ? { parameterUnitDeclaration: input.parameterUnitDeclaration } : {}) });
+      equipmentAttempts.set(commandId, intent);
+      // Persist the exact identity/CAS before any request can reach the API.
+      await capture?.(equipmentIntent(intent));
+      options.onPreparedEquipment?.(equipmentIntent(intent));
+      const request = equipmentInput(intent);
+      const created = await commands.createProjectComponent(scope, request, signal, { commandId, expectedTopologyRevision: before.topologyRevision, identity });
+      if (created.deleted) throw new Error('Команда относится к удалённому оборудованию. Сверьте схему');
+      const cid = rendererId(created.id);
+      await synchronize({ components: [...before.components, { id: cid, typeId, type: '', name, x, y, rotation, revision: created.revision, params: created.params }], connections: before.connections });
+      options.onResolvedEquipment?.(commandId);
+      equipmentAttempts.delete(commandId);
+      return { ...created, id: cid, equipmentModelId: created.equipmentModelId === null ? null : rendererId(created.equipmentModelId) };
+    });
+  };
   return {
     projectPassports: (requestSignal, after) => checked(() => listProjectPassports(projectId, AbortSignal.any([signal, requestSignal]), after)),
     getComponentTypes: catalog.getComponentTypes,
@@ -118,28 +149,9 @@ export function createProjectEditorTransport(options: ProjectEditorTransportOpti
     }),
     createScheme: unsupported, deleteScheme: unsupported,
     newConnectionCommandId: catalog.newConnectionCommandId,
-    addComponent: (id, typeId, x, y, rotation, name, equipmentModelId = null, params = {}, capture, projectPassportVersionId = null) => structural(async () => {
-      checkScheme(id);
-      const before = current();
-      const inputParams = { ...params };
-      const commandId = catalog.newConnectionCommandId();
-      const intent = equipmentIntent({ kind: 'create-component', commandId, expectedTopologyRevision: before.topologyRevision,
-        typeId: graphId(typeId), x, y, rotation, name,
-        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }),
-        equipmentModelId: equipmentModelId === null ? null : graphId(equipmentModelId), params: { ...inputParams } });
-      equipmentAttempts.set(commandId, intent);
-      // Persist the exact identity/CAS before any request can reach the API.
-      await capture?.({ ...intent, params: { ...inputParams } });
-      options.onPreparedEquipment?.(equipmentIntent(intent));
-      const input = equipmentInput(intent);
-      const created = await commands.createProjectComponent(scope, input, signal, { commandId, expectedTopologyRevision: before.topologyRevision, identity });
-      if (created.deleted) throw new Error('Команда относится к удалённому оборудованию. Сверьте схему');
-      const cid = rendererId(created.id);
-      await synchronize({ components: [...before.components, { id: cid, typeId, type: '', name, x, y, rotation, revision: created.revision, params: created.params }], connections: before.connections });
-      options.onResolvedEquipment?.(commandId);
-      equipmentAttempts.delete(commandId);
-      return { ...created, id: cid, equipmentModelId: created.equipmentModelId === null ? null : rendererId(created.equipmentModelId) };
-    }),
+    createComponent,
+    addComponent: (id, typeId, x, y, rotation, name, equipmentModelId = null, params = {}, capture, projectPassportVersionId = null) =>
+      createComponent({ schemeId: id, typeId, x, y, rotation, name, equipmentModelId, params, projectPassportVersionId }, capture),
     completeComponentReplay: commandId => { options.onResolvedEquipment?.(commandId); equipmentAttempts.delete(commandId); },
     retryComponentCreation: original => serialized(async () => {
       write();

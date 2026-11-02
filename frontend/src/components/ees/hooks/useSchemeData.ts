@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../../../api/ees-api';
+import { copyComponentCreation } from '../../../api/component-creation';
 import { parseParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
 import { EditorComponent, EditorConnection } from '../editor-utils';
 import { ComponentLibraryItem } from '../svg-components';
@@ -134,17 +135,22 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     } catch (e) { console.error(e); notify('Не удалось удалить', 'error'); }
   }, [schemes, currentSchemeId, captureView, setCurrentSchemeId, notify, dataAPI]);
 
-  const addComponent = useCallback(async (item: ComponentLibraryItem, wx: number, wy: number, equipmentModelId: number | null = null, projectPassportVersionId: string | null = null) => {
+  const addComponent = useCallback(async (item: ComponentLibraryItem, wx: number, wy: number, equipmentModelId: number | null = null, projectPassportVersionId: string | null = null,
+    creation?: Pick<api.ComponentCreationInput, 'params' | 'parameterUnitDeclaration'>) => {
     if (!currentSchemeId) return;
     const isCurrent = captureView();
     try {
       if (projectPassportVersionId !== null && !dataAPI.projectPassports) throw new Error('Проектный паспорт недоступен в этом редакторе');
+      const input = copyComponentCreation({ ...creation, schemeId: currentSchemeId, typeId: item.id, x: wx, y: wy, rotation: 0, name: item.name, equipmentModelId,
+        ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) });
+      if (creation !== undefined && !dataAPI.createComponent) throw new Error('Транспорт не поддерживает явные данные создания');
       const params = await dataAPI.getComponentParams(item.code);
       // No write was dispatched yet; a selection change cancels this intent.
       if (!isCurrent()) return;
       const r = await writes.current.graph.run(currentSchemeId,
-        { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, rotation: 0, equipmentModelId, params: {}, ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) },
-        capture => projectPassportVersionId === null
+        { kind: 'create-component', typeId: item.id, name: item.name, x: wx, y: wy, rotation: 0, equipmentModelId, params: input.params,
+          ...(input.parameterUnitDeclaration ? { parameterUnitDeclaration: input.parameterUnitDeclaration } : {}), ...(projectPassportVersionId === null ? {} : { projectPassportVersionId }) },
+        capture => creation !== undefined && dataAPI.createComponent ? dataAPI.createComponent(input, capture) : projectPassportVersionId === null
           ? dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId, {}, capture)
           : dataAPI.addComponent(currentSchemeId, item.id, wx, wy, 0, item.name, equipmentModelId, {}, capture, projectPassportVersionId));
       if (!isCurrent()) return;

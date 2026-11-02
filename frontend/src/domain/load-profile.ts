@@ -2,6 +2,11 @@
 export const loadProfileKeys = ['p', 'q', 'voltage_nom', 'zip_enabled', 'zip_p_z', 'zip_p_i', 'zip_p_p', 'zip_q_z', 'zip_q_i', 'zip_q_p'] as const;
 export type LoadProfileKey = typeof loadProfileKeys[number];
 export type LoadProfileDraft = Record<LoadProfileKey, string>;
+/** Units of the current balanced AC profile, declared by the user for a new patch. */
+export const loadProfileUnits: Readonly<Record<LoadProfileKey, string>> = Object.freeze({
+  p: 'МВт', q: 'Мвар', voltage_nom: 'кВ', zip_enabled: '1',
+  zip_p_z: '1', zip_p_i: '1', zip_p_p: '1', zip_q_z: '1', zip_q_i: '1', zip_q_p: '1',
+});
 export const loadProfileDraft = (params: Readonly<Record<string, string>>): LoadProfileDraft =>
   Object.fromEntries(loadProfileKeys.map(key => [key, params[key] ?? ''])) as LoadProfileDraft;
 
