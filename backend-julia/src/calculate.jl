@@ -115,7 +115,7 @@ function power_flow_setup(sys::AcSystem, cls::BusClassification, base::BaseSyste
             throw(internal_error("inconsistent_setup",
                 "PV bus has no source specification",
                 detail="bus=$(bus)"))
-        push!(p_pv, mva_to_pu(src.p_mw, base))
+        push!(p_pv, mva_to_pu(src.p_mw, base; owner="generator#$(src.component_id).p"))
         push!(pv_v, source_spec(src, base, sys.assumptions)[1])
     end
     p_pq_by_bus = Dict{Int,Float64}()
@@ -124,7 +124,8 @@ function power_flow_setup(sys::AcSystem, cls::BusClassification, base::BaseSyste
     for inj in sys.injections
         inj.kind === :pq || continue
         profile = load_profile(inj.params, "load#$(inj.component_id)")
-        p, q = mva_to_pu(inj.p_mw, base), mva_to_pu(inj.q_mvar, base)
+        p = mva_to_pu(inj.p_mw, base; owner="load#$(inj.component_id).p")
+        q = mva_to_pu(inj.q_mvar, base; owner="load#$(inj.component_id).q")
         p_pq_by_bus[inj.bus] = get(p_pq_by_bus, inj.bus, 0.0) + p * profile.p[3]
         q_pq_by_bus[inj.bus] = get(q_pq_by_bus, inj.bus, 0.0) + q * profile.q[3]
         if profile.zip

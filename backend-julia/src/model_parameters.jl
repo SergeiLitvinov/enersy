@@ -95,7 +95,7 @@ Unknown/unconsumed parameters are not interpreted or certified here.
 With complete=true every stored key must have a model unit definition and an
 explicit matching label; dimensionless inputs must declare 1 rather than blank.
 """
-function validate_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString; complete::Bool=false)
+function validate_parameter_units(code::AbstractString, params::Dict{String,String}, declared, path::AbstractString; complete::Bool=false, scaling::Bool=false)
     require_object(declared, path)
     specs = get(AC_PARAMETER_UNIT_SPECS, code, nothing)
     if complete
@@ -112,6 +112,11 @@ function validate_parameter_units(code::AbstractString, params::Dict{String,Stri
         expected === nothing && continue
         complete && expected == "1" && isempty(strip(value)) && throw(contract_error(
             "parameter_unit_mismatch", "dimensionless parameters require an explicit unit 1 in this profile", detail="$(path).$(key)"))
+        if scaling
+            strip(value) == value || throw(contract_error("parameter_unit_mismatch", "scaled profile requires exact unit labels without surrounding whitespace", detail="$(path).$(key)"))
+            parameter_unit_scale(expected, value, "$(path).$(key)")
+            continue
+        end
         strip(value) in get(PARAMETER_UNIT_ALIASES, expected, (expected,)) || throw(contract_error(
             "parameter_unit_mismatch", "declared unit does not match the AC model; no automatic conversion is performed",
             detail="$(code).$(path).$(key): declared=$(repr(value)), expected=$(expected)"))
@@ -133,7 +138,7 @@ function request_unit_contract(json)
     version isa Integer && !(version isa Bool) && version == 1 ||
         throw(contract_error("unsupported_unit_contract_version", "unsupported unit contract formatVersion", detail="\$.unitContract.formatVersion"))
     profile = require_field(raw,:profile,"\$.unitContract")
-    profile isa AbstractString && profile == AC_INPUT_UNIT_PROFILE ||
+    profile isa AbstractString && profile in (AC_INPUT_UNIT_PROFILE, AC_SCALED_INPUT_UNIT_PROFILE) ||
         throw(contract_error("unsupported_unit_contract_profile", "unsupported unit convention profile", detail="\$.unitContract.profile"))
-    (;formatVersion=1,profile=AC_INPUT_UNIT_PROFILE)
+    (;formatVersion=1,profile=String(profile))
 end

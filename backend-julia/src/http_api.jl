@@ -111,7 +111,7 @@ function handle_calculate(json; backends=(julia_backend(),))
     contract = request_unit_contract(json)
     if contract !== nothing
         result["input_unit_contract"] = Dict("formatVersion"=>contract.formatVersion,"profile"=>contract.profile,
-            "validation_scope"=>"request-declarations-only","component_count"=>length(components),
+            "validation_scope"=>(contract.profile == AC_SCALED_INPUT_UNIT_PROFILE ? "request-declarations-with-scale-normalization" : "request-declarations-only"),"component_count"=>length(components),
             "parameter_count"=>sum(length(component.params) for component in components))
     end
     return result

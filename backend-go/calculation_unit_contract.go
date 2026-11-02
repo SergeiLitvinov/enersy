@@ -8,6 +8,7 @@ import (
 )
 
 const acInputUnitProfile = "legacy-ac-three-phase-rms-v1"
+const scaledACInputUnitProfile = "scaled-ac-three-phase-rms-v2"
 
 var errUnitContract = errors.New("invalid input unit contract")
 
@@ -17,7 +18,7 @@ type inputUnitContract struct {
 }
 
 func validInputUnitContract(value *inputUnitContract) bool {
-	return value == nil || (value.FormatVersion == 1 && value.Profile == acInputUnitProfile)
+	return value == nil || (value.FormatVersion == 1 && (value.Profile == acInputUnitProfile || value.Profile == scaledACInputUnitProfile))
 }
 
 func closedUnitContractObject(data []byte, names ...string) (map[string]json.RawMessage, error) {
@@ -66,10 +67,10 @@ func calculationUnitContractOption(query url.Values) (*inputUnitContract, error)
 	if !present {
 		return nil, nil
 	}
-	if len(values) != 1 || values[0] != acInputUnitProfile {
+	if len(values) != 1 || !validInputUnitContract(&inputUnitContract{1, values[0]}) {
 		return nil, errUnitContract
 	}
-	return &inputUnitContract{1, acInputUnitProfile}, nil
+	return &inputUnitContract{1, values[0]}, nil
 }
 
 // Empty maps must remain explicit in a complete declaration (e.g. a busbar
@@ -85,6 +86,12 @@ func applyInputUnitContract(payload map[string]any, contract *inputUnitContract,
 	values := make([]completeUnitComponent, len(components))
 	for i, component := range components {
 		units := component.ParameterUnits
+		if contract.Profile == scaledACInputUnitProfile {
+			units = nil
+			if component.DeclaredParameterUnits != nil {
+				units = component.DeclaredParameterUnits.Units
+			}
+		}
 		if units == nil {
 			units = map[string]string{}
 		}
@@ -130,6 +137,10 @@ func confirmsRequestedUnitContract(request, result []byte) bool {
 	for _, component := range input.Components {
 		parameters += len(component.Params)
 	}
-	return confirmation.FormatVersion == input.Contract.FormatVersion && confirmation.Profile == input.Contract.Profile &&
-		confirmation.Scope == "request-declarations-only" && confirmation.Components == len(input.Components) && confirmation.Parameters == parameters
+	scope := "request-declarations-only"
+	if input.Contract.Profile == scaledACInputUnitProfile {
+		scope = "request-declarations-with-scale-normalization"
+	}
+	return validInputUnitContract(input.Contract) && confirmation.FormatVersion == input.Contract.FormatVersion && confirmation.Profile == input.Contract.Profile &&
+		confirmation.Scope == scope && confirmation.Components == len(input.Components) && confirmation.Parameters == parameters
 }

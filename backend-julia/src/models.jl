@@ -160,8 +160,8 @@ function line_model(branch::Branch, buses::Dict{Int,Bus}, base::BaseSystem,
     (r == 0.0 && x == 0.0) &&
         throw(contract_error("zero_impedance", "line series impedance is zero",
                              detail="$(owner) r0=$(r0) x0=$(x0) length=$(len_km)"))
-    y_series = 1.0 / ohm_to_pu(complex(r, x), base)
-    y_charging = siemens_to_pu(complex(g0, b0) * len_km * n, base) / 2.0
+    y_series = 1.0 / ohm_to_pu(complex(r, x), base; owner="$(owner).series_impedance")
+    y_charging = siemens_to_pu(complex(g0, b0) * len_km * n, base; owner="$(owner).charging_admittance") / 2.0
 
     _check_line_levels(branch, buses, warnings)
     _check_line_symmetry(p, r0, x0, owner, warnings)
@@ -266,7 +266,7 @@ function generator_model(inj::Injection, terminal::Bus, base::BaseSystem,
     elseif v_nom <= 0
         push!(assumptions, "генератор $(inj.component_id): voltage_nom не задан")
     end
-    y_series = 1.0 / ohm_to_pu(complex(r, x), base)
+    y_series = 1.0 / ohm_to_pu(complex(r, x), base; owner="$(owner).series_impedance")
     return BranchModel(inj.component_id, "generator", inj.bus, terminal.index,
                        1.0, y_series, 0.0 + 0.0im, 0.0 + 0.0im, owner)
 end
@@ -404,7 +404,7 @@ function source_spec(inj::Injection, base::BaseSystem, assumptions::Vector{Strin
     end
     angle_deg = param_number(inj.params, "angle"; required=false, default=0.0,
                              unit="deg", owner=owner)
-    return kv_to_pu(v_kv, base), deg2rad(angle_deg)
+    return kv_to_pu(v_kv, base; owner="$(owner).e"), deg2rad(angle_deg)
 end
 
 """Типы узлов: балансирующий, PV (заданные `P` и `|E|`), PQ (заданные `P`, `Q`)."""

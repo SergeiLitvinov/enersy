@@ -13,9 +13,9 @@ const version = (): StudyVersion => ({ status: 'captured', id: '9007199254740994
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const saved = vi.fn(), close = vi.fn();
 
-test('editing an existing strict-unit Study keeps its policy in the next immutable intent', async () => {
+test.each(['legacy-ac-three-phase-rms-v1', 'scaled-ac-three-phase-rms-v2'] as const)('editing a Study keeps its exact unit policy (%s) in the next immutable intent', async profile => {
   const value = version();
-  value.document.unitContract = { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1' };
+  value.document.unitContract = { formatVersion: 1, profile };
   await mount(value);
   vi.mocked(appendStudyVersion).mockResolvedValue({ ...value, revision: '2' });
   await change('Название', 'Следующая версия');

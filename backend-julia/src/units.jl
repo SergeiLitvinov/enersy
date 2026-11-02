@@ -35,6 +35,8 @@ struct BaseSystem
     z_scale_ohm::Float64
     i_scale_ka::Float64
 function BaseSystem(s_base_mva::Real, v_base_kv::Real, source::AbstractString)
+    (s_base_mva isa Bool || v_base_kv isa Bool) && throw(contract_error(
+        "invalid_base", "physical base values cannot be boolean"))
     s = Float64(s_base_mva)
     v = Float64(v_base_kv)
     (isfinite(s) && s > 0) ||
@@ -59,15 +61,46 @@ i_base_ka(b::BaseSystem) = b.i_scale_ka
 
 # --- безразмерные величины ------------------------------------------------------
 
-kv_to_pu(v_kv::Real, b::BaseSystem) = Float64(v_kv) / b.v_base_kv
-pu_to_kv(v_pu::Real, b::BaseSystem) = Float64(v_pu) * b.v_base_kv
-mva_to_pu(s_mva::Real, b::BaseSystem) = Float64(s_mva) / b.s_base_mva
-pu_to_mva(s_pu::Real, b::BaseSystem) = Float64(s_pu) * b.s_base_mva
-ohm_to_pu(z_ohm::Real, b::BaseSystem) = Float64(z_ohm) / z_base_ohm(b)
-ohm_to_pu(z_ohm::Complex, b::BaseSystem) = z_ohm / z_base_ohm(b)
-pu_to_ohm(z_pu::Real, b::BaseSystem) = Float64(z_pu) * z_base_ohm(b)
-siemens_to_pu(y_s::Real, b::BaseSystem) = Float64(y_s) * z_base_ohm(b)
-siemens_to_pu(y_s::Complex, b::BaseSystem) = y_s * z_base_ohm(b)
+_unit_part_lost(before, after) = (real(before) != 0 && real(after) == 0) || (imag(before) != 0 && imag(after) == 0)
+
+@inline function _checked_unit_value(value::Union{Real,Complex}, owner::AbstractString)
+    (real(value) isa Bool || imag(value) isa Bool) && throw(contract_error(
+        "invalid_parameter", "electrical quantities cannot be boolean", detail=owner))
+    isfinite(value) || throw(contract_error("invalid_parameter", "electrical quantity must be finite", detail=owner))
+    converted = try
+        value isa Complex ? ComplexF64(value) : Float64(value)
+    catch error
+        error isa Union{InexactError,OverflowError} || rethrow()
+        throw(contract_error("unrepresentable_parameter", "electrical quantity is outside Float64 range", detail=owner))
+    end
+    isfinite(converted) && !_unit_part_lost(value, converted) || throw(contract_error(
+        "unrepresentable_parameter", "electrical quantity is outside nonzero Float64 range", detail=owner))
+    return converted
+end
+
+@inline function _checked_unit_result(before, after, owner::AbstractString)
+    isfinite(after) && !_unit_part_lost(before, after) || throw(contract_error(
+        "unrepresentable_parameter", "unit conversion is outside nonzero Float64 range", detail=owner))
+    return after
+end
+
+@inline function _unit_scale(value::Union{Real,Complex}, scale::Float64, divide::Bool, owner::AbstractString)
+    coefficient = _checked_unit_value(value, owner)
+    result = divide ? coefficient / scale : coefficient * scale
+    return _checked_unit_result(coefficient, result, owner)
+end
+
+"""Line-to-line RMS kV ↔ p.u.; complex input keeps the same phasor convention."""
+kv_to_pu(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="kv_to_pu") = _unit_scale(value, b.v_base_kv, true, owner)
+pu_to_kv(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="pu_to_kv") = _unit_scale(value, b.v_base_kv, false, owner)
+"""Three-phase MVA ↔ p.u.; complex components are MW + j Mvar."""
+mva_to_pu(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="mva_to_pu") = _unit_scale(value, b.s_base_mva, true, owner)
+pu_to_mva(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="pu_to_mva") = _unit_scale(value, b.s_base_mva, false, owner)
+"""Per-phase Ohm ↔ p.u. on the explicitly supplied electrical base."""
+ohm_to_pu(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="ohm_to_pu") = _unit_scale(value, z_base_ohm(b), true, owner)
+pu_to_ohm(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="pu_to_ohm") = _unit_scale(value, z_base_ohm(b), false, owner)
+"""Per-phase Siemens ↔ p.u., reciprocal to impedance scaling."""
+siemens_to_pu(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="siemens_to_pu") = _unit_scale(value, z_base_ohm(b), false, owner)
 
 function _scaled_own_part(value::Float64, mantissa::Float64, exponent::Int)
     value == 0.0 && return value
@@ -77,15 +110,13 @@ end
 
 function _own_base_conversion(value::Complex, s_nom_mva::Real, u_nom_kv::Real,
                               b::BaseSystem, admittance::Bool, owner::AbstractString)
+    (s_nom_mva isa Bool || u_nom_kv isa Bool) && throw(contract_error(
+        "invalid_parameter", "own-base power and voltage cannot be boolean", detail=owner))
     sn, un = Float64(s_nom_mva), Float64(u_nom_kv)
     isfinite(sn) && sn > 0 && isfinite(un) && un > 0 ||
         throw(contract_error("invalid_parameter", "own-base power and voltage must be positive finite numbers",
                              detail="$(owner): S_nom=$(sn) MVA, U_nom=$(un) kV"))
-    coefficient = ComplexF64(value)
-    isfinite(coefficient) && !(real(value) != 0 && real(coefficient) == 0) &&
-        !(imag(value) != 0 && imag(coefficient) == 0) ||
-        throw(contract_error("invalid_parameter", "own-base coefficient is not representable as finite Float64",
-                             detail="$(owner): value=$(value)"))
+    coefficient = _checked_unit_value(value, owner)
     ms, es = frexp(b.s_base_mva)
     mn, en = frexp(sn)
     mu, eu = frexp(un)
@@ -136,9 +167,40 @@ function impedance_from_own_base(z_own::Complex, s_nom_mva::Real, u_nom_kv::Real
                                  b::BaseSystem; owner::AbstractString="")
     return _own_base_conversion(z_own, s_nom_mva, u_nom_kv, b, false, owner)
 end
-pu_to_siemens(y_pu::Real, b::BaseSystem) = Float64(y_pu) / z_base_ohm(b)
-ka_to_pu(i_ka::Real, b::BaseSystem) = Float64(i_ka) / i_base_ka(b)
-pu_to_ka(i_pu::Real, b::BaseSystem) = Float64(i_pu) * i_base_ka(b)
+pu_to_siemens(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="pu_to_siemens") = _unit_scale(value, z_base_ohm(b), true, owner)
+"""Line RMS kA ↔ p.u. using S_3phase/(sqrt(3) V_LL); phasor angle is unchanged."""
+ka_to_pu(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="ka_to_pu") = _unit_scale(value, i_base_ka(b), true, owner)
+pu_to_ka(value::Union{Real,Complex}, b::BaseSystem; owner::AbstractString="pu_to_ka") = _unit_scale(value, i_base_ka(b), false, owner)
+
+function impedance_from_own_base(value::Real, sn::Real, un::Real, base::BaseSystem; owner::AbstractString="")
+    coefficient = _checked_unit_value(value, owner)
+    return real(_own_base_conversion(complex(coefficient), sn, un, base, false, owner))
+end
+function admittance_from_own_base(value::Real, sn::Real, un::Real, base::BaseSystem; owner::AbstractString="")
+    coefficient = _checked_unit_value(value, owner)
+    return real(_own_base_conversion(complex(coefficient), sn, un, base, true, owner))
+end
+
+function _unit_rebase(value::Union{Real,Complex}, from::Float64, to::Float64, owner::AbstractString)
+    coefficient = _checked_unit_value(value, owner)
+    mf, ef = frexp(from)
+    mt, et = frexp(to)
+    mantissa, exponent = mf / mt, ef - et
+    result = coefficient isa Complex ? complex(_scaled_own_part(real(coefficient), mantissa, exponent),
+        _scaled_own_part(imag(coefficient), mantissa, exponent)) : _scaled_own_part(coefficient, mantissa, exponent)
+    return _checked_unit_result(coefficient, result, owner)
+end
+
+"""Change the voltage p.u. base with explicit old/new BaseSystem; keep the voltage frame."""
+rebase_voltage(value::Union{Real,Complex}, from::BaseSystem, to::BaseSystem) = _unit_rebase(value, from.v_base_kv, to.v_base_kv, "rebase_voltage")
+"""Change the three-phase complex power p.u. base; preserve MW+jMvar conventions."""
+rebase_power(value::Union{Real,Complex}, from::BaseSystem, to::BaseSystem) = _unit_rebase(value, from.s_base_mva, to.s_base_mva, "rebase_power")
+"""Change the RMS current p.u. base using the two explicitly declared electrical bases."""
+rebase_current(value::Union{Real,Complex}, from::BaseSystem, to::BaseSystem) = _unit_rebase(value, i_base_ka(from), i_base_ka(to), "rebase_current")
+"""Z_new = Z_old (S_new/S_old) (V_old/V_new)^2, without an overflowing intermediate ratio."""
+rebase_impedance(value::Union{Real,Complex}, from::BaseSystem, to::BaseSystem) = impedance_from_own_base(value, from.s_base_mva, from.v_base_kv, to; owner="rebase_impedance")
+"""Y_new = Y_old (S_old/S_new) (V_new/V_old)^2, reciprocal to impedance rebasing."""
+rebase_admittance(value::Union{Real,Complex}, from::BaseSystem, to::BaseSystem) = admittance_from_own_base(value, from.s_base_mva, from.v_base_kv, to; owner="rebase_admittance")
 
 function base_json(b::BaseSystem)
     return Dict{String,Any}(
