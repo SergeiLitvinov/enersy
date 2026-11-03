@@ -109,3 +109,10 @@ test('component, graph and parameter count limits are applied independently of d
   parameters.components[0].base.params.extra = '';
   expect(() => parseEditorDraftPayload(parameters)).toThrow();
 });
+
+test('an empty historical name is retained without relaxing creation or explicit rename validation',()=>{
+ const value=structuredClone(fixture);value.components[0].base.name='';
+ expect(parseEditorDraftPayload(value).components[0].base.name).toBe('');
+ const rename=structuredClone(fixture);rename.components[0].intents=[{kind:'pose',values:{name:''}}];
+ expect(()=>parseEditorDraftPayload(rename)).toThrow();
+});

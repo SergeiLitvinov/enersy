@@ -4,8 +4,10 @@ import { Icon } from '../../ui/Icon';
 import { Dialog } from '../../ui/Dialog';
 import { backendLabel, isComputeBackendId, type ComputeBackendId } from '../../../api/compute-backends';
 import { isCalculationBudget } from '../../../api/calculation-execution';
+import { AC_INPUT_UNIT_PROFILE, SCALED_AC_INPUT_UNIT_PROFILE, BASED_AC_INPUT_UNIT_PROFILE, type InputUnitContract } from '../../../api/input-unit-contract';
 import './CanvasToolbar.css';
 interface CanvasToolbarProps {
+  unitProfile: InputUnitContract['profile']; onUnitProfileChange: (profile: InputUnitContract['profile']) => void;
   onShowLimits?:()=>void; limitCount?:number; limitsStale?:boolean;
   maxTimeMs: number; onMaxTimeChange: (value: number) => void;
   computeBackend: ComputeBackendId; computeBackends: ComputeBackendId[]; backendMessage: string;
@@ -18,9 +20,10 @@ interface CanvasToolbarProps {
 }
 const GROUP_LABELS: Record<string, string> = { 'three-phase': 'Симметричный AC-режим', 'phase-coordinates': 'Фазные координаты', 'symmetrical-components': 'Симметричные составляющие' };
 const METHOD_LABELS: Record<string, string> = { 'newton-raphson': 'Ньютон–Рафсон', direct: 'Прямой метод' };
-export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, calculationBlockedReason, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ unitProfile, onUnitProfileChange, onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, calculationBlockedReason, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
   const [capabilities, setCapabilities] = useState<ComputeCapability[]>([]);
   const [showCapabilities, setShowCapabilities] = useState(false);
+  const [showUnitHelp, setShowUnitHelp] = useState(false);
   const [message, setMessage] = useState('Проверка возможностей…'); const [retry, setRetry] = useState(0);
   useEffect(() => { const controller = new AbortController(); setCapabilities([]); setMessage('Проверка возможностей…');
     getComputeCapabilities(controller.signal).then(entries => { if (!controller.signal.aborted) { setCapabilities(entries); setMessage(''); } }).catch((error: unknown) => { if (!controller.signal.aborted) { setCapabilities([]); setMessage(error instanceof Error ? error.message : 'Сервис недоступен'); } });
@@ -40,6 +43,15 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limi
       <button className="icon-button" aria-label="Обновить список движков" title={backendMessage || 'Обновить список движков'} onClick={onBackendReload} disabled={isCalculating}><Icon name="reset" /></button>
       {backendMessage && <span role="status" className="capability-badge">{backendMessage}</span>}
       <label className="execution-budget">Лимит, мс <input aria-label="Бюджет времени, мс" className="method-select" type="number" min="1" max="20000" step="1" value={Number.isNaN(maxTimeMs) ? '' : maxTimeMs} disabled={isCalculating} onChange={e => onMaxTimeChange(e.currentTarget.valueAsNumber)} /></label>
+      <select aria-label="Профиль единиц расчёта" className="method-select unit-profile-select" value={unitProfile} disabled={isCalculating} onChange={e => {
+        const value = e.target.value;
+        if (value === AC_INPUT_UNIT_PROFILE || value === SCALED_AC_INPUT_UNIT_PROFILE || value === BASED_AC_INPUT_UNIT_PROFILE) onUnitProfileChange(value);
+      }}>
+        <option value={AC_INPUT_UNIT_PROFILE}>Без пересчёта · AC v1</option>
+        <option value={SCALED_AC_INPUT_UNIT_PROFILE}>Масштабы SI · AC v2</option>
+        <option value={BASED_AC_INPUT_UNIT_PROFILE}>SI и p.u. · AC v3</option>
+      </select>
+      <button className="icon-button" aria-label="Пояснение профиля единиц" title="Единицы и исходные базисы" onClick={() => setShowUnitHelp(true)}><Icon name="book" /></button>
       <button className="tool-btn primary calculate-button" onClick={onCalculate} disabled={!currentSchemeId || !available || isCalculating || Boolean(calculationBlockedReason)} title={calculationBlockedReason || message || selected?.reasons.join('; ')}><Icon name="play" />{isCalculating ? 'Расчёт…' : 'Рассчитать'}</button>
       <select aria-label="Группа расчётной модели" className="group-select" value={modelGroup} disabled={isCalculating || !groups.length} onChange={e => onModelGroupChange(e.target.value)}>{(groups.length ? groups : [modelGroup]).map(group => <option key={group} value={group} disabled={!capabilities.some(c => c.model_group === group && c.status !== 'unsupported')}>{GROUP_LABELS[group] || group}</option>)}</select>
       <select aria-label="Метод расчёта" className="method-select" value={calcMethod} disabled={isCalculating || !methods.length} onChange={e => onCalcMethodChange(e.target.value)}>{(methods.length ? methods : [{ method: calcMethod, status: 'unsupported' }]).map(method => <option key={method.method} value={method.method} disabled={method.status === 'unsupported'}>{METHOD_LABELS[method.method] || method.method}</option>)}</select>
@@ -47,6 +59,13 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ onShowLimits, limi
       <button className="icon-button" aria-label="Возможности и ограничения расчёта" title="Возможности и ограничения" onClick={() => setShowCapabilities(true)}><Icon name="book" /></button>
       {message && <button className="icon-button" aria-label="Повторить проверку возможностей" onClick={() => setRetry(n => n + 1)}><Icon name="reset" /></button>}
     </div>
+    {showUnitHelp && <Dialog title="Единицы расчёта и исходные базисы" onClose={() => setShowUnitHelp(false)}>
+      <p>Выбор относится к следующему расчёту сохранённой схемы. Изменение профиля не пересчитывает и не изменяет параметры оборудования.</p>
+      <p><strong>AC v1 · без пересчёта.</strong> Полная проверка обозначений. Где нет явной единицы экземпляра, используются обозначения текущего шаблона. Это не подтверждает историческое происхождение единиц.</p>
+      <p><strong>AC v2 · масштабы SI.</strong> Только явно сохранённые единицы экземпляра. Поддержанные масштабы, например В → кВ или Вт → МВт, пересчитываются во входе решателя. p.u. не поддерживается.</p>
+      <p><strong>AC v3 · SI и p.u.</strong> Требует явные единицы и собственный исходный базис каждого p.u.-параметра: Sб в трёхфазных МВА, Uб в линейных RMS кВ. Неполный базис или неподдержанная величина блокируют расчёт. Базис исследования не заполняет исходные базисы.</p>
+      <p>В быстром расчёте мощность базиса определяется настройкой установки (по умолчанию 100 МВА), а напряжение — наибольшим нормализованным номинальным напряжением оборудования. Для явного выбора базиса решателя сохраните исследование. Фазное/линейное напряжение и RMS/амплитуда автоматически не заменяются.</p>
+    </Dialog>}
     <div className="toolbar-tools">
       <button className="icon-button" onClick={onShowResult} disabled={!hasResult} aria-label="Результаты последнего расчёта" title="Результаты"><Icon name="chart" /></button>
       <span className="divider" />

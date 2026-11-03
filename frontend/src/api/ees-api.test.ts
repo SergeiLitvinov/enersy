@@ -137,3 +137,16 @@ it('rejects malformed and nonfinite numerical results before rendering', () => {
   expect(() => parseCalculationResult({ ...result, node_count: 2 })).toThrow('некорректный');
   expect(() => parseCalculationResult({ ...result, warnings: [null] })).toThrow('некорректный');
 });
+
+it.each([
+  ['scaled-ac-three-phase-rms-v2','request-declarations-with-scale-normalization'],
+  ['based-ac-three-phase-rms-v3','request-declarations-with-parameter-bases'],
+] as const)('quick calculation requires the explicitly selected profile %s',async(profile,scope)=>{
+  const result={success:true,nodes:[],node_count:0,iterations:0,computation_time_ms:0,method_used:'newton-raphson'};
+  const ack={formatVersion:1,profile,validation_scope:scope,component_count:0,parameter_count:0,...(profile==='based-ac-three-phase-rms-v3'?{basis_count:0}:{})};
+  const fetcher=vi.fn().mockResolvedValue({ok:true,json:async()=>({...result,input_unit_contract:ack})});vi.stubGlobal('fetch',fetcher);
+  expect((await calculateScheme(1,undefined,undefined,undefined,undefined,undefined,profile)).success).toBe(true);
+  expect(fetcher.mock.calls[0][0]).toContain('unitContract='+profile);
+  fetcher.mockResolvedValue({ok:true,json:async()=>({...result,input_unit_contract:{...ack,profile:'legacy-ac-three-phase-rms-v1'}})});
+  await expect(calculateScheme(1,undefined,undefined,undefined,undefined,undefined,profile)).rejects.toThrow('не подтвердил');
+});

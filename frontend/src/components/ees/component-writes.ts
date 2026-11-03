@@ -12,6 +12,19 @@ export class ComponentWrites {
   readonly drafts = new ComponentDrafts();
   readonly graph = new GraphWrites();
   private activity = 0;
+  private persistDrafts?: () => void;
+  private reportPersistenceError?: (error: unknown) => void;
+
+  /** A private editor binds one scoped durable sink before mounting its controls. */
+  persistDraftsWith(write: () => void, onError: (error: unknown) => void) {
+    if (this.persistDrafts) throw new Error('Хранилище правок уже привязано к этому редактору');
+    this.persistDrafts = write; this.reportPersistenceError = onError;
+    write();
+  }
+  private persistSettled() {
+    try { this.persistDrafts?.(); }
+    catch (error) { this.reportPersistenceError?.(error); }
+  }
   get version() { return this.activity; }
   private entries = new Map<number, { tail: Promise<void>; failed: boolean; deleted?: boolean; revision: string; pose?: ComponentPose }>();
 
@@ -40,9 +53,12 @@ export class ComponentWrites {
     const intents = recovery ? (Array.isArray(recovery.intent) ? recovery.intent : [recovery.intent]) : [];
     const tickets = recovery ? intents.map(intent => this.drafts.record(recovery.schemeId, component, intent)) : [];
     this.activity++;
+    let preparationError: { error: unknown } | undefined;
+    try { this.persistDrafts?.(); } catch (error) { preparationError = { error }; }
     const result = entry.tail.then(async () => {
       if (!isCurrent()) { tickets.forEach(ticket => this.drafts.cancel(ticket)); return undefined; }
       try {
+        if (preparationError) throw preparationError.error;
         if (entry.failed || entry.deleted || (recovery && this.drafts.hasFailed(recovery.schemeId, component.id))) {
           throw new Error('Состояние оборудования не подтверждено. Повторно загрузите схему и разрешите конфликт.');
         }
@@ -57,7 +73,7 @@ export class ComponentWrites {
         tickets.forEach(ticket => this.drafts.fail(ticket, error instanceof Error ? error.message : 'Сохранение не подтверждено'));
         throw error;
       }
-    });
+    }).finally(() => this.persistSettled());
     // Preserve failure for each caller without leaving an unhandled queue tail.
     entry.tail = result.then(() => {}, () => {});
     return result;
@@ -93,6 +109,7 @@ export class ComponentWrites {
     const result = entry.tail.then(async () => {
       if (!isCurrent()) return undefined;
       if (!this.drafts.isCurrentReview(draft)) throw new Error('Правки изменились. Повторно откройте сравнение.');
+      this.persistDrafts?.();
       const prepared: { revision: string; patch?: ComponentPatch } = apply
         ? prepareRecoveryPatch(draft, compared, fields) : validateRecoverySelection(draft, compared, fields);
       const confirmed: SchemeComponent = { ...compared, params: { ...compared.params } };
@@ -109,7 +126,7 @@ export class ComponentWrites {
       entry.failed = this.drafts.hasFailed(draft.schemeId, compared.id);
       entry.deleted = false;
       return confirmed;
-    });
+    }).finally(() => this.persistSettled());
     entry.tail = result.then(() => {}, () => {});
     return result;
   }
@@ -125,6 +142,7 @@ export class ComponentWrites {
     const result = entry.tail.then(async () => {
       if (!isCurrent()) return undefined;
       if (!this.drafts.isCurrentReview(draft)) throw new Error('Правки изменились. Повторно откройте сравнение.');
+      this.persistDrafts?.();
       if (!this.drafts.hasReviewedDeletion(draft)) throw new Error('В журнале нет неподтверждённого удаления');
       if (compared && compared.id !== draft.componentId) throw new Error('Сравнивается другое оборудование');
       if (compared && (compared.type !== draft.base.type || compared.typeId !== draft.base.typeId ||
@@ -148,7 +166,7 @@ export class ComponentWrites {
         entry.pose = { x: retained.x, y: retained.y, rotation: retained.rotation, name: retained.name };
       } else entry.pose = undefined;
       return { deleted: !retained, component: retained };
-    });
+    }).finally(() => this.persistSettled());
     entry.tail = result.then(() => {}, () => {});
     return result;
   }

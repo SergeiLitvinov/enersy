@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { listCalculationArchives, readCalculationArchive, parseArchiveMetadata, parseArchiveInput } from './calculation-archives-api';
+import { listCalculationArchives, readCalculationArchive, parseArchiveMetadata, parseArchiveInput, parseCapturedStudyInput } from './calculation-archives-api';
 const input = { components: [{ id: 1, type: 'load', x: 0, y: 0, rotation: 0, params: { p: '10' } }], connections: [], modelGroup: 'three-phase', method: 'newton-raphson' };
 const result = { success: true, node_count: 1, iterations: 1, computation_time_ms: 1, method_used: 'three-phase/newton-raphson', nodes: [{ node_id: 1, node_type: 'pq', voltage: 10, angle: 0, phase: 10, quadrature: 0 }] };
 const inputText = JSON.stringify(input), resultText = JSON.stringify(result);
@@ -100,4 +100,38 @@ test('revocation and cancellation never return a partially opened archive', asyn
   const c = new AbortController(); c.abort(); responses(); await expect(readCalculationArchive('8', metadata.id, c.signal)).rejects.toThrow();
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
   await expect(readCalculationArchive('8', metadata.id, new AbortController().signal)).rejects.toMatchObject({ status: 404 });
+});
+
+const basedInput = () => {
+  const base = {profile:'ac-three-phase-rms-v1',s_base_mva:100,v_base_kv:10};
+  return {...input,unitContract:{formatVersion:1,profile:'based-ac-three-phase-rms-v3'},components:[{
+    ...input.components[0], params:{p:'0.1000'},parameterUnits:{p:'p.u.'},parameterBases:{p:{...base}},
+    declaredParameterUnits:{formatVersion:2,units:{p:'p.u.'},bases:{p:{...base}}},
+  }]};
+};
+test('v3 frozen archive retains source bases and rejects inconsistent worker/instance metadata', () => {
+  const captured = basedInput();
+  expect(parseArchiveInput(captured,metadata).components[0].parameterBases?.p.s_base_mva).toBe(100);
+  for(const mutate of [
+    (v: ReturnType<typeof basedInput>)=>{v.components[0].parameterBases.p.s_base_mva=200;},
+    (v: ReturnType<typeof basedInput>)=>{v.components[0].parameterBases.p.v_base_kv=0;},
+    (v: ReturnType<typeof basedInput>)=>{v.components[0].parameterBases={ } as typeof v.components[0]['parameterBases'];},
+    (v: ReturnType<typeof basedInput>)=>{v.components[0].declaredParameterUnits.bases={ } as typeof v.components[0]['declaredParameterUnits']['bases'];},
+  ]) { const invalid=basedInput();mutate(invalid);expect(()=>parseArchiveInput(invalid,metadata)).toThrow(); }
+  const component=captured.components[0];
+  const missing={...captured,components:[{...component,parameterBases:undefined,declaredParameterUnits:undefined}]};
+  expect(()=>parseArchiveInput(missing,metadata)).toThrow();
+  expect(parseCapturedStudyInput(missing,metadata).components[0].params.p).toBe('0.1000');
+  expect(captured.components[0].parameterBases.p.s_base_mva).toBe(100);
+});
+test('opening a v3 archive binds worker acknowledgement to the captured profile and bases', async()=>{
+  const captured=basedInput(), inputBody=JSON.stringify(captured);
+  const ack={formatVersion:1,profile:captured.unitContract.profile,validation_scope:'request-declarations-with-parameter-bases',component_count:1,parameter_count:1,basis_count:1};
+  for(const change of [null,{basis_count:0},{profile:'legacy-ac-three-phase-rms-v1'},{component_count:2}]){
+    const resultBody=JSON.stringify({...result,input_unit_contract:change===null?ack:{...ack,...change}});
+    responses({input:inputBody,result:resultBody,metadata:{...metadata,inputBytes:new TextEncoder().encode(inputBody).length,resultBytes:new TextEncoder().encode(resultBody).length}});
+    const reading=readCalculationArchive('8',metadata.id,new AbortController().signal);
+    if(change===null) expect((await reading).input.components[0].parameterBases?.p.s_base_mva).toBe(100);
+    else await expect(reading).rejects.toThrow('не подтвердил');
+  }
 });

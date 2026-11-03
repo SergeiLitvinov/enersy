@@ -1,13 +1,13 @@
 import type { StudyDocument } from '../../api/studies-api';
 import { backendLabel } from '../../api/compute-backends';
-import { SCALED_AC_INPUT_UNIT_PROFILE } from '../../api/input-unit-contract';
+import { BASED_AC_INPUT_UNIT_PROFILE, SCALED_AC_INPUT_UNIT_PROFILE } from '../../api/input-unit-contract';
 
 export function StudyDocumentView({ document }: { document: StudyDocument }) {
   return <div className="study-document">
     <dl className="study-facts">
       <div><dt>Профиль</dt><dd>Симметричный AC · Ньютон–Рафсон</dd></div>
       <div><dt>Движок</dt><dd>{backendLabel(document.computeBackend)}</dd></div>
-      <div><dt>Проверка единиц</dt><dd>{document.unitContract?.profile === SCALED_AC_INPUT_UNIT_PROFILE ? 'Явные единицы с пересчётом · AC v2' : document.unitContract ? 'Полная декларация · AC v1' : 'Совместимость с прежними данными'}</dd></div>
+      <div><dt>Проверка единиц</dt><dd>{document.unitContract?.profile === BASED_AC_INPUT_UNIT_PROFILE ? 'Явные единицы и базисы p.u. · AC v3' : document.unitContract?.profile === SCALED_AC_INPUT_UNIT_PROFILE ? 'Явные единицы с пересчётом · AC v2' : document.unitContract ? 'Полная декларация · AC v1' : 'Совместимость с прежними данными'}</dd></div>
       <div><dt>Базис мощности</dt><dd>{document.base.s_base_mva.toLocaleString('ru-RU')} МВА</dd></div>
       <div><dt>Базис напряжения</dt><dd>{document.base.v_base_kv.toLocaleString('ru-RU')} кВ · линейное RMS</dd></div>
       <div><dt>Допуск невязки</dt><dd>{document.solverOptions.tolerance} p.u.</dd></div>

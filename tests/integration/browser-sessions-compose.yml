@@ -1,0 +1,65 @@
+# Disposable browser acceptance: two genuine cookie hosts, one tmpfs database.
+# No Origin rewriting, cookie injection or production data/volumes.
+name: enersy-study-ui
+x-api-env: &api-env
+  DB_HOST: postgres
+  POSTGRES_DB: browser_sessions
+  POSTGRES_USER: acceptance
+  POSTGRES_PASSWORD: disposable_acceptance
+  AUTH_COOKIE_SECURE: 'false'
+  JULIA_BASE_URL: http://julia-compute:8001
+x-api: &api
+  image: enersy-browser-sessions-api
+  build: {context: ../.., dockerfile: backend-go/Dockerfile}
+  depends_on: {postgres: {condition: service_healthy}}
+  healthcheck:
+    test: [CMD, wget, --quiet, --spider, 'http://127.0.0.1:8080/ready']
+    interval: 2s
+    timeout: 3s
+    retries: 30
+x-frontend: &frontend
+  image: enersy-browser-sessions-frontend
+  build: {context: ../.., dockerfile: frontend/Dockerfile}
+services:
+  postgres:
+    image: postgres:15.19-alpine@sha256:a8e042598834300dfaa17a54f695b87b7f25d3490433bbbe2ef3bffbb9747f24
+    environment: {POSTGRES_DB: browser_sessions, POSTGRES_USER: acceptance, POSTGRES_PASSWORD: disposable_acceptance}
+    networks: [first, second]
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U acceptance -d browser_sessions]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  go-api:
+    <<: *api
+    networks: [first]
+    environment:
+      <<: *api-env
+      AUTH_ORIGIN: http://localhost:4177
+      CORS_ORIGIN: http://localhost:4177
+  go-api-second:
+    <<: *api
+    networks: {second: {aliases: [go-api]}}
+    environment:
+      <<: *api-env
+      AUTH_ORIGIN: http://127.0.0.1:4178
+      CORS_ORIGIN: http://127.0.0.1:4178
+  julia-compute:
+    image: enersy-browser-sessions-julia
+    build: {context: ../.., dockerfile: backend-julia/Dockerfile}
+    networks: [first, second]
+  react-frontend:
+    <<: *frontend
+    networks: [first, web]
+    ports: ['127.0.0.1:4177:3000']
+    depends_on: {go-api: {condition: service_healthy}}
+  react-frontend-second:
+    <<: *frontend
+    networks: [second, web]
+    ports: ['127.0.0.1:4178:3000']
+    depends_on: {go-api-second: {condition: service_healthy}}
+networks:
+  first: {internal: true}
+  second: {internal: true}
+  web: {}

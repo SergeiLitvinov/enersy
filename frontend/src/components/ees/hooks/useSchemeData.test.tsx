@@ -764,3 +764,9 @@ test('retaining the server object makes no new DELETE and uses the accepted revi
   await act(async () => { await state.rotateComponent(101); });
   expect(api.updateComponent).toHaveBeenCalledWith(101, 100, 0, 90, 'Шина', '8');
 });
+
+test('the calculation barrier passes the captured explicit unit profile to its transport',async()=>{
+  await act(async()=>root.render(<Harness/>));
+  await act(async()=>{await state.handleCalculate('three-phase','newton-raphson',undefined,undefined,undefined,'based-ac-three-phase-rms-v3');});
+  expect(api.calculateScheme).toHaveBeenCalledWith(1,'newton-raphson','three-phase',undefined,undefined,undefined,'based-ac-three-phase-rms-v3');
+});

@@ -89,18 +89,19 @@ test('revoked scope signals unavailability; cancellation hides late responses wi
   await expect(transport.getScheme(7)).rejects.toThrow(); expect(unavailable).toHaveBeenCalledOnce();
   await expect(transport.getScheme(7)).rejects.toThrow(); expect(fetcher).toHaveBeenCalledTimes(2);
 });
-test('calculation uses the loaded topology and forwards source only after response validation', async () => {
+test.each(['legacy-ac-three-phase-rms-v1','based-ac-three-phase-rms-v3'] as const)('calculation uses the loaded topology and forwards source only after response validation', async profile => {
   const onCalculation = vi.fn();
   const source = { projectId, schemeId, topologyRevision: '9007199254740994', inputSha256: 'a'.repeat(64), archiveId: '9007199254740995' };
-  const result = { input_unit_contract: { formatVersion: 1, profile: 'legacy-ac-three-phase-rms-v1', validation_scope: 'request-declarations-only', component_count: 0, parameter_count: 0 }, success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
+  const result = { input_unit_contract: { formatVersion: 1, profile, validation_scope: profile==='based-ac-three-phase-rms-v3'?'request-declarations-with-parameter-bases':'request-declarations-only', component_count: 0, parameter_count: 0, ...(profile==='based-ac-three-phase-rms-v3'?{basis_count:0}:{}) }, success: true, nodes: [], node_count: 0, iterations: 0, computation_time_ms: 0, method_used: 'newton-raphson' };
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph(source.topologyRevision))).mockResolvedValueOnce(new Response(JSON.stringify(result), { headers: {
     'X-Enersy-Project-Id': projectId, 'X-Enersy-Scheme-Id': schemeId, 'X-Enersy-Topology-Revision': source.topologyRevision, 'X-Enersy-Input-SHA256': source.inputSha256, 'X-Enersy-Archive-Id': source.archiveId,
   } }));
   vi.stubGlobal('fetch', fetcher);
   const transport = createProjectEditorTransport({ ...options(), onCalculation }); await transport.getScheme(7);
-  expect(await transport.calculateScheme(7)).toEqual(result); expect(onCalculation).toHaveBeenCalledWith(source);
+  expect(await transport.calculateScheme(7,undefined,undefined,undefined,undefined,undefined,profile)).toEqual(result); expect(onCalculation).toHaveBeenCalledWith(source);
   expect(fetcher.mock.calls[1][1].headers['If-Match']).toBe('"9007199254740994"');
   expect(fetcher.mock.calls[1][0]).toContain('/archive-calculation?');
+  expect(fetcher.mock.calls[1][0]).toContain('unitContract='+profile);
 });
 test('deletion verifies incident edges and subsequent geometry uses only scoped object CAS', async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(reply(graph('3', undefined, [link])))

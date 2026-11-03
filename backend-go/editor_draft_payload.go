@@ -42,6 +42,27 @@ type editorComponentDraft struct {
 	Intents     []editorComponentIntent `json:"intents"`
 	Reason      string                  `json:"reason"`
 }
+
+// A historical unnamed object uses an explicit empty string. JSON null and a
+// missing name must not turn into that representation through Go's zero value.
+func (base *editorComponentBase) UnmarshalJSON(data []byte) error {
+	var field struct {
+		Name json.RawMessage `json:"name"`
+	}
+	if json.Unmarshal(data, &field) != nil || len(field.Name) == 0 || bytes.Equal(bytes.TrimSpace(field.Name), []byte("null")) {
+		return errEditorDraftPayload
+	}
+	type wire editorComponentBase
+	var parsed wire
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&parsed); err != nil {
+		return errEditorDraftPayload
+	}
+	*base = editorComponentBase(parsed)
+	return nil
+}
+
 type editorComponentIntent struct {
 	Kind   string          `json:"kind"`
 	Values json.RawMessage `json:"values,omitempty"`
@@ -136,7 +157,7 @@ func decodeEditorDraft(data []byte) (editorDraftPayload, error) {
 		if (base.EquipmentModelID != nil && !draftID(*base.EquipmentModelID)) || !draftPassport(base.EquipmentModelID, base.ProjectPassportVersionID) {
 			return payload, errEditorDraftPayload
 		}
-		if validateComponentPose(*base.X, *base.Y, base.Name) != nil || *base.Rotation < math.MinInt32 || *base.Rotation > math.MaxInt32 {
+		if !draftText(base.Name, 100) || (base.Name != "" && strings.TrimSpace(base.Name) == "") || validateComponentCoordinates(*base.X, *base.Y) != nil || *base.Rotation < math.MinInt32 || *base.Rotation > math.MaxInt32 {
 			return payload, errEditorDraftPayload
 		}
 		if len(base.DeclaredParameterUnits) != 0 {

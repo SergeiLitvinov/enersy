@@ -67,6 +67,10 @@ func validateComponentPose(x, y float64, name string) error {
 	if strings.TrimSpace(name) == "" || utf8.RuneCountInString(name) > 100 || strings.ContainsRune(name, 0) {
 		return creationError("Укажите название оборудования (до 100 символов)", http.StatusBadRequest)
 	}
+	return validateComponentCoordinates(x, y)
+}
+
+func validateComponentCoordinates(x, y float64) error {
 	if math.IsNaN(x) || math.IsInf(x, 0) || math.IsNaN(y) || math.IsInf(y, 0) || math.Abs(x) > math.MaxFloat32 || math.Abs(y) > math.MaxFloat32 {
 		return creationError("Некорректные координаты оборудования", http.StatusBadRequest)
 	}

@@ -139,3 +139,69 @@ test('a no-op acknowledgement cannot erase newer text during a later unrelated r
   await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} unitDeclaration={declaration} parameterResets={{ q: 1 }} />));
   expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('12.0000');
 });
+
+const basedParams = { ...initial, p: '0.1000', q: '0.0300', voltage_nom: '1.0000' };
+const basedDeclaration = (power = 100): ParameterUnitDeclaration => ({ formatVersion: 2,
+  units: { ...loadProfileUnits, p: 'p.u.', q: 'p.u.', voltage_nom: 'p.u.' },
+  bases: Object.fromEntries(['p', 'q', 'voltage_nom'].map(key => [key, { profile: 'ac-three-phase-rms-v1', s_base_mva: power, v_base_kv: 10 }])) });
+async function representation(value: string) {
+  const select = host.querySelector<HTMLSelectElement>('#load-5-representation')!;
+  await act(async () => { select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); });
+}
+async function renderBased(declaration = basedDeclaration(), params = basedParams) {
+  await act(async () => root.render(<LoadProfileForm componentId={5} params={params} onSave={save} unitDeclaration={declaration} />));
+}
+
+test('saved representation preserves exact coefficients and independently captured source bases', async () => {
+  const declaration = basedDeclaration();
+  declaration.bases!.q!.s_base_mva = 200;
+  declaration.bases!.voltage_nom!.v_base_kv = 35;
+  await renderBased(declaration); await representation('saved'); await input('p', '0.12500'); await acknowledge();
+  expect(host.textContent).toContain('Sб 100 МВА');
+  expect(host.querySelector('label[for="load-5-p"] small')?.textContent).toBe('p.u.');
+  await act(async () => submit());
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0][0]).toMatchObject({ p: '0.12500', q: '0.0300', voltage_nom: '1.0000' });
+  expect(save.mock.calls[0][1]).toEqual(declaration);
+  expect(save.mock.calls[0][1].bases!.p).not.toBe(declaration.bases!.p);
+  await renderBased(declaration, { ...basedParams, ...save.mock.calls[0][0] });
+  expect(host.querySelector('[role=alert]')).toBeNull();
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+});
+
+test.each([false, true])('basis-only changes block stale load edits (acknowledged: %s)', async acknowledged => {
+  await renderBased(); await representation('saved'); await input('p', '0.12500');
+  if (acknowledged) await acknowledge();
+  await renderBased(basedDeclaration(200));
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('0.12500');
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('базисы изменились');
+  if (!acknowledged) await acknowledge();
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Вернуть сохранённый')!.click());
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('0.1000');
+  await acknowledge(); await act(async () => submit());
+  expect(save.mock.calls[0][1].bases!.p?.s_base_mva).toBe(200);
+});
+
+test('basis-only changes also invalidate canonical relabelling acknowledged without numeric edits', async () => {
+  await renderBased(); await acknowledge(); await renderBased(basedDeclaration(200));
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('базисы изменились');
+});
+
+test('saved p.u. cannot be submitted with a missing basis, and changing policy consumes consent', async () => {
+  await renderBased({ formatVersion: 1, units: { ...loadProfileUnits, p: 'p.u.' } });
+  await representation('saved'); await acknowledge(); await act(async () => submit());
+  expect(save).not.toHaveBeenCalled(); expect(host.textContent).toContain('сначала задайте исходные');
+  await representation('canonical');
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+  await acknowledge(); await act(async () => submit());
+  expect(save.mock.calls[0][1]).toEqual({ formatVersion: 1, units: { ...loadProfileUnits } });
+});
+
+test('an in-place basis update is detected even though values and unit labels are unchanged', async () => {
+  const declaration = basedDeclaration(); await renderBased(declaration); await representation('saved'); await input('p', '0.2');
+  declaration.bases!.p!.s_base_mva = 300;
+  await renderBased(declaration); await acknowledge(); await act(async () => submit());
+  expect(save).not.toHaveBeenCalled(); expect(host.textContent).toContain('базисы изменились');
+});

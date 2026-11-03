@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createProject, listProjects, login, logout, readProject, readSession, SessionError, type Identity, type Project, type ProjectPage } from '../../api/projects-api';
 import { ProjectSchemes } from './ProjectSchemes';
 import { forgetOtherStudySessions } from './study-intent-journal';
+import { forgetOtherComponentSessions } from './component-intent-journal';
 import { forgetOtherEquipmentSessions } from './equipment-intent-journal';
 import { forgetOtherRunSessions } from './run-intent-journal';
 import { Icon } from '../../components/ui/Icon';
@@ -42,6 +43,7 @@ export function ProjectsWorkspace() {
         forgetOtherStudySessions(result.identity);
         forgetOtherRunSessions(result.identity);
         forgetOtherEquipmentSessions(result.identity);
+        forgetOtherComponentSessions(result.identity);
         setView({ ...result, busy: false, error: '' });
       }
     } catch (error) {
@@ -82,7 +84,7 @@ export function ProjectsWorkspace() {
       return { identity, page: await listProjects(signal) };
     });
   };
-  const signOut = (all: boolean) => { forgetOtherStudySessions(null); forgetOtherRunSessions(null); forgetOtherEquipmentSessions(null);
+  const signOut = (all: boolean) => { forgetOtherStudySessions(null); forgetOtherRunSessions(null); forgetOtherEquipmentSessions(null); forgetOtherComponentSessions(null);
     setPassword(''); setName(''); setUsername('');
     void perform(async signal => { await logout(all, signal); return { identity: null, page: emptyPage }; });
   };

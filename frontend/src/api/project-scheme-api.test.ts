@@ -172,3 +172,13 @@ test('calculation requires exact snapshot provenance and explicit query; request
   fetcher.mockResolvedValue(reply({ success: false, error: 'unsupported', error_detail: { message: 'Unsupported physics' } }, revision, provenance));
   await expect(calculateProjectScheme(scope, revision, 'newton-raphson', 'three-phase', signal)).rejects.toThrow('Unsupported physics');
 });
+
+test('private quick archive requests v3 explicitly and rejects a response from another unit policy',async()=>{
+  const profile='based-ac-three-phase-rms-v3';
+  const confirmed={...result,input_unit_contract:{formatVersion:1,profile,validation_scope:'request-declarations-with-parameter-bases',component_count:0,parameter_count:0,basis_count:0}};
+  const fetcher=vi.fn().mockResolvedValue(reply(confirmed,revision,{...provenance,'X-Enersy-Archive-Id':'7'}));vi.stubGlobal('fetch',fetcher);
+  expect((await calculateProjectScheme(scope,revision,'newton-raphson','three-phase',signal,true,undefined,undefined,undefined,profile)).source.archiveId).toBe('7');
+  expect(fetcher.mock.calls[0][0]).toContain('/archive-calculation?');expect(fetcher.mock.calls[0][0]).toContain('unitContract='+profile);
+  fetcher.mockResolvedValue(reply({...confirmed,input_unit_contract:{...confirmed.input_unit_contract,profile:'legacy-ac-three-phase-rms-v1'}},revision,{...provenance,'X-Enersy-Archive-Id':'7'}));
+  await expect(calculateProjectScheme(scope,revision,'newton-raphson','three-phase',signal,true,undefined,undefined,undefined,profile)).rejects.toThrow('не подтвердил');
+});

@@ -13,7 +13,7 @@ const version = (): StudyVersion => ({ status: 'captured', id: '9007199254740994
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const saved = vi.fn(), close = vi.fn();
 
-test.each(['legacy-ac-three-phase-rms-v1', 'scaled-ac-three-phase-rms-v2'] as const)('editing a Study keeps its exact unit policy (%s) in the next immutable intent', async profile => {
+test.each(['legacy-ac-three-phase-rms-v1', 'scaled-ac-three-phase-rms-v2', 'based-ac-three-phase-rms-v3'] as const)('editing a Study keeps its exact unit policy (%s) in the next immutable intent', async profile => {
   const value = version();
   value.document.unitContract = { formatVersion: 1, profile };
   await mount(value);
@@ -25,7 +25,7 @@ test.each(['legacy-ac-three-phase-rms-v1', 'scaled-ac-three-phase-rms-v2'] as co
 const button = (s: string) => [...host.querySelectorAll('button')].find(b => b.textContent === s)!;
 const input = (label: string) => [...host.querySelectorAll('label')].find(l => l.textContent === label)!.querySelector('input')!;
 const unitPolicy = () => [...host.querySelectorAll('label')].find(l => l.firstChild?.textContent === 'Проверка единиц')!.querySelector('select')!;
-async function changeUnitPolicy(value: 'complete' | 'legacy') { await act(async () => { unitPolicy().value = value; unitPolicy().dispatchEvent(new Event('change', { bubbles: true })); }); }
+async function changeUnitPolicy(value: 'complete' | 'legacy' | 'scaled' | 'based') { await act(async () => { unitPolicy().value = value; unitPolicy().dispatchEvent(new Event('change', { bubbles: true })); }); }
 async function change(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); }); }
 // WebCrypto finishes outside React's update queue. Wait for dispatch (or the
 // storage failure) inside act before asserting the resulting rendered state.
@@ -141,4 +141,16 @@ test('the form captures numerically ordered equipment revisions without rounding
   await submitAndWaitFor(() => expect(createStudy).toHaveBeenCalledOnce());
   expect(vi.mocked(createStudy).mock.calls[0][7]).toBeUndefined();
   expect(vi.mocked(createStudy).mock.calls[0][8]).toMatch(/^v1:[0-9a-f]{64}$/);
+});
+
+test('v3 selection freezes its policy across an uncertain write and explicit retry', async () => {
+  await mount(version()); await changeUnitPolicy('based');
+  expect(host.textContent).toContain('базис исследования их не заменяет');
+  vi.mocked(appendStudyVersion).mockRejectedValueOnce(new TypeError('network')).mockResolvedValueOnce({ ...version(), revision: '2' });
+  await submitAndWaitFor(() => expect(appendStudyVersion).toHaveBeenCalledOnce());
+  expect(createStudyIntentJournal({accountId:'1',sessionId:'2',projectId:'8'}).read()?.document.unitContract?.profile).toBe('based-ac-three-phase-rms-v3');
+  expect(unitPolicy().closest('fieldset')!.disabled).toBe(true);
+  await act(async () => button('Повторить ту же команду').click());
+  expect(vi.mocked(appendStudyVersion).mock.calls[1]).toEqual(vi.mocked(appendStudyVersion).mock.calls[0]);
+  expect(vi.mocked(appendStudyVersion).mock.calls[1][4].unitContract?.profile).toBe('based-ac-three-phase-rms-v3');
 });

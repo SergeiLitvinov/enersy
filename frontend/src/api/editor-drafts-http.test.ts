@@ -306,6 +306,209 @@ test.skipIf(import.meta.env.VITE_DRAFT_HTTP_ACCEPTANCE !== '1')('real private dr
     expect(raceServer).toMatchObject({ params: { voltage_nom: winningPair.value }, declaredParameterUnits: { units: { voltage_nom: winningPair.unit } } });
     await expect(sessions.run(2, () => racerA.patchComponent(raceId, { params: { voltage_nom: '330' }, parameterUnitDeclaration: { formatVersion: 1, units: { voltage_nom: 'кВ' } } }, raceServer.revision))).rejects.toMatchObject({ status: 404 });
     expect(await sessions.run(1, () => readUnitComponent(racerB, raceId))).toEqual(raceServer);
+    // Original bases belong to the coefficient representation. A peer can change
+    // only S/U, without changing the exact numeric string or the p.u. label.
+    active = 0;
+    const basis = (power: number, voltage: number) => ({profile:'ac-three-phase-rms-v1' as const,s_base_mva:power,v_base_kv:voltage});
+    const basedUnits = (base: ReturnType<typeof basis>) => ({formatVersion:2 as const,units:{voltage_nom:'p.u.'},bases:{voltage_nom:{...base}}});
+    const originalBasis = basis(10,10), peerBasis = basis(20,35);
+    const basedTransport = createProjectEditorTransport(transportOptions);
+    let basedServer = await readUnitComponent(basedTransport);
+    await basedTransport.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(originalBasis)},basedServer.revision);
+    const basedBase = await readUnitComponent(basedTransport);
+    const basedQueue = new ComponentWrites();basedQueue.seed(sid,basedBase);
+    const basisPeer = createProjectEditorTransport(transportOptions);
+    const peerBeforeBasis = await sessions.run(1,()=>readUnitComponent(basisPeer));
+    await sessions.run(1,()=>basisPeer.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(peerBasis)},peerBeforeBasis.revision));
+    const afterPeerBasis = await readProjectScheme(projectId,schemeId,signal);
+    await expect(basedQueue.run(basedBase,()=>true,
+      revision=>basedTransport.patchComponent(cid,{params:{voltage_nom:'2.0000'},pose:{y:333}},revision),
+      {schemeId:sid,intent:[{kind:'parameter',key:'voltage_nom',value:'2.0000'},{kind:'pose',values:{y:333}}]})).rejects.toMatchObject({status:412});
+    expect(await readProjectScheme(projectId,schemeId,signal)).toEqual(afterPeerBasis);
+    const basisWorkspace='77777777-7777-4777-8777-777777777777';
+    const basisJournal=captureEditorJournal(basedQueue,schemeId);
+    expect(basisJournal.components[0].base.declaredParameterUnits?.bases?.voltage_nom).toEqual(originalBasis);
+    await saveEditorDraft(scope,basisWorkspace,'0',basisJournal,signal);
+    const basisStored=await sessions.run(1,()=>readEditorDraft(scope,basisWorkspace,signal));
+    expect(basisStored.payload).toEqual(basisJournal);
+    const basisRestored=restoreProjectEditorJournal(transportOptions,basisStored.payload);
+    basedServer=await readUnitComponent(basisRestored.transport);basisRestored.queue.seed(sid,basedServer);
+    let basisReview=basisRestored.queue.drafts.failed(sid)[0];
+    expect(compareComponentDraft(basisReview,basedServer).find(row=>row.key==='parameter:voltage_nom')).toMatchObject({
+      status:'unit_changed',units:{base:'p.u.',local:'p.u.',server:'p.u.'},bases:{base:originalBasis,local:originalBasis,server:peerBasis}});
+    const basisApply=vi.fn((patch:ComponentPatch,revision:string)=>basisRestored.transport.patchComponent(cid,patch,revision));
+    const basisRequestCount=parameterRequests.length;
+    await expect(basisRestored.queue.recover(basisReview,basedServer,new Set(['parameter:voltage_nom']),()=>true,basisApply)).rejects.toThrow('базис');
+    expect(basisApply).not.toHaveBeenCalled();expect(parameterRequests).toHaveLength(basisRequestCount);
+    await basisRestored.queue.recover(basisReview,basedServer,new Set(['pose:y']),()=>true,basisApply);
+    basedServer=await readUnitComponent(basisRestored.transport);
+    expect(basedServer).toMatchObject({y:333,params:{voltage_nom:'1.0000'},declaredParameterUnits:basedUnits(peerBasis)});
+    basisReview=basisRestored.queue.drafts.failed(sid)[0];
+    await basisRestored.queue.recover(basisReview,basedServer,new Set(['parameter:voltage_nom']),()=>true);
+    expect(parameterRequests).toHaveLength(basisRequestCount+1);
+    expect(()=>basisRestored.queue.assertConfirmed(sid)).not.toThrow();
+    await deleteEditorDraft(scope,basisWorkspace,basisStored.revision,signal);
+
+    // A basis-only intentional change is already applied after a lost response
+    // only if the captured basis, unit AND exact coefficient all agree.
+    const intendedBasis=basis(30,110);
+    loseNextParameter=true;
+    await expect(basisRestored.queue.run(basedServer,()=>true,
+      revision=>basisRestored.transport.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(intendedBasis)},revision),
+      {schemeId:sid,intent:{kind:'parameter',key:'voltage_nom',value:'1.0000',unit:'p.u.',base:intendedBasis}})).rejects.toThrow('value/unit acknowledgement lost');
+    const basisLostJournal=captureEditorJournal(basisRestored.queue,schemeId);
+    expect(basisLostJournal.components[0]).toMatchObject({base:{declaredParameterUnits:basedUnits(peerBasis)},
+      intents:[{kind:'parameter',key:'voltage_nom',value:'1.0000',unit:'p.u.',base:intendedBasis}]});
+    const basisLostWorkspace='99999999-9999-4999-8999-999999999999';
+    await saveEditorDraft(scope,basisLostWorkspace,'0',basisLostJournal,signal);
+    const basisLostStored=await sessions.run(1,()=>readEditorDraft(scope,basisLostWorkspace,signal));
+    const basisExact=restoreProjectEditorJournal(transportOptions,basisLostStored.payload);
+    const exactBasisServer=await readUnitComponent(basisExact.transport);basisExact.queue.seed(sid,exactBasisServer);
+    const exactBasisReview=basisExact.queue.drafts.failed(sid)[0];
+    expect(compareComponentDraft(exactBasisReview,exactBasisServer)[0].status).toBe('already_applied');
+    const doNotRepeatBasis=vi.fn((patch:ComponentPatch,revision:string)=>basisExact.transport.patchComponent(cid,patch,revision));
+    const exactBasisRequests=parameterRequests.length;
+    await basisExact.queue.recover(exactBasisReview,exactBasisServer,new Set(['parameter:voltage_nom']),()=>true,doNotRepeatBasis);
+    expect(doNotRepeatBasis).not.toHaveBeenCalled();expect(parameterRequests).toHaveLength(exactBasisRequests);
+    expect(()=>basisExact.queue.assertConfirmed(sid)).not.toThrow();
+
+    // The same persisted historical journal must never infer already_applied
+    // from a matching number/unit after another session replaces its basis.
+    const laterPeer=await sessions.run(1,()=>readUnitComponent(basisPeer));
+    await sessions.run(1,()=>basisPeer.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(basis(40,220))},laterPeer.revision));
+    const divergent=restoreProjectEditorJournal(transportOptions,basisLostStored.payload);
+    const divergentServer=await readUnitComponent(divergent.transport);divergent.queue.seed(sid,divergentServer);
+    const divergentReview=divergent.queue.drafts.failed(sid)[0];
+    expect(compareComponentDraft(divergentReview,divergentServer)[0].status).toBe('unit_changed');
+    await expect(divergent.queue.recover(divergentReview,divergentServer,new Set(['parameter:voltage_nom']),()=>true,doNotRepeatBasis)).rejects.toThrow('базис');
+    expect(doNotRepeatBasis).not.toHaveBeenCalled();
+    await expect(sessions.run(2,()=>readEditorDraft(scope,basisLostWorkspace,signal))).rejects.toMatchObject({status:404});
+    await deleteEditorDraft(scope,basisLostWorkspace,basisLostStored.revision,signal);
+
+    // Competing basis-only writes keep the full winning S/U pair atomically.
+    const baseRaceA=await sessions.run(0,()=>readUnitComponent(racerA));
+    const baseRaceB=await sessions.run(1,()=>readUnitComponent(racerB));
+    expect(baseRaceA).toEqual(baseRaceB);
+    const basisRaceStart=parameterRequests.length;
+    const basisRace=await Promise.allSettled([
+      sessions.run(0,()=>racerA.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(basis(50,330))},baseRaceA.revision)),
+      sessions.run(1,()=>racerB.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(basis(60,400))},baseRaceB.revision)),
+    ]);
+    expect(basisRace.filter(outcome=>outcome.status==='fulfilled')).toHaveLength(1);
+    expect(basisRace.find(outcome=>outcome.status==='rejected')).toMatchObject({reason:{status:412}});
+    const basisRaced=parameterRequests.slice(basisRaceStart);
+    expect(basisRaced.map(request=>request.session).sort()).toEqual([0,1]);
+    expect(basisRaced.map(request=>request.status).sort()).toEqual([200,412]);
+    expect(basisRaced.every(request=>request.revision===`"${baseRaceA.revision}"`)).toBe(true);
+    const basisWinner=basisRaced.find(request=>request.status===200)!;
+    const winningBasis=basisWinner.session===0?basis(50,330):basis(60,400);
+    expect(await readUnitComponent(racerA)).toMatchObject({params:{voltage_nom:'1.0000'},declaredParameterUnits:basedUnits(winningBasis)});
+    const beforeForeignBasis=await readProjectScheme(projectId,schemeId,signal);
+    const foreignExpected=await readUnitComponent(racerA);
+    await expect(sessions.run(2,()=>racerA.patchComponent(cid,{params:{voltage_nom:'1.0000'},parameterUnitDeclaration:basedUnits(basis(70,500))},foreignExpected.revision))).rejects.toMatchObject({status:404});
+    expect(await readProjectScheme(projectId,schemeId,signal)).toEqual(beforeForeignBasis);
+
+    // Membership authorization is checked independently from object CAS and
+    // personal recovery evidence. The second account uses the real member API.
+    let membershipRevision='0';
+    const changeMember=async(role:'viewer'|'editor'|'admin'|null)=>sessions.run(0,async()=>{
+      const response=await fetch(`/api/projects/${projectId}/members/${other.accountId}`,{
+        method:role===null?'DELETE':'PUT',signal,headers:{'Content-Type':'application/json','If-Match':`"${membershipRevision}"`},
+        ...(role===null?{}:{body:JSON.stringify({role})})});
+      expect(response.status).toBe(200);const body=await response.json();
+      expect(BigInt(body.revision)).toBe(BigInt(membershipRevision)+1n);membershipRevision=body.revision;
+    });
+    const roleWorkspace='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    active=0;await saveEditorDraft(scope,roleWorkspace,'0',basisLostJournal,signal);
+    await changeMember('viewer');
+    const viewer=createProjectEditorTransport({...transportOptions,writable:false});
+    const viewerServer=await sessions.run(2,()=>readUnitComponent(viewer));
+    const viewerRequests=parameterRequests.length;
+    await expect(sessions.run(2,()=>viewer.patchComponent(cid,{params:{voltage_nom:'3.0000'}},viewerServer.revision))).rejects.toThrow('только для чтения');
+    expect(parameterRequests).toHaveLength(viewerRequests);
+    await expect(sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).rejects.toMatchObject({status:404});
+    expect(await sessions.run(2,()=>listEditorDrafts(scope,signal))).toEqual([]);
+    await expect(sessions.run(2,()=>saveEditorDraft(scope,roleWorkspace,'0',basisLostJournal,signal))).rejects.toMatchObject({status:404});
+
+    await changeMember('editor');
+    const memberController=new AbortController(),memberUnavailable=vi.fn(()=>memberController.abort());
+    const memberOptions={...transportOptions,signal:memberController.signal,onUnavailable:memberUnavailable};
+    const member=createProjectEditorTransport(memberOptions);
+    const memberBase=await sessions.run(2,()=>readUnitComponent(member));
+    const memberQueue=new ComponentWrites();memberQueue.seed(sid,memberBase);
+    // A foreign pose-only update makes the member's numeric write stale while
+    // leaving its parameter unit/base usable for a later reviewed PATCH.
+    const ownerBeforeRole=await sessions.run(0,()=>readUnitComponent(racerA));
+    await sessions.run(0,()=>racerA.patchComponent(cid,{pose:{y:ownerBeforeRole.y+1}},ownerBeforeRole.revision));
+    await expect(sessions.run(2,()=>memberQueue.run(memberBase,()=>true,
+      revision=>member.patchComponent(cid,{params:{voltage_nom:'2.0000'}},revision),
+      {schemeId:sid,intent:{kind:'parameter',key:'voltage_nom',value:'2.0000'}}))).rejects.toMatchObject({status:412});
+    const memberPayload=captureEditorJournal(memberQueue,schemeId);
+    await sessions.run(2,()=>saveEditorDraft(scope,roleWorkspace,'0',memberPayload,signal));
+    expect((await sessions.run(0,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(basisLostJournal);
+    expect((await sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(memberPayload);
+    expect(memberPayload).not.toEqual(basisLostJournal);
+
+    const viewerDeleteWorkspace='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    await sessions.run(2,()=>saveEditorDraft(scope,viewerDeleteWorkspace,'0',memberPayload,signal));
+    await changeMember('viewer');
+    const downgradedServer=await sessions.run(2,()=>readUnitComponent(member));
+    const downgradedReview=memberQueue.drafts.failed(sid)[0];
+    expect(compareComponentDraft(downgradedReview,downgradedServer)[0].status).toBe('pending');
+    const beforeDowngradedWrite=await sessions.run(0,()=>readProjectScheme(projectId,schemeId,signal));
+    await expect(sessions.run(2,()=>memberQueue.recover(downgradedReview,downgradedServer,new Set(['parameter:voltage_nom']),()=>true,
+      (patch,revision)=>member.patchComponent(cid,patch,revision)))).rejects.toMatchObject({status:404});
+    expect(memberUnavailable).toHaveBeenCalledOnce();expect(memberController.signal.aborted).toBe(true);
+    expect(await sessions.run(0,()=>readProjectScheme(projectId,schemeId,signal))).toEqual(beforeDowngradedWrite);
+    expect((await sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(memberPayload);
+    await expect(sessions.run(2,()=>saveEditorDraft(scope,roleWorkspace,'1',memberPayload,signal))).rejects.toMatchObject({status:404});
+    await expect(sessions.run(2,()=>deleteEditorDraft(scope,viewerDeleteWorkspace,'1',signal))).resolves.toMatchObject({revision:'2'});
+    expect((await sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(memberPayload);
+
+    // Regrant does not revive the aborted editor. A fresh authorized context
+    // explicitly restores the same historical document and applies one patch.
+    await changeMember('editor');
+    const oldContextCount=parameterRequests.length;
+    await expect(sessions.run(2,()=>member.patchComponent(cid,{params:{voltage_nom:'9.0000'}},downgradedServer.revision))).rejects.toMatchObject({name:'AbortError'});
+    expect(parameterRequests).toHaveLength(oldContextCount);
+    const memberRestoreController=new AbortController(),memberRestoreUnavailable=vi.fn(()=>memberRestoreController.abort());
+    const memberRestored=restoreProjectEditorJournal({...transportOptions,signal:memberRestoreController.signal,onUnavailable:memberRestoreUnavailable},(await sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).payload);
+    const memberFresh=await sessions.run(2,()=>readUnitComponent(memberRestored.transport));memberRestored.queue.seed(sid,memberFresh);
+    const memberReview=memberRestored.queue.drafts.failed(sid)[0];
+    const memberPatchCount=parameterRequests.length;
+    await sessions.run(2,()=>memberRestored.queue.recover(memberReview,memberFresh,new Set(['parameter:voltage_nom']),()=>true,
+      (patch,revision)=>memberRestored.transport.patchComponent(cid,patch,revision)));
+    expect(parameterRequests).toHaveLength(memberPatchCount+1);
+    expect((await sessions.run(0,()=>readUnitComponent(racerA))).params.voltage_nom).toBe('2.0000');
+
+    await changeMember(null);
+    await expect(sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).rejects.toMatchObject({status:404});
+    await expect(sessions.run(2,()=>readProjectScheme(projectId,schemeId,signal))).rejects.toMatchObject({status:404});
+    const revokedCount=parameterRequests.length;
+    const revokedServer=await sessions.run(0,()=>readUnitComponent(racerA));
+    await expect(sessions.run(2,()=>memberRestored.transport.patchComponent(cid,{params:{voltage_nom:'3.0000'}},revokedServer.revision))).rejects.toMatchObject({status:404});
+    expect(parameterRequests).toHaveLength(revokedCount+1);
+    expect(memberRestoreUnavailable).toHaveBeenCalledOnce();expect(memberRestoreController.signal.aborted).toBe(true);
+    expect((await sessions.run(0,()=>readUnitComponent(racerA))).params.voltage_nom).toBe('2.0000');
+
+    // Admin can manage project membership but cannot inspect another account's
+    // private journal, even when the same workspace UUID exists for both.
+    await changeMember('admin');
+    const adminRoster=await sessions.run(2,()=>fetch(`/api/projects/${projectId}/members`,{signal}));expect(adminRoster.status).toBe(200);await adminRoster.body?.cancel();
+    expect((await sessions.run(2,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(memberPayload);
+    expect((await sessions.run(0,()=>readEditorDraft(scope,roleWorkspace,signal))).payload).toEqual(basisLostJournal);
+    const ownerOnlyWorkspace='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await sessions.run(0,()=>saveEditorDraft(scope,ownerOnlyWorkspace,'0',basisLostJournal,signal));
+    await expect(sessions.run(2,()=>readEditorDraft(scope,ownerOnlyWorkspace,signal))).rejects.toMatchObject({status:404});
+    const adminTransport=createProjectEditorTransport(transportOptions);
+    const adminBefore=await sessions.run(2,()=>readUnitComponent(adminTransport));
+    await sessions.run(2,()=>adminTransport.patchComponent(cid,{params:{voltage_nom:'2.5000'},parameterUnitDeclaration:basedUnits(basis(80,600))},adminBefore.revision));
+    expect(await sessions.run(0,()=>readUnitComponent(racerA))).toMatchObject({params:{voltage_nom:'2.5000'},declaredParameterUnits:basedUnits(basis(80,600))});
+    await sessions.run(2,()=>deleteEditorDraft(scope,roleWorkspace,'1',signal));
+    await sessions.run(0,()=>deleteEditorDraft(scope,roleWorkspace,'1',signal));
+    await sessions.run(0,()=>deleteEditorDraft(scope,ownerOnlyWorkspace,'1',signal));
+    await changeMember(null);
+
     active = 0;
     await logout(false, signal);
     await expect(listEditorDrafts(scope, signal)).rejects.toMatchObject({ status: 401 });

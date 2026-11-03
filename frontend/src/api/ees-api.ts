@@ -1,5 +1,5 @@
 import { parseParameterUnitDeclaration } from './parameter-unit-declaration';
-import { AC_INPUT_UNIT_PROFILE, requireInputUnitContract } from './input-unit-contract';
+import { AC_INPUT_UNIT_PROFILE, parseInputUnitContract, requireInputUnitContract, type InputUnitContract } from './input-unit-contract';
 export type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import type { ParameterUnitDeclaration } from './parameter-unit-declaration';
 import { readEquipmentModels, readEquipmentModelParams, readParameterTemplate } from './catalog-api';
@@ -456,10 +456,11 @@ export async function deleteConnection(id: number): Promise<{ success: boolean }
 }
 
 // Calculation
-export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase', backend?: ComputeBackendId, maxTimeMs?: number, operatingLimits?: readonly TerminalVoltageLimit[]): Promise<CalculationResult> {
+export async function calculateScheme(schemeId: number, method: string = 'newton-raphson', modelGroup: string = 'three-phase', backend?: ComputeBackendId, maxTimeMs?: number, operatingLimits?: readonly TerminalVoltageLimit[], unitProfile: InputUnitContract['profile'] = AC_INPUT_UNIT_PROFILE): Promise<CalculationResult> {
+  const contract = parseInputUnitContract({ formatVersion: 1, profile: unitProfile });
   const limits = operatingLimits === undefined ? undefined : parseTerminalVoltageLimits(operatingLimits);
   if (maxTimeMs !== undefined && !isCalculationBudget(maxTimeMs)) throw new Error('Бюджет времени должен быть целым числом от 1 до 20000 мс');
-  const response = await fetch(`${API_BASE}/calculate/${schemeId}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}&unitContract=${AC_INPUT_UNIT_PROFILE}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, {
+  const response = await fetch(`${API_BASE}/calculate/${schemeId}?modelGroup=${encodeURIComponent(modelGroup)}&method=${encodeURIComponent(method)}&unitContract=${encodeURIComponent(contract.profile)}${backend ? `&computeBackend=${encodeURIComponent(backend)}` : ''}${maxTimeMs === undefined ? '' : `&maxTimeMs=${maxTimeMs}`}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     ...(limits === undefined ? {} : {body:JSON.stringify({operatingLimits:limits})}),
@@ -472,7 +473,7 @@ export async function calculateScheme(schemeId: number, method: string = 'newton
   requireSelectedBackend(result.solver, backend);
   requireExecutionBudget(result.solver, maxTimeMs);
   requireOperatingLimits(result.operating_assessment, limits);
-  requireInputUnitContract(data);
+  requireInputUnitContract(data, contract);
   return result;
 }
 export type { Identity } from './projects-api';

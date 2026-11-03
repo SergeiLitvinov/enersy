@@ -8,7 +8,7 @@ vi.mock('../../../api/ees-api', () => ({ getComputeCapabilities: async () => [{ 
 let host: HTMLDivElement; let root: ReturnType<typeof createRoot>;
 beforeEach(() => { vi.clearAllMocks(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
-const baseProps = { maxTimeMs: 20000, onMaxTimeChange: vi.fn(), currentSchemeId: 1, selectedComponent: null, selectedConnection: null, zoomPercent: 100,
+const baseProps = { unitProfile: 'legacy-ac-three-phase-rms-v1' as const, onUnitProfileChange: vi.fn(), maxTimeMs: 20000, onMaxTimeChange: vi.fn(), currentSchemeId: 1, selectedComponent: null, selectedConnection: null, zoomPercent: 100,
   calcMethod: 'newton-raphson', modelGroup: 'three-phase', isCalculating: false, hasResult: false,
   computeBackend: 'julia-rust-jacobian' as ComputeBackendId, computeBackends: ['julia','julia-rust-jacobian'] as ComputeBackendId[], backendMessage: '',
   onBackendChange: vi.fn(), onBackendReload: vi.fn(), onCalcMethodChange: vi.fn(), onModelGroupChange: vi.fn(), onCalculate: vi.fn(),
@@ -65,4 +65,16 @@ test('unresolved write disables calculation until review completes', async () =>
   expect(button.disabled).toBe(false);
   await act(async () => button.click());
   expect(baseProps.onCalculate).toHaveBeenCalledOnce();
+});
+
+test('unit policy is explicitly selectable, explains source bases and stays locked while calculating', async () => {
+  HTMLDialogElement.prototype.showModal = vi.fn(); HTMLDialogElement.prototype.close = vi.fn();
+  await act(async () => root.render(<CanvasToolbar {...baseProps} />));
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Профиль единиц расчёта"]')!;
+  await act(async () => { select.value='based-ac-three-phase-rms-v3';select.dispatchEvent(new Event('change',{bubbles:true})); });
+  expect(baseProps.onUnitProfileChange).toHaveBeenCalledWith('based-ac-three-phase-rms-v3');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Пояснение профиля единиц"]')!.click());
+  expect(host.querySelector('dialog')?.textContent).toContain('собственный исходный базис');
+  await act(async () => root.render(<CanvasToolbar {...baseProps} unitProfile="based-ac-three-phase-rms-v3" isCalculating />));
+  expect(select.value).toBe('based-ac-three-phase-rms-v3'); expect(select.disabled).toBe(true);
 });

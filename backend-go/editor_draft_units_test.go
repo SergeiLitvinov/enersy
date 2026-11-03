@@ -143,3 +143,43 @@ func TestEditorDraftUnitDeclarations(t *testing.T) {
 		}
 	}
 }
+
+func TestEditorDraftHistoricalEmptyName(t *testing.T) {
+	raw, err := os.ReadFile("../tests/fixtures/editor-create-bases-v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		t.Fatal(err)
+	}
+	component := value["components"].([]any)[0].(map[string]any)
+	base := component["base"].(map[string]any)
+	base["name"] = ""
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := decodeEditorDraft(encoded)
+	if err != nil || decoded.Components[0].Base.Name != "" {
+		t.Fatal("unnamed historical object lost", err)
+	}
+	base["name"] = " "
+	encoded, _ = json.Marshal(value)
+	if _, err := decodeEditorDraft(encoded); err == nil {
+		t.Fatal("accepted whitespace-only historical name")
+	}
+	base["name"] = nil
+	encoded, _ = json.Marshal(value)
+	if _, err := decodeEditorDraft(encoded); err == nil {
+		t.Fatal("coerced null into historical empty name")
+	}
+	delete(base, "name")
+	encoded, _ = json.Marshal(value)
+	if _, err := decodeEditorDraft(encoded); err == nil {
+		t.Fatal("inferred missing historical name")
+	}
+	if validateComponentPose(0, 0, "") == nil {
+		t.Fatal("relaxed new equipment name validation")
+	}
+}

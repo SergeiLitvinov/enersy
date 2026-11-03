@@ -4,3 +4,4 @@
 .tool-btn.secondary { background: transparent; color: var(--text-primary); }
 .execution-budget { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
 .execution-budget input { width: 90px; }
+.unit-profile-select { max-width: 200px; min-width: 0; }

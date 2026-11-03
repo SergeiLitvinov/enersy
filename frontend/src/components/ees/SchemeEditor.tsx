@@ -7,6 +7,7 @@ import {useVisibleBounds} from './hooks/useVisibleBounds';
 import {useConnectionGeometry} from './hooks/useConnectionGeometry';
 import { useSchemeData } from './hooks/useSchemeData';
 import { useComputeBackends } from './hooks/useComputeBackends';
+import { AC_INPUT_UNIT_PROFILE, type InputUnitContract } from '../../api/input-unit-contract';
 import type { ComputeBackendId } from '../../api/compute-backends';
 import type { ParameterUnitDeclaration } from '../../api/parameter-unit-declaration';
 import type { CreationParameters } from '../../features/catalog/creation-parameters';
@@ -81,6 +82,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const [calcMethod, setCalcMethod] = useState<string>('newton-raphson');
   const [modelGroup, setModelGroup] = useState<string>('three-phase');
   const [computeBackend, setComputeBackend] = useState<ComputeBackendId>('julia');
+  const [unitProfile, setUnitProfile] = useState<InputUnitContract['profile']>(AC_INPUT_UNIT_PROFILE);
   const [maxTimeMs, setMaxTimeMs] = useState(20000);
   const [limitState,setLimitState] = useState<{limits:TerminalVoltageLimit[];context:string}>({limits:[],context:''});
   const [limitDialog,setLimitDialog] = useState(false);
@@ -193,7 +195,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     if (!isCalculationBudget(maxTimeMs)) { notify('Задайте бюджет времени от 1 до 20000 мс', 'error'); return; }
     if (!backendChoices.ids.includes(computeBackend)) { notify('Выберите доступный вычислительный движок', 'error'); return; }
     const calculatedSchemeId = currentSchemeId;
-    const result = await handleCalculate(modelGroup, calcMethod, computeBackend, maxTimeMs, limitState.limits.length?limitState.limits:undefined);
+    const result = await handleCalculate(modelGroup, calcMethod, computeBackend, maxTimeMs, limitState.limits.length?limitState.limits:undefined, unitProfile);
     if (!result || activeSchemeRef.current !== calculatedSchemeId) return;
     if (result.success) {
       setLastResult(result);
@@ -202,7 +204,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     } else {
       notify('Ошибка: ' + (result.error || '?'), 'error');
     }
-  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, computeBackend, maxTimeMs, backendChoices.ids, notify, limitsStale, limitState.limits, limitContext]);
+  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, computeBackend, maxTimeMs, backendChoices.ids, notify, limitsStale, limitState.limits, limitContext, unitProfile]);
 
   const closeModal = useCallback(() => setResultsVisible(false), []);
 
@@ -357,6 +359,8 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           calcMethod={calcMethod}
           modelGroup={modelGroup}
           computeBackend={computeBackend}
+          unitProfile={unitProfile}
+          onUnitProfileChange={profile => { setUnitProfile(profile); setLastResult(null); setResultsVisible(false); setResultContext(''); }}
           maxTimeMs={maxTimeMs}
           onMaxTimeChange={setMaxTimeMs}
           computeBackends={backendChoices.ids}

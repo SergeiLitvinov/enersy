@@ -30,7 +30,7 @@ export function loadProfileError(draft: LoadProfileDraft): string | undefined {
   if (numeric(draft.p) === undefined) return 'Задайте конечное число для P. Десятичный разделитель — точка.';
   if (draft.q.trim() && numeric(draft.q) === undefined) return 'Q должна быть конечным числом.';
   const voltage = numeric(draft.voltage_nom);
-  if ((mode === 'zip' || draft.voltage_nom.trim()) && (voltage === undefined || voltage <= 0)) return 'Задайте положительное номинальное напряжение в кВ.';
+  if ((mode === 'zip' || draft.voltage_nom.trim()) && (voltage === undefined || voltage <= 0)) return 'Задайте положительное номинальное напряжение в выбранной единице.';
   if (mode === 'zip') {
     for (const part of ['p', 'q'] as const) {
       const fractions = (['z', 'i', 'p'] as const).map(term => numeric(draft[`zip_${part}_${term}`]));

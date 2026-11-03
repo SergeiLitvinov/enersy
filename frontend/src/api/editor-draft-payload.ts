@@ -73,8 +73,8 @@ function rotation(value: unknown): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < -2147483648 || value > 2147483647) return invalid();
   return value;
 }
-function pose(item: Record<string, unknown>): EditorDraftPose {
-  return { x: coordinate(item.x), y: coordinate(item.y), rotation: rotation(item.rotation), name: text(item.name, 100, true) };
+function pose(item: Record<string, unknown>, historical = false): EditorDraftPose {
+  return { x: coordinate(item.x), y: coordinate(item.y), rotation: rotation(item.rotation), name: text(item.name, 100, !(historical && item.name === '')) };
 }
 function parameterValue(value: unknown): string {
   const result = text(value, 16384);
@@ -164,7 +164,7 @@ export function parseEditorDraftPayload(value: unknown): EditorDraftPayload {
     const units = owns(base, 'declaredParameterUnits') ? { declaredParameterUnits: parseParameterUnitDeclaration(base.declaredParameterUnits, baseParams) } : {};
     if (units.declaredParameterUnits) Object.values(units.declaredParameterUnits.units).forEach(unit => text(unit, 64, true));
     return { componentId, base: { id: componentId, typeId: draftId(base.typeId), type, revision: draftRevision(base.revision),
-      ...pose(base), ...passport(base), ...units, equipmentModelId: model(base.equipmentModelId), params: baseParams }, intents, reason: text(entry.reason, 1024) };
+      ...pose(base, true), ...passport(base), ...units, equipmentModelId: model(base.equipmentModelId), params: baseParams }, intents, reason: text(entry.reason, 1024) };
   });
   const graph = array(item.graph, 128).map(value => {
     const entry = fields(value, ['intent', 'reason']);

@@ -1,6 +1,7 @@
 import { SessionError } from './projects-api';
 import { parseParameterUnitDeclaration, type ParameterUnitDeclaration } from './parameter-unit-declaration';
-import { parseInputUnitContract, type InputUnitContract } from './input-unit-contract';
+import { BASED_AC_INPUT_UNIT_PROFILE, parseInputUnitContract, requireInputUnitContract, type InputUnitContract } from './input-unit-contract';
+import { parseParameterBase, sameParameterBase, type ParameterBase } from '../domain/parameter-base';
 import { parseCalculationResult, type CalculationResult } from './ees-api';
 import { parseCalculationProvenance, type CalculationProvenance } from './calculation-provenance';
 import { isComputeBackendId, requireSelectedBackend, type ComputeBackendId } from './compute-backends';
@@ -19,7 +20,7 @@ export interface ArchiveInput {
   computeBackend?: ComputeBackendId;
   executionOptions?: { max_time_ms: number };
   modelGroup: string; method: string;
-  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string>; parameterUnits?: Record<string, string>; declaredParameterUnits?: ParameterUnitDeclaration }[];
+  components: { id: number; type: string; x: number; y: number; rotation: number; params: Record<string, string>; parameterUnits?: Record<string, string>; parameterBases?: Record<string, ParameterBase>; declaredParameterUnits?: ParameterUnitDeclaration }[];
   connections: { from: number; to: number; fromPort: string; toPort: string }[];
 }
 export interface OpenCalculationArchive { metadata: CalculationArchive; input: ArchiveInput; result: CalculationResult; provenance?: CalculationProvenance }
@@ -57,7 +58,8 @@ export function parseCapturedStudyInput(raw: unknown, metadata: Pick<Calculation
 function parseCapturedInput(raw: unknown, metadata: Pick<CalculationArchive, 'modelGroup' | 'method'>, requireCompleteUnits: boolean): ArchiveInput {
   const v = record(raw);
   const hasUnitContract = Object.prototype.hasOwnProperty.call(v, 'unitContract');
-  if (hasUnitContract) parseInputUnitContract(v.unitContract);
+  const contract = hasUnitContract ? parseInputUnitContract(v.unitContract) : undefined;
+  const based = contract?.profile === BASED_AC_INPUT_UNIT_PROFILE;
   const completeUnits = hasUnitContract && requireCompleteUnits;
   if (v.computeBackend !== undefined && !isComputeBackendId(v.computeBackend)) return fail();
   if (v.executionOptions !== undefined) {
@@ -78,11 +80,29 @@ function parseCapturedInput(raw: unknown, metadata: Pick<CalculationArchive, 'mo
     } else if (completeUnits) {
       return fail();
     }
-    if (c.declaredParameterUnits !== undefined) {
-      const declaration = parseParameterUnitDeclaration(c.declaredParameterUnits, params);
+    const declaration = c.declaredParameterUnits === undefined ? undefined : parseParameterUnitDeclaration(c.declaredParameterUnits, params);
+    if (declaration) {
       const captured = record(c.parameterUnits);
       if (!Object.entries(declaration.units).every(([key, unit]) => captured[key] === unit)) return fail();
     }
+    if (c.parameterBases !== undefined) {
+      const bases = record(c.parameterBases), units = record(c.parameterUnits);
+      for (const [key, base] of Object.entries(bases)) {
+        if (!Object.prototype.hasOwnProperty.call(params, key) || !Object.prototype.hasOwnProperty.call(units, key) || units[key] !== 'p.u.') return fail();
+        parseParameterBase(base);
+      }
+      if (based) {
+        // The worker representation must agree with the frozen instance declaration,
+        // never with today's passport or Study base. Incomplete captures stay readable.
+        const source = declaration?.bases ?? {};
+        for (const key of new Set([...Object.keys(source), ...Object.keys(bases)])) {
+          if (!Object.prototype.hasOwnProperty.call(source, key) || !Object.prototype.hasOwnProperty.call(bases, key) ||
+              source[key] == null || !sameParameterBase(source[key], parseParameterBase(bases[key]))) return fail();
+        }
+        if (completeUnits && Object.entries(units).some(([key, unit]) => unit === 'p.u.' && !Object.prototype.hasOwnProperty.call(bases, key))) return fail();
+      }
+    } else if (based && completeUnits) return fail();
+    if (based && completeUnits && Object.keys(params).length && (!declaration || Object.keys(declaration.units).length !== Object.keys(params).length)) return fail();
     ids.add(c.id);
   }
   for (const value of v.connections) {
@@ -135,6 +155,11 @@ export async function readCalculationArchive(project: string, id: string, signal
   const values = await Promise.all([body(project, metadata, 'input', signal), body(project, metadata, 'result', signal)]);
   signal.throwIfAborted();
   const input = parseArchiveInput(values[0], metadata), result = parseCalculationResult(values[1]);
+  if (input.unitContract) requireInputUnitContract(result, input.unitContract, {
+    components: input.components.length,
+    parameters: input.components.reduce((count, c) => count + Object.keys(c.params).length, 0),
+    bases: input.components.reduce((count, c) => count + Object.keys(c.parameterBases ?? {}).length, 0),
+  });
   requireSelectedBackend(result.solver, input.computeBackend);
   requireExecutionBudget(result.solver, input.executionOptions?.max_time_ms);
   requireOperatingLimits(result.operating_assessment, input.operatingLimits);

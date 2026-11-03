@@ -6,15 +6,18 @@ function schemeId(value: string): number {
   if (!/^[1-9][0-9]{0,9}$/.test(value) || BigInt(value) > 2147483647n) throw new Error('Некорректная схема журнала');
   return Number(value);
 }
-/** Include prepared and unprepared work, without waiting or manufacturing CAS. */
-export function captureEditorJournal(writes: ComponentWrites, scheme: string): EditorDraftPayloadV2 {
+/** Capture component intentions without coupling their durable sink to graph work. */
+export function captureEditorComponents(writes: ComponentWrites, scheme: string): EditorDraftPayloadV2['components'] {
   const sid = schemeId(scheme);
   return parseEditorDraftPayloadV2({ formatVersion: 2,
     components: writes.drafts.snapshot(sid).map(draft => ({ componentId: String(draft.componentId), reason: draft.reason,
       intents: draft.intents, base: { ...draft.base, id: String(draft.base.id), typeId: String(draft.base.typeId),
-        equipmentModelId: draft.base.equipmentModelId == null ? null : String(draft.base.equipmentModelId) } })),
-    graph: writes.graph.snapshotV2(sid),
-  });
+        equipmentModelId: draft.base.equipmentModelId == null ? null : String(draft.base.equipmentModelId) } })), graph: [],
+  }).components;
+}
+/** Include prepared and unprepared work, without waiting or manufacturing CAS. */
+export function captureEditorJournal(writes: ComponentWrites, scheme: string): EditorDraftPayloadV2 {
+  return parseEditorDraftPayloadV2({ formatVersion: 2, components: captureEditorComponents(writes, scheme), graph: writes.graph.snapshotV2(schemeId(scheme)) });
 }
 /** New queue + transport as one unit. Imported work is blocked for explicit
  * comparison; promises, review capabilities and optimistic UI state are not restored. */

@@ -6,7 +6,7 @@ import { executeStudyIntent, type StudyIntentJournal } from './study-intent-jour
 import { readProjectScheme, SessionError, type Project } from '../../api/projects-api';
 import { parseProjectGraph, type ProjectGraph } from './project-graph';
 import { StudyDocumentView } from './StudyDocumentView';
-import { AC_INPUT_UNIT_PROFILE, SCALED_AC_INPUT_UNIT_PROFILE } from '../../api/input-unit-contract';
+import { AC_INPUT_UNIT_PROFILE, BASED_AC_INPUT_UNIT_PROFILE, SCALED_AC_INPUT_UNIT_PROFILE, type InputUnitContract } from '../../api/input-unit-contract';
 
 type LimitDraft = { component: string; terminal: string; min: string; max: string };
 type Attempt = { document: StudyDocument; command: string; expected?: string; topology: string; sourceDigest: string };
@@ -20,8 +20,8 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   const [graph, setGraph] = useState(source);
   const [name, setName] = useState(initial?.name ?? '');
   const [backend, setBackend] = useState(initial?.computeBackend ?? 'julia');
-  const [completeUnits, setCompleteUnits] = useState(initial ? Boolean(initial.unitContract) : true);
-  const [scaledUnits, setScaledUnits] = useState(initial?.unitContract?.profile === SCALED_AC_INPUT_UNIT_PROFILE);
+  const [unitPolicy, setUnitPolicy] = useState<InputUnitContract['profile'] | 'legacy'>(initial ? initial.unitContract?.profile ?? 'legacy' : AC_INPUT_UNIT_PROFILE);
+  const policyValue = unitPolicy === 'legacy' ? 'legacy' : unitPolicy === AC_INPUT_UNIT_PROFILE ? 'complete' : unitPolicy === SCALED_AC_INPUT_UNIT_PROFILE ? 'scaled' : 'based';
   const [power, setPower] = useState(initial ? String(initial.base.s_base_mva) : '');
   const [voltage, setVoltage] = useState(initial ? String(initial.base.v_base_kv) : '');
   const [tolerance, setTolerance] = useState(String(initial?.solverOptions.tolerance ?? 1e-8));
@@ -41,7 +41,7 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
   let document: StudyDocument | null = null;
   try {
     document = parseStudyDocument({ formatVersion: 1, name, modelGroup: 'three-phase', method: 'newton-raphson', computeBackend: backend,
-      ...(completeUnits ? { unitContract: { formatVersion: 1, profile: scaledUnits ? SCALED_AC_INPUT_UNIT_PROFILE : AC_INPUT_UNIT_PROFILE } } : {}),
+      ...(unitPolicy !== 'legacy' ? { unitContract: { formatVersion: 1, profile: unitPolicy } } : {}),
       maxTimeMs: Number(budget), base: { s_base_mva: Number(power), v_base_kv: Number(voltage) },
       solverOptions: { tolerance: Number(tolerance), max_iterations: Number(iterations) },
       operatingLimits: limits.map(l => ({ component_id: Number(l.component), terminal: Number(l.terminal), min_kv: Number(l.min), max_kv: Number(l.max) })) });
@@ -108,13 +108,15 @@ export function StudyForm({ project, source, version, journal, onSaved, onClose,
           <label>Базис напряжения, кВ<input required type="number" step="any" value={voltage} onChange={e => setVoltage(e.target.value)} /></label>
         </div>
         <label>Вычислительный движок<select value={backend} onChange={e => setBackend(e.target.value as StudyDocument['computeBackend'])}><option value="julia">Julia</option><option value="julia-rust-jacobian">Julia + Rust · экспериментальный</option></select></label>
-        <label>Проверка единиц<select aria-describedby={unitPolicyHelp} value={completeUnits ? scaledUnits ? 'scaled' : 'complete' : 'legacy'} onChange={e => { setCompleteUnits(e.target.value !== 'legacy'); setScaledUnits(e.target.value === 'scaled'); }}>
+        <label>Проверка единиц<select aria-describedby={unitPolicyHelp} value={policyValue} onChange={e => setUnitPolicy(e.target.value === 'legacy' ? 'legacy' : e.target.value === 'complete' ? AC_INPUT_UNIT_PROFILE : e.target.value === 'scaled' ? SCALED_AC_INPUT_UNIT_PROFILE : BASED_AC_INPUT_UNIT_PROFILE)}>
           <option value="complete">Полная декларация · AC v1</option>
           <option value="scaled">Явные единицы с пересчётом · AC v2</option>
+          <option value="based">Явные единицы и базисы p.u. · AC v3</option>
           <option value="legacy">Совместимость с прежними данными</option>
         </select></label>
-        <p id={unitPolicyHelp} className="projects-note">{completeUnits
-          ? scaledUnits ? 'Для каждого сохранённого параметра нужна явная единица экземпляра. Поддержанные масштабы (например, В → кВ, Вт → МВт) приводятся к единицам AC-модели только во входе решателя; исходные строки и паспорт сохраняются. Шаблон не подставляет единицы. RMS/амплитуда, фаза/линейное и p.u. автоматически не пересчитываются.'
+        <p id={unitPolicyHelp} className="projects-note">{unitPolicy !== 'legacy'
+          ? unitPolicy === BASED_AC_INPUT_UNIT_PROFILE ? 'Для каждого параметра нужна явная единица экземпляра. Коэффициенты p.u. используют собственные исходные Sб (трёхфазные МВА) и Uб (линейные RMS кВ); базис исследования их не заменяет. Поддержанные масштабы и p.u. приводятся к единицам модели только во входе решателя. Исходные строки и паспорт сохраняются. Неполный базис или неподдержанная величина остановят расчёт.'
+          : unitPolicy === SCALED_AC_INPUT_UNIT_PROFILE ? 'Для каждого сохранённого параметра нужна явная единица экземпляра. Поддержанные масштабы (например, В → кВ, Вт → МВт) приводятся к единицам AC-модели только во входе решателя; исходные строки и паспорт сохраняются. Шаблон не подставляет единицы. RMS/амплитуда, фаза/линейное и p.u. автоматически не пересчитываются.'
           : 'Каждый сохранённый параметр должен иметь поддержанное обозначение единицы. Неполные и несовместимые декларации остановят расчёт. Значения не пересчитываются. Проверяются явно заданные единицы экземпляра; где их нет — обозначения текущего справочника. Достоверность исходных единиц отдельно не подтверждается.'
           : 'Проверяются только переданные обозначения. Наличие и полнота единиц не гарантируются. Значения не пересчитываются.'} {version ? 'Выбор относится к новой версии исследования.' : 'Выбор сохранится в снимке исследования.'}</p>
         <details><summary>Параметры решателя · симметричный AC, Ньютон–Рафсон</summary><div className="study-form-grid">
