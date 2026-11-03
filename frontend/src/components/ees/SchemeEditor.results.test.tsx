@@ -57,3 +57,16 @@ test('new calculation settings mark the previous result without replacing its nu
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Результаты последнего расчёта"]')!.click());
   expect(notice().querySelector('[role=alert]')).not.toBeNull(); expect(api.calculateScheme).toHaveBeenCalledTimes(1);
 });
+
+test('physical writes during calculation remain visible even when values return to their original state', async () => {
+  let finish!: (value: api.CalculationResult) => void;
+  vi.mocked(api.calculateScheme).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  vi.mocked(api.setComponentParam).mockResolvedValueOnce({ success: true, revision: '2' }).mockResolvedValueOnce({ success: true, revision: '3' });
+  await calculate();
+  expect(api.calculateScheme).toHaveBeenCalledTimes(1);
+  await act(async () => { await data.saveComponentParam(1, 'p', '0.2000'); });
+  await act(async () => { await data.saveComponentParam(1, 'p', '0.1000'); });
+  expect(data.components[0].params.p).toBe('0.1000');
+  await act(async () => finish(result));
+  expect(notice().querySelector('[role=alert]')!.textContent).toContain('Во время запроса');
+});

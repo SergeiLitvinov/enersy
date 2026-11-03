@@ -30,10 +30,14 @@ type studyTestFixture struct {
 }
 
 func studyCommand(i int) string { return fmt.Sprintf("11111111-1111-4111-8111-%012x", i) }
-func newStudyFixture(t *testing.T) studyTestFixture {
+func newStudyFixture(t *testing.T, sources ...string) studyTestFixture {
 	t.Helper()
 	database := migrationTestDatabase(t)
-	if err := runMigrationsFromSource(database, migrationSourceURL(t)); err != nil {
+	source := migrationSourceURL(t)
+	if len(sources) == 1 {
+		source = sources[0]
+	}
+	if err := runMigrationsFromSource(database, source); err != nil {
 		t.Fatal(err)
 	}
 	f := studyTestFixture{store: projectStore{database: database}}

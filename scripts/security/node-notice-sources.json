@@ -127,5 +127,69 @@
       "README.md": "3b0ebdffe92e5b77c948c4ac0bf4bc4a38803b15405d0425b517705221c27a2f",
       "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
     }
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.25.12",
+    "manifestSha256": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+    "file": "go-1.23.12-LICENSE.txt",
+    "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067",
+    "coverage": "supplemental",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "dd8b7ad9268c2fbde675132a41b4e4da02eef94d",
+    "sourceURL": "https://raw.githubusercontent.com/golang/go/dd8b7ad9268c2fbde675132a41b4e4da02eef94d/LICENSE",
+    "reviewedUtc": "2026-11-03",
+    "installedFiles": {
+      "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
+    },
+    "reason": "Preserve the complete original root LICENSE/PATENTS from Go 1.23.12, the runtime version reported by static go version -m inspection of this exact Linux amd64 binary. Supplemental attribution only. Source-level third-party notices, runtime constituents, other builds and license compatibility still require review. This does not establish complete native binary attribution; no binary code is executed."
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.25.12",
+    "manifestSha256": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+    "file": "go-1.23.12-PATENTS.txt",
+    "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+    "coverage": "supplemental",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "dd8b7ad9268c2fbde675132a41b4e4da02eef94d",
+    "sourceURL": "https://raw.githubusercontent.com/golang/go/dd8b7ad9268c2fbde675132a41b4e4da02eef94d/PATENTS",
+    "reviewedUtc": "2026-11-03",
+    "installedFiles": {
+      "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
+    },
+    "reason": "Preserve the complete original root LICENSE/PATENTS from Go 1.23.12, the runtime version reported by static go version -m inspection of this exact Linux amd64 binary. Supplemental attribution only. Source-level third-party notices, runtime constituents, other builds and license compatibility still require review. This does not establish complete native binary attribution; no binary code is executed."
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.25.12",
+    "manifestSha256": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+    "file": "x-sys-c0bba94af5f8-LICENSE.txt",
+    "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067",
+    "coverage": "supplemental",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf",
+    "sourceURL": "https://raw.githubusercontent.com/golang/sys/c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf/LICENSE",
+    "reviewedUtc": "2026-11-03",
+    "installedFiles": {
+      "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
+    },
+    "reason": "Preserve the complete original root LICENSE/PATENTS of golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8. The module downloaded by Go matches the h1 sum embedded in this exact Linux amd64 binary; its notice bytes match this pinned source commit. Supplemental attribution only. Source-level third-party notices, runtime constituents, other builds and license compatibility still require review. This does not establish complete native binary attribution; no binary code is executed."
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.25.12",
+    "manifestSha256": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+    "file": "x-sys-c0bba94af5f8-PATENTS.txt",
+    "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+    "coverage": "supplemental",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf",
+    "sourceURL": "https://raw.githubusercontent.com/golang/sys/c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf/PATENTS",
+    "reviewedUtc": "2026-11-03",
+    "installedFiles": {
+      "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
+    },
+    "reason": "Preserve the complete original root LICENSE/PATENTS of golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8. The module downloaded by Go matches the h1 sum embedded in this exact Linux amd64 binary; its notice bytes match this pinned source commit. Supplemental attribution only. Source-level third-party notices, runtime constituents, other builds and license compatibility still require review. This does not establish complete native binary attribution; no binary code is executed."
   }
 ]

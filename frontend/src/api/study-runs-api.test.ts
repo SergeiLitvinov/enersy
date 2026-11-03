@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
-import {createStudyRun,listStudyRuns,parseStudyRun,readStudyRun,runCommand,runID,type StudyRun} from './study-runs-api';
+import {cancelQueuedStudyRun,createStudyRun,isActiveRun,listStudyRuns,parseStudyRun,readStudyRun,runCommand,runID,type StudyRun} from './study-runs-api';
 const target={projectId:'8',id:'9007199254740993',revision:'9007199254740994',inputSha256:'a'.repeat(64),provenanceSha256:'b'.repeat(64)};
 const run=():StudyRun=>({id:'9007199254740995',projectId:'8',studyId:target.id,studyRevision:target.revision,requestedBy:'9007199254740996',status:'queued',inputSha256:target.inputSha256,provenanceSha256:target.provenanceSha256,createdAt:'2026-10-28T00:00:00Z'});
 const command='11111111-1111-4111-8111-111111111111';
@@ -48,4 +48,17 @@ test('invalid IDs, UUIDs and aborted intents cannot dispatch',async()=>{
   await expect(createStudyRun(target,'bad',{accountId:'1',sessionId:'2'},signal())).rejects.toThrow();
   const controller=new AbortController();controller.abort();await expect(listStudyRuns(target,controller.signal)).rejects.toThrow();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+test('queued cancellation is explicit, identity-bound and confirms the original command and run',async()=>{
+  const cancelled={...run(),status:'cancelled' as const};
+  const body={formatVersion:1,commandId:command,runId:cancelled.id,run:cancelled};
+  fetcher.mockResolvedValue(reply(body));
+  expect(await cancelQueuedStudyRun(target,cancelled.id,command,{accountId:'1',sessionId:'2'},signal())).toEqual(cancelled);
+  expect(isActiveRun(cancelled)).toBe(false);
+  expect(fetcher.mock.calls[0]).toMatchObject([`/api/projects/8/runs/${cancelled.id}/cancel`,{method:'POST',headers:{'Idempotency-Key':command,'X-Enersy-Account-Id':'1','X-Enersy-Session-Id':'2'}}]);
+  for(const mutation of [{commandId:'other'},{runId:'2'},{run:{...cancelled,status:'queued'}},{run:{...cancelled,archiveId:'4'}},{run:{...cancelled,errorCode:'worker_transport'}},{run:{...cancelled,inputSha256:'c'.repeat(64)}},{extra:true}]){
+    fetcher.mockResolvedValue(reply({...body,...mutation}));
+    await expect(cancelQueuedStudyRun(target,cancelled.id,command,{accountId:'1',sessionId:'2'},signal())).rejects.toThrow();
+  }
 });

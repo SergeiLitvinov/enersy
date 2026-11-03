@@ -42,7 +42,8 @@ func (store projectStore) ClaimStudyRun(ctx context.Context, executor string) (s
 	}
 	err = tx.QueryRowContext(ctx, `SELECT r.id,r.project_id,r.study_id,r.study_revision FROM project_study_runs r
  LEFT JOIN project_study_run_leases l ON l.run_id=r.id
- WHERE l.run_id IS NULL OR (l.status IN ('validating','initializing','running') AND l.lease_until<=clock_timestamp() AND l.generation<3)
+ WHERE NOT EXISTS(SELECT 1 FROM project_study_run_cancellations c WHERE c.run_id=r.id)
+ AND (l.run_id IS NULL OR (l.status IN ('validating','initializing','running') AND l.lease_until<=clock_timestamp() AND l.generation<3))
  ORDER BY r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`).Scan(&claim.ID, &claim.Project, &claim.Study, &claim.Revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		if commitErr := tx.Commit(); commitErr != nil {

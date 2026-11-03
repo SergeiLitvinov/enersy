@@ -630,3 +630,88 @@ ELF, PE и core WASM v1; файлы не исполняются. Для кажд
 Доказательства: `.cache/lzma-notice-review/verification.json`,
 `.cache/node-binary-inventory-tests.log`, `.cache/node-binary-inventory-frontend.json`,
 `.cache/node-binary-inventory-independent.json`.
+
+## Корневые уведомления Go и x/sys в esbuild — 2026-11-03 {#esbuild-go-root-notices}
+
+Для точного `@esbuild/linux-x64@0.25.12`, manifest SHA-256
+`fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc`,
+сохранены полные исходные LICENSE и PATENTS двух составляющих:
+
+| Составляющая | Закреплённый commit | Исходные файлы |
+| --- | --- | --- |
+| Go 1.23.12 | `dd8b7ad9268c2fbde675132a41b4e4da02eef94d` | [LICENSE](https://github.com/golang/go/blob/dd8b7ad9268c2fbde675132a41b4e4da02eef94d/LICENSE), [PATENTS](https://github.com/golang/go/blob/dd8b7ad9268c2fbde675132a41b4e4da02eef94d/PATENTS) |
+| golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 | `c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf` | [LICENSE](https://github.com/golang/sys/blob/c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf/LICENSE), [PATENTS](https://github.com/golang/sys/blob/c0bba94af5f85fbad9f6dc2e04ed5b8fac9696cf/PATENTS) |
+
+Версии и h1-сумма x/sys повторно прочитаны стандартным `go version -m` без
+исполнения бинарника. SHA-256 проверенного ELF —
+`bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014`;
+те же байты находятся в текущем frontend builder. `go mod download` проверил
+модуль x/sys, его h1-сумма совпала с метаданными ELF:
+`h1:0A+M6Uqn+Eje4kHMK80dtF3JCXC4ykBgQG4Fe06QRhQ=`.
+Оба текста модуля также побайтно совпали с файлами закреплённого commit.
+
+Копии находятся в `scripts/security/node-notices`: `go-1.23.12-LICENSE.txt`,
+`go-1.23.12-PATENTS.txt`, `x-sys-c0bba94af5f8-LICENSE.txt`,
+`x-sys-c0bba94af5f8-PATENTS.txt`. Размеры — 1479 и 1303 байта соответственно;
+LICENSE обеих составляющих совпадают по SHA-256
+`2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067`,
+PATENTS — `96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc`.
+Тексты сохраняются без правок и дедуплицируются по содержимому, происхождение
+остаётся отдельным для каждой записи.
+
+Все четыре записи имеют `coverage: supplemental`, исходный URL/commit и
+`installedFiles` для точного ELF. Корневые LICENSE/PATENTS не заменяют проверку
+сторонних фрагментов исходников Go/x/sys, всех составляющих runtime, совместимости
+лицензий и остальных сборок. Родительский `esbuild/bin/esbuild` имеет те же байты
+в этой Linux-сборке, но общий manifest родительского пакета не является основанием
+жёстко требовать Linux amd64 ELF на других платформах. Автоматический перенос
+привязки на него не добавлен.
+
+Офлайн-инвентарь frontend по-прежнему содержит 236 пакетов, две неполные записи
+package notices и пять распознанных бинарных путей, четыре без собственной
+проверенной файловой привязки. Прошли 17 тестов npm-сборщика без пропусков.
+Зависимости, численные алгоритмы и пользовательские данные не менялись.
+Доказательства: `.cache/esbuild-notice-review/runtime-notices-review.json`,
+`.cache/esbuild-notice-review/x-sys-module.json`, `.cache/esbuild-runtime-frontend.json`,
+`.cache/esbuild-runtime-tests.log`.
+
+## Выбранные assembly/header исходники Go — 2026-11-03 {#go-auxiliary-sources}
+
+Отчёт Go v5 добавляет `sdkAuxiliarySource` и `modules[].auxiliarySource`.
+Сборщик берёт `SFiles` и `HFiles` того же `go list -deps -json`, который уже
+сверяет окружение и модули с готовым бинарником. Полный текст каждого выбранного
+`.s`/`.h` сохраняется в словаре `notices`, путь и SHA-256 — в `noticeFiles`.
+Область — `selected-build-complete-assembly-and-header-text`. Сохраняются и
+уведомления после кода; язык ассемблера не разбирается и код не исполняется.
+
+Чтение ограничено 1 МиБ на файл; пустые, не-UTF-8, NUL-содержащие и не обычные
+файлы отклоняются. Проверяются типы расширений, границы SDK/модуля, нормальность
+пути и разрешение symlink. Повторы пути удаляются, порядок результата стабилен.
+Предыдущие поля отчёта сохранены; потребителю с жёсткой проверкой версии нужен
+явный переход с v4 на v5.
+
+На закреплённом Go 1.26.10, Linux amd64, CGO=0 прошли 24 теста сборщика без
+пропусков, включая реальные `runtime/asm_amd64.s` и `runtime/textflag.h`,
+сохранение CRLF/поздних комментариев и отказы при неверных входах.
+Настоящие builder-сборки API и MCP сформировали:
+
+| Образ | Файлов SDK | Файлов внешних модулей | Текстов в полном отчёте |
+| --- | --- | --- | --- |
+| Go API | 61 | 4 | 31423 |
+| MCP | 61 | 7 | 32647 |
+
+Независимая проверка прочитала каждый из 65/68 исходников непосредственно
+в соответствующем builder: полные байты совпали с сохранённым текстом и SHA-256.
+Дополнительно пересчитаны все 31423/32647 текстовых хеша отчётов.
+Это проверка состава источников, выбранных сборкой, а не перечень секций,
+фактически оставшихся после линковки.
+
+Ограничения: включаемые препроцессором файлы, сгенерированные заголовки вне
+`HFiles`, встроенные ресурсы, `.syso`, остальные языки/варианты сборки и
+совместимость лицензий этим не подтверждены. ARM64-приёмка новой версии отчёта
+не выполнена. Эти два builder-прогона не относятся к npm esbuild с Go 1.23.12;
+его дополнительные исходные уведомления требуют отдельного контура.
+
+Доказательства: `.cache/go-auxiliary-tests.log`, `.cache/go-auxiliary-api-build.log`,
+`.cache/go-auxiliary-mcp-build.log`, `.cache/go-auxiliary-api.json`,
+`.cache/go-auxiliary-mcp.json`, `.cache/verify-go-auxiliary.go`.

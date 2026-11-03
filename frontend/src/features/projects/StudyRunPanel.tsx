@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createStudyRun, isActiveRun, listStudyRuns, readStudyRun, RunRequestError, type RunErrorCode, type RunStatus, type StudyRun } from '../../api/study-runs-api';
+import { cancelQueuedStudyRun, createStudyRun, isActiveRun, listStudyRuns, readStudyRun, runID, RunRequestError, type RunErrorCode, type RunStatus, type StudyRun } from '../../api/study-runs-api';
 import { readCalculationArchive, type OpenCalculationArchive } from '../../api/calculation-archives-api';
 import { SessionError, type Identity, type Project } from '../../api/projects-api';
 import type { StudyVersion } from '../../api/studies-api';
-import { createRunIntentJournal } from './run-intent-journal';
+import { createRunCancellationJournal, createRunIntentJournal } from './run-intent-journal';
 import { ArchiveResultView } from './ArchiveResultView';
 import './StudyRunPanel.css';
 
 type Props={version:StudyVersion; identity:Identity; project:Project; onUnavailable:()=>void};
-const labels:Record<RunStatus,string>={queued:'В очереди',validating:'Проверка входа',initializing:'Подготовка исполнителя',running:'Расчёт выполняется',succeeded:'Результат сохранён',failed:'Запуск завершился с ошибкой'};
+const labels:Record<RunStatus,string>={queued:'В очереди',validating:'Проверка входа',initializing:'Подготовка исполнителя',running:'Расчёт выполняется',succeeded:'Результат сохранён',failed:'Запуск завершился с ошибкой',cancelled:'Отменён до начала исполнения'};
 const reasons:Record<RunErrorCode,string>={worker_unavailable:'Вычислительный сервис недоступен.',worker_transport:'Результат не опубликован: обмен с исполнителем не завершён.',worker_rejected:'Решатель отклонил вход или выбранный метод.',invalid_result:'Ответ решателя не прошёл проверку.',archive_quota:'Не удалось сохранить результат: достигнут лимит архива.',lease_exhausted:'Исполнитель не завершил задание после повторных доставок.',invalid_snapshot:'Не удалось проверить сохранённый вход.'};
 const date=new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'});
 export function StudyRunPanel(props:Props){
@@ -20,20 +20,35 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
   const journal=useMemo(()=>createRunIntentJournal(target,{accountId:identity.accountId,sessionId:identity.sessionId}),[target,identity.accountId,identity.sessionId]);
   const loadJournal=()=>{try{return {intent:journal.read(),error:''};}catch{return {intent:null,error:'Локальная команда недоступна или повреждена. Проверьте историю перед новым запуском.'};}};
   const [pending,setPending]=useState(loadJournal);
+  const cancelJournal=useMemo(()=>createRunCancellationJournal(target,{accountId:identity.accountId,sessionId:identity.sessionId}),[target,identity.accountId,identity.sessionId]);
+  const loadCancellation=()=>{try{return {intent:cancelJournal.read(),error:''};}catch{return {intent:null,error:'Локальная команда отмены недоступна или повреждена. Проверьте историю перед новой отменой.'};}};
+  const [cancellation,setCancellation]=useState(loadCancellation);
+  const [cancelling,setCancelling]=useState(false),[cancelError,setCancelError]=useState('');
   const [items,setItems]=useState<StudyRun[]>([]),[cursor,setCursor]=useState(''),[next,setNext]=useState('');
   const [historyReload,setHistoryReload]=useState(0),[historyBusy,setHistoryBusy]=useState(true),[historyError,setHistoryError]=useState('');
   const [selected,setSelected]=useState(''),[run,setRun]=useState<StudyRun|null>(null),[monitorRetry,setMonitorRetry]=useState(0),[monitorError,setMonitorError]=useState('');
   const [submitting,setSubmitting]=useState(false),[submitError,setSubmitError]=useState('');
   const [archive,setArchive]=useState<OpenCalculationArchive|null>(null),[archiveBusy,setArchiveBusy]=useState(false),[archiveError,setArchiveError]=useState('');
+  const [accessLost,setAccessLost]=useState(false);
+  const deniedContext=useRef(false),historyRequest=useRef<AbortController|null>(null),monitorRequest=useRef<AbortController|null>(null);
   const selection=useRef(''),writing=useRef(false),write=useRef<AbortController|null>(null),opening=useRef<AbortController|null>(null);
-  useEffect(()=>()=>{write.current?.abort();opening.current?.abort();},[]);
+  useEffect(()=>()=>{write.current?.abort();opening.current?.abort();historyRequest.current?.abort();monitorRequest.current?.abort();},[]);
   const denied=useCallback((error:unknown)=>{
-    if((error instanceof SessionError && [401,403,404].includes(error.status)) || (error instanceof RunRequestError && error.code==='run_session_changed')){setItems([]);setRun(null);setArchive(null);onUnavailable();return true;}
+    if((error instanceof SessionError && [401,403,404].includes(error.status)) || (error instanceof RunRequestError && error.code==='run_session_changed')){
+      if(!deniedContext.current){
+        deniedContext.current=true;
+        historyRequest.current?.abort();monitorRequest.current?.abort();write.current?.abort();opening.current?.abort();
+        setItems([]);setRun(null);setArchive(null);setAccessLost(true);onUnavailable();
+      }
+      return true;
+    }
     return false;
   },[onUnavailable]);
-  const choose=useCallback((value:StudyRun)=>{opening.current?.abort();setArchive(null);setArchiveError('');setArchiveBusy(false);selection.current=value.id;setSelected(value.id);setRun(value);setMonitorRetry(n=>n+1);},[]);
+  const choose=useCallback((value:StudyRun)=>{if(deniedContext.current)return;monitorRequest.current?.abort();opening.current?.abort();setArchive(null);setArchiveError('');setArchiveBusy(false);selection.current=value.id;setSelected(value.id);setRun(value);setMonitorRetry(n=>n+1);},[]);
   useEffect(()=>{
+    if(deniedContext.current)return;
     const controller=new AbortController();setHistoryBusy(true);setHistoryError('');setItems([]);setNext('');
+    historyRequest.current=controller;
     void listStudyRuns(target,controller.signal,cursor).then(page=>{
       if(controller.signal.aborted)return;
       setItems(page.items);setNext(page.next);
@@ -43,10 +58,12 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
     return ()=>controller.abort();
   },[target,cursor,historyReload,denied,choose]);
   useEffect(()=>{
-    if(!selected)return;
+    if(!selected || deniedContext.current)return;
     const controller=new AbortController();let timer:ReturnType<typeof setTimeout>|undefined;
+    monitorRequest.current=controller;
     setMonitorError('');
     const poll=async()=>{
+      if(controller.signal.aborted || deniedContext.current)return;
       try{
         const value=await readStudyRun(target,selected,controller.signal);
         if(controller.signal.aborted)return;
@@ -58,7 +75,7 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
     void poll();return ()=>{controller.abort();if(timer!==undefined)clearTimeout(timer);};
   },[target,selected,monitorRetry,denied]);
   async function submit(){
-    if(writing.current || project.role==='viewer' || pending.error)return;
+    if(deniedContext.current || writing.current || project.role==='viewer' || pending.error || cancellation.intent || cancellation.error)return;
     writing.current=true;setSubmitting(true);setSubmitError('');
     const controller=new AbortController();write.current=controller;
     let prepared=false,confirmed=false;
@@ -75,8 +92,30 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
         :error instanceof Error?error.message:'Не удалось подготовить команду запуска.');}}
     finally{writing.current=false;if(!controller.signal.aborted)setSubmitting(false);}
   }
+  async function cancel(){
+    if(deniedContext.current || writing.current || project.role==='viewer' || cancellation.error || pending.intent || pending.error)return;
+    if(!cancellation.intent && run?.status!=='queued')return;
+    writing.current=true;setCancelling(true);setCancelError('');
+    const controller=new AbortController();write.current=controller;
+    let command:string|undefined,confirmed=false;
+    try{
+      const id=runID(cancellation.intent?cancellation.intent.runId:run?.id);
+      const intent=cancelJournal.prepare(cancellation.intent?.command??crypto.randomUUID(),id);command=intent.command;setCancellation(loadCancellation());
+      const accepted=await cancelQueuedStudyRun(target,id,intent.command,identity,controller.signal);
+      if(controller.signal.aborted)return;
+      confirmed=true;choose(accepted);cancelJournal.clear(intent.command);setCancellation(loadCancellation());setHistoryReload(n=>n+1);
+    }catch(error){if(!controller.signal.aborted){
+      const definitive=error instanceof RunRequestError && error.status>=400 && error.status<500;
+      if(command && definitive && !confirmed && error.code!=='run_session_changed'){
+        try{cancelJournal.clear(command);}catch{ /* Preserve the visible recovery barrier if local cleanup fails. */ }
+      }
+      setCancellation(loadCancellation());
+      if(!denied(error))setCancelError(confirmed?'Отмена подтверждена, но очистка локальной команды не завершена. Проверьте прежнюю отмену.':command && !definitive?'Подтверждение отмены не получено. Проверьте прежнюю отмену с тем же идентификатором.':error instanceof Error?error.message:'Не удалось подготовить команду отмены.');
+      if(error instanceof RunRequestError && error.code==='run_already_claimed'){setMonitorRetry(n=>n+1);setHistoryReload(n=>n+1);}
+    }}finally{writing.current=false;if(!controller.signal.aborted)setCancelling(false);}
+  }
   async function openArchive(){
-    if(!run?.archiveId)return;
+    if(deniedContext.current || !run?.archiveId)return;
     opening.current?.abort();const controller=new AbortController();opening.current=controller;setArchiveBusy(true);setArchiveError('');
     try{
       const value=await readCalculationArchive(project.id,run.archiveId,controller.signal);
@@ -86,9 +125,10 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
     }catch(error){if(!controller.signal.aborted && !denied(error))setArchiveError(error instanceof Error?error.message:'Архив недоступен');}
     finally{if(!controller.signal.aborted)setArchiveBusy(false);}
   }
+  if(accessLost)return <section className="study-runs"><p role="alert" className="projects-error">Доступ к запускам завершён. Повторно проверьте сессию и права проекта. Принятые сервером запуски этим не отменяются.</p></section>;
   return <section className="study-runs" aria-label={`Запуски версии ${version.revision}`}>
     <header className="study-run-heading"><div><span className="eyebrow">Сохранённая версия {version.revision}</span><h4>Расчёты исследования</h4></div>
-      {project.role!=='viewer' && <button className="tool-btn primary" disabled={submitting || !!pending.intent || !!pending.error} onClick={()=>void submit()}>Запустить версию {version.revision}</button>}
+      {project.role!=='viewer' && <button className="tool-btn primary" disabled={submitting || cancelling || !!pending.intent || !!pending.error || !!cancellation.intent || !!cancellation.error} onClick={()=>void submit()}>Запустить версию {version.revision}</button>}
     </header>
     <p className="projects-note">Исполнитель использует сохранённые сеть и настройки. Изменение текущей схемы, закрытие вкладки и выход из аккаунта не отменяют принятый запуск.</p>
     {project.role==='viewer' && <p className="projects-note">Доступно только чтение запусков и результатов.</p>}
@@ -98,13 +138,22 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
     </div>}
     {submitting && <p role="status">Проверяем принятие команды…</p>}
     {submitError && <p role="alert" className="projects-error">{submitError}</p>}
+    {(cancellation.intent || cancellation.error) && <div className="study-run-recovery" role="status"><strong>Есть неподтверждённая команда отмены</strong>
+      <p>{cancellation.error || `Запуск №${cancellation.intent?.runId}. Проверка использует прежний UUID; если команда не дошла, она попытается отменить только этот ещё не выданный запуск.`}</p>
+      {cancellation.intent && <button className="tool-btn" disabled={cancelling || submitting || project.role==='viewer' || !!pending.intent || !!pending.error} onClick={()=>void cancel()}>Проверить прежнюю отмену</button>}
+      <button className="tool-btn" disabled={cancelling || submitting} onClick={()=>{if(window.confirm('Забыть локальную команду отмены? Это не отменяет команду на сервере и не возобновляет Run. Сначала проверьте его состояние.')){try{cancelJournal.discard();setCancellation(loadCancellation());setCancelError('');}catch{setCancelError('Не удалось очистить локальную команду отмены.');}}}}>Забыть локальную отмену</button>
+    </div>}
+    {cancelling && <p role="status">Проверяем отмену до начала исполнения…</p>}
+    {cancelError && <p role="alert" className="projects-error">{cancelError}</p>}
     {run && <div className="study-run-monitor" aria-label={`Запуск №${run.id}`}>
       <div className="study-run-heading"><strong>Запуск №{run.id}</strong><span className="study-run-state" data-status={run.status}>{labels[run.status]}</span></div>
       <p className="projects-note">{date.format(new Date(run.createdAt))} · автор №{run.requestedBy}</p>
-      {isActiveRun(run) && <p className="projects-note">Состояние обновляется автоматически. Отмена и пауза пока недоступны.</p>}
+      {isActiveRun(run) && <p className="projects-note">Состояние обновляется автоматически. Отмена доступна только до выдачи worker; остановка начатого исполнения и пауза пока недоступны.</p>}
+      {run.status==='cancelled' && <p className="projects-note">Исполнитель не запускался. Снимок исследования и история команды сохранены; результат не создаётся.</p>}
       {run.errorCode && <p role="alert" className="projects-error">{reasons[run.errorCode]}</p>}
       {monitorError && <p role="alert" className="projects-error">{monitorError} Показано последнее известное состояние.</p>}
       <div className="study-actions"><button className="tool-btn" onClick={()=>setMonitorRetry(n=>n+1)}>Проверить состояние</button>
+        {run.status==='queued' && project.role!=='viewer' && !cancellation.intent && !cancellation.error && <button className="tool-btn" disabled={cancelling || submitting || !!pending.intent || !!pending.error} onClick={()=>void cancel()}>Отменить до начала</button>}
         {run.archiveId && <button className="tool-btn primary" disabled={archiveBusy} onClick={()=>void openArchive()}>{archiveBusy?'Открываем результат…':'Открыть результат'}</button>}</div>
       {archiveError && <p role="alert" className="projects-error">{archiveError}</p>}
     </div>}
@@ -112,7 +161,7 @@ function RunPanel({version,identity,project,onUnavailable}:Props){
     {historyError && <p role="alert" className="projects-error">{historyError}</p>}
     {historyBusy?<p role="status">Загружаем запуски…</p>:<>
       {!items.length && !historyError && <p className="projects-empty">У этой версии пока нет запусков.</p>}
-      <ul className="study-run-history">{items.map(item=><li key={item.id}><button className="study-run-card" aria-pressed={selected===item.id} disabled={submitting} onClick={()=>choose(item)}><strong>№{item.id}</strong><span>{labels[item.id===run?.id?run.status:item.status]}</span><small>{date.format(new Date(item.createdAt))}</small></button></li>)}</ul>
+      <ul className="study-run-history">{items.map(item=><li key={item.id}><button className="study-run-card" aria-pressed={selected===item.id} disabled={submitting || cancelling} onClick={()=>choose(item)}><strong>№{item.id}</strong><span>{labels[item.id===run?.id?run.status:item.status]}</span><small>{date.format(new Date(item.createdAt))}</small></button></li>)}</ul>
       <div className="study-actions">{cursor && <button className="tool-btn" onClick={()=>setCursor('')}>Последние запуски</button>}{next && <button className="tool-btn" onClick={()=>setCursor(next)}>Более ранние запуски</button>}</div>
     </>}
     {archive && <ArchiveResultView archive={archive} onClose={()=>{opening.current?.abort();setArchive(null);}}/>}

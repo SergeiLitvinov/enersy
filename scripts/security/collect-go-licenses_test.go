@@ -20,6 +20,114 @@ func currentSDKRoot(t *testing.T) string {
 	return strings.TrimSpace(string(root))
 }
 
+func TestAuxiliarySourcePreservesCompleteTextAndBoundaries(t *testing.T) {
+	root := t.TempDir()
+	texts := map[string]string{
+		"a.s": "// Copyright original authors\r\nTEXT ·fixture(SB),0,$0\r\n// Additional terms after code\r\n",
+		"b.h": "/* Header author */\n#define FIXTURE 1\n/* Permission and disclaimer */\n",
+	}
+	for name, text := range texts {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	notices := map[string]string{}
+	r, err := collectAuxiliarySourceAttributions(root, []string{"b.h", "a.s", "a.s"}, notices)
+	if err != nil || len(r.Files) != 2 || r.Files[0].Name != "a.s" {
+		t.Fatalf("%+v %v", r, err)
+	}
+	for _, file := range r.Files {
+		if notices[file.SHA256] != texts[file.Name] || file.SHA256 != digest([]byte(texts[file.Name])) {
+			t.Fatal("source bytes changed")
+		}
+	}
+}
+
+func TestAuxiliarySourceRejectsInvalidEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"source.s", nil}, {"source.s", []byte{0xff}}, {"source.s", []byte("TEXT\x00binary")},
+		{"source.s", []byte(strings.Repeat("x", maxNoticeBytes+1))},
+		{"source.go", []byte("package fixture")}, {"source.syso", []byte("object")},
+		{"../outside.s", nil}, {"sub/../source.s", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if !strings.Contains(tc.name, "/") {
+				if err := os.WriteFile(filepath.Join(root, tc.name), tc.data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := collectAuxiliarySourceAttributions(root, []string{tc.name}, map[string]string{}); err == nil {
+				t.Fatal("invalid source accepted")
+			}
+		})
+	}
+	t.Run("escaping symlink", func(t *testing.T) {
+		root := t.TempDir()
+		outside := filepath.Join(t.TempDir(), "external.s")
+		if err := os.WriteFile(outside, []byte("// Other package notice"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, filepath.Join(root, "source.s")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := collectAuxiliarySourceAttributions(root, []string{"source.s"}, map[string]string{}); err == nil {
+			t.Fatal("escape accepted")
+		}
+	})
+}
+
+func TestAuxiliaryPackageSelectionKeepsSDKAndModuleSeparate(t *testing.T) {
+	root := t.TempDir()
+	packages := []goPackage{
+		{Standard: true, Dir: filepath.Join(root, "src", "runtime"), SFiles: []string{"asm_amd64.s"}, HFiles: []string{"textflag.h"}, GoFiles: []string{"runtime.go"}},
+		{Module: &goModule{Path: "example.org/dependency"}, Dir: filepath.Join(root, "dependency"), SFiles: []string{"native.s"}},
+	}
+	for _, tc := range []struct {
+		module string
+		count  int
+	}{{"go", 2}, {"example.org/dependency", 1}} {
+		names, err := packageAuxiliarySourceNames(packages, root, tc.module)
+		if err != nil || len(names) != tc.count {
+			t.Fatal(names, err)
+		}
+		for _, name := range names {
+			if filepath.Ext(name) == ".go" {
+				t.Fatal("Go source mixed with assembly")
+			}
+		}
+	}
+	for _, pkg := range []goPackage{
+		{Standard: true, Dir: root, SFiles: []string{"../external.s"}},
+		{Standard: true, Dir: t.TempDir(), HFiles: []string{"external.h"}},
+		{Standard: true, Dir: root, SFiles: []string{"object.syso"}},
+		{Standard: true, Dir: root, CgoFiles: []string{"cgo.go"}},
+	} {
+		if _, err := packageAuxiliarySourceNames([]goPackage{pkg}, root, "go"); err == nil {
+			t.Fatal("invalid selection accepted")
+		}
+	}
+}
+
+func TestActualSDKAssemblyAndHeaderBytes(t *testing.T) {
+	root := currentSDKRoot(t)
+	names := []string{filepath.Join("src", "runtime", "asm_"+runtime.GOARCH+".s"), filepath.Join("src", "runtime", "textflag.h")}
+	notices := map[string]string{}
+	r, err := collectAuxiliarySourceAttributions(root, names, notices)
+	if err != nil || len(r.Files) != 2 {
+		t.Fatal(r, err)
+	}
+	for _, file := range r.Files {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file.Name)))
+		if err != nil || string(raw) != notices[file.SHA256] || digest(raw) != file.SHA256 {
+			t.Fatal("SDK source changed", err)
+		}
+	}
+}
+
 func TestGoSourceProloguesPreserveAllGroupsAndBytes(t *testing.T) {
 	root := t.TempDir()
 	header := "\ufeff//go:build linux\r\n\r\n// Copyright © Автор\r\n// Permission is in LICENSE.\r\n\r\n/* Additional authors and terms. */\r\n\r\n"

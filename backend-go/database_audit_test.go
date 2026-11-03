@@ -19,7 +19,7 @@ func TestDatabaseAuditPostgres(t *testing.T) {
 	}
 	before := migrationSnapshot(t, db)
 	report, err := auditDatabase(context.Background(), db, url)
-	if err != nil || !report.ReadOnly || report.Status != "no_findings_in_audited_scope" || report.Version == nil || *report.Version != "3" || report.LatestSourceVersion != "3" {
+	if err != nil || !report.ReadOnly || report.Status != "no_findings_in_audited_scope" || report.Version == nil || *report.Version != "4" || report.LatestSourceVersion != "4" {
 		t.Fatal(report, err)
 	}
 	if got := report.Counts["tables.equipment_models"]; got == nil || *got != 90 {

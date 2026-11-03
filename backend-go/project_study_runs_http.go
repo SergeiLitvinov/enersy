@@ -11,6 +11,10 @@ import (
 
 func (handler projectsHTTP) studyRuns(w http.ResponseWriter, r *http.Request) bool {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/")
+	if len(parts) == 4 && parts[1] == "runs" && parts[3] == "cancel" {
+		handler.cancelStudyRun(w, r, parts[0], parts[2])
+		return true
+	}
 	collection := len(parts) == 6 && parts[1] == "studies" && parts[3] == "versions" && parts[5] == "runs"
 	creating := collection && r.Method == http.MethodPost
 	if !collection && (len(parts) < 2 || parts[1] != "runs") {
@@ -59,29 +63,7 @@ func (handler projectsHTTP) studyRuns(w http.ResponseWriter, r *http.Request) bo
 			sendError(w, "Explicit Study version required", 400)
 			return true
 		}
-		// Every new Run command must be bound to the UI's expected identity.
-		accounts, sessions := r.Header.Values("X-Enersy-Account-Id"), r.Header.Values("X-Enersy-Session-Id")
-		if len(accounts) != 1 || len(sessions) != 1 {
-			sendError(w, "One expected account and session required", 400)
-			return true
-		}
-		account, e1 := positiveProjectID(accounts[0])
-		session, e2 := positiveProjectID(sessions[0])
-		if e1 != nil || e2 != nil {
-			sendError(w, "Invalid expected identity", 400)
-			return true
-		}
-		identity, authErr := (sessionStore{database: handler.auth.database}).Authenticate(r.Context(), token)
-		if authErr != nil {
-			if errors.Is(authErr, errSessionUnavailable) {
-				sendError(w, "Session unavailable", 401)
-			} else {
-				sendError(w, "Session service unavailable", 503)
-			}
-			return true
-		}
-		if identity.AccountID != account || identity.SessionID != session {
-			componentWriteError(w, 409, "run_session_changed", "Сессия изменилась. Проверьте рабочий контекст перед запуском")
+		if !handler.expectedRunIdentity(w, r, token) {
 			return true
 		}
 		command, keyErr := connectionCommandKey(r)

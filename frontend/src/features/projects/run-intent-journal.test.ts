@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {beforeEach,expect,test} from 'vitest';
-import {createRunIntentJournal,forgetOtherRunSessions} from './run-intent-journal';
+import {createRunCancellationJournal,createRunIntentJournal,forgetOtherRunSessions} from './run-intent-journal';
 const target={projectId:'8',id:'9007199254740993',revision:'2',inputSha256:'a'.repeat(64),provenanceSha256:'b'.repeat(64)};
 const identity={accountId:'1',sessionId:'2'};
 const command='11111111-1111-4111-8111-111111111111';
@@ -34,4 +34,17 @@ test('storage failure prevents admission and corrupted data is not silently repl
   const key=sessionStorage.key(0)!;sessionStorage.setItem(key,'{}');
   const journal=createRunIntentJournal(target,identity);
   expect(()=>journal.read()).toThrow();expect(()=>journal.prepare(command)).toThrow();expect(sessionStorage.getItem(key)).toBe('{}');
+});
+
+test('cancellation retains its exact run across reload and cannot collide with admission',()=>{
+  createRunIntentJournal(target,identity).prepare(command);
+  createRunCancellationJournal(target,identity).prepare(command,'9007199254740995');
+  const journal=createRunCancellationJournal(target,identity);
+  expect(journal.read()?.runId).toBe('9007199254740995');
+  expect(()=>journal.prepare(command,'2')).toThrow();
+  expect(()=>journal.prepare('22222222-2222-4222-8222-222222222222','9007199254740995')).toThrow();
+  expect(createRunCancellationJournal(target,{...identity,sessionId:'3'}).read()).toBeNull();
+  expect(()=>createRunCancellationJournal({...target,inputSha256:'c'.repeat(64)},identity).read()).toThrow();
+  journal.clear(command);expect(journal.read()).toBeNull();expect(createRunIntentJournal(target,identity).read()?.command).toBe(command);
+  journal.prepare(command,'3');forgetOtherRunSessions(null);expect(journal.read()).toBeNull();
 });

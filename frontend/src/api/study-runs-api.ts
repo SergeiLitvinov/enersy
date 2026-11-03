@@ -1,7 +1,7 @@
 import { SessionError, type Identity } from './projects-api';
 import type { StudyVersion } from './studies-api';
 
-export type RunStatus = 'queued' | 'validating' | 'initializing' | 'running' | 'succeeded' | 'failed';
+export type RunStatus = 'queued' | 'validating' | 'initializing' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 export type RunErrorCode = 'worker_unavailable' | 'worker_transport' | 'worker_rejected' | 'invalid_result' | 'archive_quota' | 'lease_exhausted' | 'invalid_snapshot';
 export interface StudyRun {
   id: string; projectId: string; studyId: string; studyRevision: string; requestedBy: string;
@@ -30,7 +30,7 @@ const record=(value: unknown): Record<string,unknown> => {
   return value as Record<string,unknown>;
 };
 const errors: RunErrorCode[]=['worker_unavailable','worker_transport','worker_rejected','invalid_result','archive_quota','lease_exhausted','invalid_snapshot'];
-export const isActiveRun=(run: StudyRun) => !['succeeded','failed'].includes(run.status);
+export const isActiveRun=(run: StudyRun) => !['succeeded','failed','cancelled'].includes(run.status);
 export function parseStudyRun(value: unknown, target: RunTarget): StudyRun {
   const v=record(value);
   const keys=['id','projectId','studyId','studyRevision','requestedBy','status','inputSha256','provenanceSha256','createdAt'];
@@ -38,7 +38,7 @@ export function parseStudyRun(value: unknown, target: RunTarget): StudyRun {
   if (Object.keys(v).length!==keys.length+terminal.length || ![...keys,...terminal].every(k=>Object.prototype.hasOwnProperty.call(v,k)) ||
     v.projectId!==runID(target.projectId) || v.studyId!==runID(target.id) || v.studyRevision!==runID(target.revision) ||
     v.inputSha256!==runSHA(target.inputSha256) || v.provenanceSha256!==runSHA(target.provenanceSha256) ||
-    !['queued','validating','initializing','running','succeeded','failed'].includes(String(v.status)) ||
+      !['queued','validating','initializing','running','succeeded','failed','cancelled'].includes(String(v.status)) ||
     typeof v.createdAt!=='string' || v.createdAt.trim()!==v.createdAt || !/^\d{4}-\d\d-\d\dT/.test(v.createdAt) || !Number.isFinite(Date.parse(v.createdAt))) return fail();
   runID(v.id);runID(v.requestedBy);
   if (v.status==='succeeded') runID(v.archiveId);
@@ -77,6 +77,16 @@ export async function readStudyRun(target: RunTarget,id: string,signal: AbortSig
   if (response.status!==200) return fail();
   const run=await envelope(response,target,signal);
   if (run.id!==id) return fail();
+  return run;
+}
+/** A successful cancellation confirms a never-claimed Run; it does not stop a solver. */
+export async function cancelQueuedStudyRun(target:RunTarget,id:string,command:string,identity:Pick<Identity,'accountId'|'sessionId'>,signal:AbortSignal):Promise<StudyRun>{
+  const response=await request(`/api/projects/${runID(target.projectId)}/runs/${runID(id)}/cancel`,signal,{'Idempotency-Key':runCommand(command),'X-Enersy-Account-Id':runID(identity.accountId),'X-Enersy-Session-Id':runID(identity.sessionId)});
+  if(response.status!==200)return fail();
+  const value=record(await response.json());signal.throwIfAborted();
+  if(Object.keys(value).length!==4 || value.formatVersion!==1 || value.commandId!==command || value.runId!==id)return fail();
+  const run=parseStudyRun(value.run,target);
+  if(run.id!==id || run.status!=='cancelled')return fail();
   return run;
 }
 export async function listStudyRuns(target: RunTarget,signal: AbortSignal,before=''): Promise<{items: StudyRun[]; next: string}> {

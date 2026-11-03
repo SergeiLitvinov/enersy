@@ -8,6 +8,7 @@ import (
 	"debug/buildinfo"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -46,13 +47,14 @@ type goModule struct {
 }
 
 type moduleNotice struct {
-	Path          string                 `json:"path"`
-	Version       string                 `json:"version"`
-	Sum           string                 `json:"sum,omitempty"`
-	Files         []noticeFile           `json:"noticeFiles"`
-	Nested        *sourceNoticeInventory `json:"nestedSource,omitempty"`
-	MissingNotice bool                   `json:"missingNotice"`
-	GoSource      *goSourceInventory     `json:"goSource,omitempty"`
+	Path            string                 `json:"path"`
+	Version         string                 `json:"version"`
+	Sum             string                 `json:"sum,omitempty"`
+	Files           []noticeFile           `json:"noticeFiles"`
+	Nested          *sourceNoticeInventory `json:"nestedSource,omitempty"`
+	MissingNotice   bool                   `json:"missingNotice"`
+	GoSource        *goSourceInventory     `json:"goSource,omitempty"`
+	AuxiliarySource *sourceNoticeInventory `json:"auxiliarySource,omitempty"`
 }
 
 type goSourceFile struct {
@@ -80,6 +82,8 @@ type goPackage struct {
 	Standard   bool
 	GoFiles    []string
 	CgoFiles   []string
+	SFiles     []string
+	HFiles     []string
 	Module     *goModule
 }
 
@@ -89,23 +93,24 @@ type sourceNoticeInventory struct {
 }
 
 type goLicenseReport struct {
-	FormatVersion int                   `json:"formatVersion"`
-	Scope         string                `json:"scope"`
-	CapturedUTC   time.Time             `json:"capturedUtc"`
-	GoVersion     string                `json:"goVersion"`
-	MainModule    string                `json:"mainModule"`
-	BinarySHA256  string                `json:"binarySha256"`
-	GoModSHA256   string                `json:"goModSha256"`
-	GoSumSHA256   string                `json:"goSumSha256"`
-	CacheVerified bool                  `json:"moduleCacheVerified"`
-	SourceBuild   map[string]string     `json:"sourceBuild"`
-	Modules       []moduleNotice        `json:"modules"`
-	Toolchain     moduleNotice          `json:"toolchain"`
-	SDKSource     sourceNoticeInventory `json:"sdkSource"`
-	SDKOther      sourceNoticeInventory `json:"sdkOther"`
-	SDKGoSource   goSourceInventory     `json:"sdkGoSource"`
-	Notices       map[string]string     `json:"notices"`
-	Limitations   []string              `json:"limitations"`
+	FormatVersion      int                   `json:"formatVersion"`
+	Scope              string                `json:"scope"`
+	CapturedUTC        time.Time             `json:"capturedUtc"`
+	GoVersion          string                `json:"goVersion"`
+	MainModule         string                `json:"mainModule"`
+	BinarySHA256       string                `json:"binarySha256"`
+	GoModSHA256        string                `json:"goModSha256"`
+	GoSumSHA256        string                `json:"goSumSha256"`
+	CacheVerified      bool                  `json:"moduleCacheVerified"`
+	SourceBuild        map[string]string     `json:"sourceBuild"`
+	Modules            []moduleNotice        `json:"modules"`
+	Toolchain          moduleNotice          `json:"toolchain"`
+	SDKSource          sourceNoticeInventory `json:"sdkSource"`
+	SDKOther           sourceNoticeInventory `json:"sdkOther"`
+	SDKGoSource        goSourceInventory     `json:"sdkGoSource"`
+	SDKAuxiliarySource sourceNoticeInventory `json:"sdkAuxiliarySource"`
+	Notices            map[string]string     `json:"notices"`
+	Limitations        []string              `json:"limitations"`
 }
 
 func digest(data []byte) string {
@@ -116,6 +121,37 @@ func digest(data []byte) string {
 func inside(root, candidate string) bool {
 	rel, err := filepath.Rel(root, candidate)
 	return err == nil && rel != ".." && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// Open a resolved source beneath a directory handle. Root prevents path or
+// symlink replacement between validation and opening from escaping the source.
+func openBoundedSource(root, resolved string, limit int64) (*os.File, error) {
+	relative, err := filepath.Rel(root, resolved)
+	if err != nil || !inside(root, resolved) {
+		return nil, fmt.Errorf("source escapes its directory")
+	}
+	directory, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	info, statErr := directory.Stat(relative)
+	if statErr != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return nil, errors.Join(fmt.Errorf("source is not a bounded regular file"), statErr, directory.Close())
+	}
+	file, openErr := directory.Open(relative)
+	closeErr := directory.Close()
+	if openErr != nil {
+		return nil, errors.Join(openErr, closeErr)
+	}
+	if closeErr != nil {
+		return nil, errors.Join(closeErr, file.Close())
+	}
+	// Check the descriptor too, rather than trusting only the preflight stat.
+	info, statErr = file.Stat()
+	if statErr != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return nil, errors.Join(fmt.Errorf("opened source is not a bounded regular file"), statErr, file.Close())
+	}
+	return file, nil
 }
 
 func collectNotices(directory string, notices map[string]string) ([]noticeFile, error) {
@@ -149,14 +185,7 @@ func readNotice(root, relative string, notices map[string]string) (noticeFile, e
 	if !inside(root, name) {
 		return noticeFile{}, fmt.Errorf("notice escapes source directory")
 	}
-	info, err := os.Stat(name)
-	if err != nil {
-		return noticeFile{}, err
-	}
-	if !info.Mode().IsRegular() {
-		return noticeFile{}, fmt.Errorf("notice is not a regular file")
-	}
-	file, err := os.Open(name)
+	file, err := openBoundedSource(root, name, maxNoticeBytes)
 	if err != nil {
 		return noticeFile{}, err
 	}
@@ -270,11 +299,7 @@ func collectGoSourceAttributions(directory string, names []string, notices map[s
 			continue
 		}
 		seen[relative] = true
-		info, err := os.Stat(path)
-		if err != nil || !info.Mode().IsRegular() || info.Size() > maxGoSourceBytes {
-			return r, fmt.Errorf("Go source is not a bounded regular file")
-		}
-		file, err := os.Open(path)
+		file, err := openBoundedSource(root, path, maxGoSourceBytes)
 		if err != nil {
 			return r, err
 		}
@@ -407,6 +432,14 @@ func validateSourcePackageModules(packages []goPackage, info *debug.BuildInfo) e
 }
 
 func packageSourceNames(packages []goPackage, root, modulePath string) ([]string, error) {
+	return packageSelectedSourceNames(packages, root, modulePath, false)
+}
+
+func packageAuxiliarySourceNames(packages []goPackage, root, modulePath string) ([]string, error) {
+	return packageSelectedSourceNames(packages, root, modulePath, true)
+}
+
+func packageSelectedSourceNames(packages []goPackage, root, modulePath string, auxiliary bool) ([]string, error) {
 	names := []string{}
 	for _, pkg := range packages {
 		if modulePath == "go" {
@@ -419,8 +452,14 @@ func packageSourceNames(packages []goPackage, root, modulePath string) ([]string
 		if len(pkg.CgoFiles) != 0 {
 			return nil, fmt.Errorf("unexpected cgo source in pure-Go dependency graph")
 		}
-		for _, name := range pkg.GoFiles {
-			if filepath.Base(name) != name || filepath.Ext(name) != ".go" {
+		selected := pkg.GoFiles
+		if auxiliary {
+			selected = append(append([]string{}, pkg.SFiles...), pkg.HFiles...)
+		}
+		for _, name := range selected {
+			ext := filepath.Ext(name)
+			validExtension := !auxiliary && ext == ".go" || auxiliary && (ext == ".s" || ext == ".h")
+			if filepath.Base(name) != name || !validExtension {
 				return nil, fmt.Errorf("invalid package source basename")
 			}
 			relative, err := filepath.Rel(root, filepath.Join(pkg.Dir, name))
@@ -431,6 +470,37 @@ func packageSourceNames(packages []goPackage, root, modulePath string) ([]string
 		}
 	}
 	return names, nil
+}
+
+// Preserve complete selected assembly/header text, including notices after code.
+// No assembler/preprocessor is run and no claim is made about linked sections.
+func collectAuxiliarySourceAttributions(directory string, names []string, notices map[string]string) (sourceNoticeInventory, error) {
+	r := sourceNoticeInventory{Scope: "selected-build-complete-assembly-and-header-text", Files: []noticeFile{}}
+	root, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return r, err
+	}
+	seen := map[string]bool{}
+	for _, relative := range names {
+		ext := filepath.Ext(relative)
+		if filepath.IsAbs(relative) || filepath.Clean(relative) != relative || (ext != ".s" && ext != ".h") {
+			return r, fmt.Errorf("invalid auxiliary source path")
+		}
+		if seen[relative] {
+			continue
+		}
+		seen[relative] = true
+		file, err := readNotice(root, relative, notices)
+		if err != nil {
+			return r, err
+		}
+		if strings.ContainsRune(notices[file.SHA256], 0) {
+			return r, fmt.Errorf("auxiliary source contains NUL")
+		}
+		r.Files = append(r.Files, file)
+	}
+	sort.Slice(r.Files, func(i, j int) bool { return r.Files[i].Name < r.Files[j].Name })
+	return r, nil
 }
 
 func validateModule(selected *debug.Module, metadata goModule, cache string) error {
@@ -467,10 +537,11 @@ func goOutput(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
-	r := goLicenseReport{FormatVersion: 4, Scope: "go-binary-module-notices", CapturedUTC: time.Now().UTC(), Modules: []moduleNotice{}, Notices: map[string]string{}, Limitations: []string{
+	r := goLicenseReport{FormatVersion: 5, Scope: "go-binary-module-notices", CapturedUTC: time.Now().UTC(), Modules: []moduleNotice{}, Notices: map[string]string{}, Limitations: []string{
 		"Named notice files, not a source-file licensing or license compatibility decision",
 		"SDK source notices include all src subdirectories, build tools and test data, not a list of code linked into the binary",
 		"Go source prologues and comments cover the selected pure-Go amd64/arm64 package graph, not other languages, resources, tests, ignored build tags or all linked machine code",
+		"Complete selected SFiles/HFiles text supplements Go comments; preprocessor includes, generated headers, other languages, embedded resources and binary objects are not resolved by this inventory",
 		"Notices with unrecognized names, embedded archives, license compatibility and operating-system packages require separate review",
 		"All nested notices of selected modules include tests and unused source, not a list of linked code; plugins and other build variants require separate inventories",
 	}}
@@ -571,7 +642,15 @@ func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
 		if err != nil {
 			return r, err
 		}
-		r.Modules = append(r.Modules, moduleNotice{Nested: &nested, GoSource: &headers, Path: selected.Path, Version: selected.Version, Sum: selected.Sum, Files: files, MissingNotice: len(files) == 0})
+		auxNames, err := packageAuxiliarySourceNames(packages, metadata.Dir, selected.Path)
+		if err != nil {
+			return r, err
+		}
+		aux, err := collectAuxiliarySourceAttributions(metadata.Dir, auxNames, r.Notices)
+		if err != nil {
+			return r, err
+		}
+		r.Modules = append(r.Modules, moduleNotice{Nested: &nested, GoSource: &headers, AuxiliarySource: &aux, Path: selected.Path, Version: selected.Version, Sum: selected.Sum, Files: files, MissingNotice: len(files) == 0})
 	}
 	sort.Slice(r.Modules, func(i, j int) bool { return r.Modules[i].Path < r.Modules[j].Path })
 	files, err := collectNotices(env["GOROOT"], r.Notices)
@@ -592,6 +671,14 @@ func inventory(ctx context.Context, binary string) (goLicenseReport, error) {
 		return r, err
 	}
 	r.SDKGoSource, err = collectGoSourceAttributions(env["GOROOT"], names, r.Notices)
+	if err != nil {
+		return r, err
+	}
+	auxNames, err := packageAuxiliarySourceNames(packages, env["GOROOT"], "go")
+	if err != nil {
+		return r, err
+	}
+	r.SDKAuxiliarySource, err = collectAuxiliarySourceAttributions(env["GOROOT"], auxNames, r.Notices)
 	if err != nil {
 		return r, err
 	}

@@ -73,7 +73,7 @@ func auditDatabase(ctx context.Context, db *sql.DB, url string) (databaseAudit, 
 		}
 		return true, err
 	}
-	tables := []string{"auth_accounts", "auth_local_credentials", "auth_sessions", "circuit_schemes", "component_params_template", "component_type_ports", "component_types", "connection_commands", "project_application_commands", "equipment_model_params", "equipment_models", "scheme_components", "scheme_connections", "project_calculation_archives", "project_editor_drafts", "project_members", "project_passports", "project_studies", "project_study_run_leases", "project_study_runs", "project_study_versions", "projects", "scheme_component_params"}
+	tables := []string{"auth_accounts", "auth_local_credentials", "auth_sessions", "circuit_schemes", "component_params_template", "component_type_ports", "component_types", "connection_commands", "project_application_commands", "equipment_model_params", "equipment_models", "scheme_components", "scheme_connections", "project_calculation_archives", "project_editor_drafts", "project_members", "project_passports", "project_studies", "project_study_run_cancellations", "project_study_run_leases", "project_study_runs", "project_study_versions", "projects", "scheme_component_params"}
 	for _, name := range tables {
 		ok, e := count(name, "tables."+name)
 		if e != nil {
@@ -161,6 +161,18 @@ func auditDatabase(ctx context.Context, db *sql.DB, url string) (databaseAudit, 
 		r.Counts[key] = &n
 		if n > 0 {
 			r.Findings = append(r.Findings, key)
+		}
+	}
+	if r.Counts["tables.project_study_run_cancellations"] != nil && r.Counts["tables.project_study_runs"] != nil && r.Counts["tables.project_study_run_leases"] != nil {
+		var conflicts int64
+		// #nosec G202 -- Only fixed table names and current_schema() identifiers quoted by pq.QuoteIdentifier.
+		query := "SELECT count(*) FROM " + qualified("project_study_run_cancellations") + " c LEFT JOIN " + qualified("project_study_runs") + " r ON r.id=c.run_id LEFT JOIN " + qualified("project_study_run_leases") + " l ON l.run_id=c.run_id WHERE r.id IS NULL OR r.project_id<>c.project_id OR l.run_id IS NOT NULL"
+		if err = tx.QueryRowContext(ctx, query).Scan(&conflicts); err != nil {
+			return r, err
+		}
+		r.Counts["runCancellationConflicts"] = &conflicts
+		if conflicts > 0 {
+			r.Findings = append(r.Findings, "run_cancellation_conflict")
 		}
 	}
 	sort.Strings(r.Findings)

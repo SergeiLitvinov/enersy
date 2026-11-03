@@ -27,7 +27,7 @@ type studyRun struct {
 	CreatedAt        time.Time `json:"createdAt"`
 }
 
-const studyRunColumns = `r.id,r.project_id,r.study_id,r.study_revision,r.requested_by,coalesce(l.status,r.status),v.input_sha256,v.provenance_sha256,r.created_at,coalesce(l.archive_id::text,''),coalesce(l.error_code,'')`
+const studyRunColumns = `r.id,r.project_id,r.study_id,r.study_revision,r.requested_by,CASE WHEN EXISTS(SELECT 1 FROM project_study_run_cancellations c WHERE c.run_id=r.id) THEN 'cancelled' ELSE coalesce(l.status,r.status) END,v.input_sha256,v.provenance_sha256,r.created_at,coalesce(l.archive_id::text,''),coalesce(l.error_code,'')`
 
 func scanStudyRun(row interface{ Scan(...any) error }) (studyRun, error) {
 	var run studyRun
@@ -139,7 +139,8 @@ func (store projectStore) EnqueueStudyRun(ctx context.Context, token string, pro
 		return empty, errArchiveCorrupt
 	}
 	var count, active int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*),count(*) FILTER(WHERE l.status IS NULL OR l.status IN ('validating','initializing','running'))
+	if err = tx.QueryRowContext(ctx, `SELECT count(*),count(*) FILTER(WHERE (l.status IS NULL OR l.status IN ('validating','initializing','running'))
+ AND NOT EXISTS(SELECT 1 FROM project_study_run_cancellations c WHERE c.run_id=r.id))
  FROM project_study_runs r LEFT JOIN project_study_run_leases l ON l.run_id=r.id WHERE r.project_id=$1`, project).Scan(&count, &active); err != nil {
 		return empty, err
 	}
