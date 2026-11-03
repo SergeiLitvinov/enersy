@@ -14,13 +14,14 @@ interface CanvasToolbarProps {
   onBackendChange: (backend: ComputeBackendId) => void; onBackendReload: () => void;
   currentSchemeId?: number; selectedComponent: number | null; selectedConnection: number | null; zoomPercent: number;
   calcMethod: string; modelGroup: string; isCalculating: boolean; hasResult: boolean;
+  resultStale?: boolean;
   calculationBlockedReason?: string;
   onCalcMethodChange: (method: string) => void; onModelGroupChange: (group: string) => void; onCalculate: () => void; onShowResult: () => void;
   onDeleteComponent: () => void; onDeleteConnection: () => void; onZoomIn: () => void; onZoomOut: () => void; onResetView: () => void;
 }
 const GROUP_LABELS: Record<string, string> = { 'three-phase': 'Симметричный AC-режим', 'phase-coordinates': 'Фазные координаты', 'symmetrical-components': 'Симметричные составляющие' };
 const METHOD_LABELS: Record<string, string> = { 'newton-raphson': 'Ньютон–Рафсон', direct: 'Прямой метод' };
-export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ unitProfile, onUnitProfileChange, onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, calculationBlockedReason, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ unitProfile, onUnitProfileChange, onShowLimits, limitCount=0, limitsStale=false, maxTimeMs, onMaxTimeChange, computeBackend, computeBackends, backendMessage, onBackendChange, onBackendReload, currentSchemeId, selectedComponent, selectedConnection, zoomPercent, calcMethod, modelGroup, isCalculating, hasResult, resultStale=false, calculationBlockedReason, onCalcMethodChange, onModelGroupChange, onCalculate, onShowResult, onDeleteComponent, onDeleteConnection, onZoomIn, onZoomOut, onResetView }) => {
   const [capabilities, setCapabilities] = useState<ComputeCapability[]>([]);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [showUnitHelp, setShowUnitHelp] = useState(false);
@@ -67,7 +68,8 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({ unitProfile, onUni
       <p>В быстром расчёте мощность базиса определяется настройкой установки (по умолчанию 100 МВА), а напряжение — наибольшим нормализованным номинальным напряжением оборудования. Для явного выбора базиса решателя сохраните исследование. Фазное/линейное напряжение и RMS/амплитуда автоматически не заменяются.</p>
     </Dialog>}
     <div className="toolbar-tools">
-      <button className="icon-button" onClick={onShowResult} disabled={!hasResult} aria-label="Результаты последнего расчёта" title="Результаты"><Icon name="chart" /></button>
+      <button className="icon-button" onClick={onShowResult} disabled={!hasResult} aria-label="Результаты последнего расчёта" title={resultStale ? 'Снимок предыдущего запроса: данные или настройки изменены' : 'Результаты'}><Icon name="chart" /></button>
+      {hasResult && resultStale && <span role="status" className="capability-badge">Предыдущий запрос</span>}
       <span className="divider" />
       <button className="icon-button danger" onClick={onDeleteComponent} disabled={!selectedComponent} aria-label="Удалить выбранный компонент" title="Удалить компонент"><Icon name="trash" /></button>
       <button className="icon-button" onClick={onDeleteConnection} disabled={!selectedConnection} aria-label="Удалить выбранное соединение" title="Удалить соединение"><Icon name="link" /></button>

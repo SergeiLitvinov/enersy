@@ -575,6 +575,39 @@ test('failed parameter group retains every intent and blocks calculation without
   expect(api.calculateScheme).not.toHaveBeenCalled();
 });
 
+test('an earlier basis acknowledgement blocks a queued old coefficient and calculation', async () => {
+  const basis = (power: number) => ({ profile: 'ac-three-phase-rms-v1' as const, s_base_mva: power, v_base_kv: 10 });
+  const source = { ...component, type: 'load', params: { p: '0.0200' }, declaredParameterUnits: { formatVersion: 2 as const, units: { p: 'p.u.' }, bases: { p: basis(10) } } };
+  await act(async () => { state.setComponents([source]); });
+  const first = deferred<Awaited<ReturnType<typeof api.patchComponent>>>();
+  vi.mocked(api.patchComponent).mockReturnValueOnce(first.promise).mockResolvedValue({ success: true, revision: '3' });
+  vi.mocked(api.calculateScheme).mockResolvedValue(result('must not run'));
+  let change!: Promise<void>, rejected!: Promise<unknown>, calculation!: ReturnType<typeof state.handleCalculate>;
+  await act(async () => {
+    change = state.saveComponentParams(101, { p: '0.0200' }, { formatVersion: 2, units: { p: 'p.u.' }, bases: { p: basis(20) } });
+    rejected = state.saveComponentParams(101, { p: '0.030000' }, { formatVersion: 1, units: { p: 'p.u.' } }).catch(error => error);
+    calculation = state.handleCalculate();
+  });
+  await settle(() => first.resolve({ success: true, revision: '2' })); await change;
+  expect(await rejected).toBeInstanceOf(Error); await calculation;
+  expect(api.patchComponent).toHaveBeenCalledTimes(1); expect(api.calculateScheme).not.toHaveBeenCalled();
+  expect(state.components[0]).toMatchObject({ revision: '2', params: { p: '0.0200' }, declaredParameterUnits: { bases: { p: basis(20) } } });
+  expect(state.failedDrafts[0]).toMatchObject({ base: { revision: '1', params: { p: '0.0200' }, declaredParameterUnits: { bases: { p: basis(10) } } },
+    intents: [{ kind: 'parameter', key: 'p', value: '0.030000', unit: 'p.u.' }] });
+});
+
+test('a stale save callback cannot overwrite a basis acknowledged before React replaced the callback', async () => {
+  const basis = (power: number) => ({ profile: 'ac-three-phase-rms-v1' as const, s_base_mva: power, v_base_kv: 10 });
+  const source = { ...component, type: 'load', params: { p: '0.0200' }, declaredParameterUnits: { formatVersion: 2 as const, units: { p: 'p.u.' }, bases: { p: basis(10) } } };
+  await act(async () => { state.setComponents([source]); });
+  const oldSave = state.saveComponentParams;
+  vi.mocked(api.patchComponent).mockResolvedValueOnce({ success: true, revision: '2' }).mockResolvedValue({ success: true, revision: '3' });
+  await act(async () => { await oldSave(101, { p: '0.0200' }, { formatVersion: 2, units: { p: 'p.u.' }, bases: { p: basis(20) } }); });
+  await act(async () => { await expect(oldSave(101, { p: '0.030000' }, { formatVersion: 1, units: { p: 'p.u.' } })).rejects.toThrow('не подтверждено'); });
+  expect(api.patchComponent).toHaveBeenCalledTimes(1);
+  expect(state.failedDrafts[0].base).toMatchObject({ revision: '1', declaredParameterUnits: { bases: { p: basis(10) } } });
+});
+
 test('calculation waits for acknowledged parameter writes', async () => {
   const write = deferred<Awaited<ReturnType<typeof api.setComponentParam>>>();
   const laterWrite = deferred<Awaited<ReturnType<typeof api.setComponentParam>>>();

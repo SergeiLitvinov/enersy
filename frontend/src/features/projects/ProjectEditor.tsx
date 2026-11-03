@@ -8,8 +8,12 @@ import type { ProjectGraph } from './project-graph';
 import { captureEditorComponents, restoreProjectEditorJournal } from './editor-journal';
 import { createComponentIntentJournal } from './component-intent-journal';
 import { createEquipmentIntentJournal } from './equipment-intent-journal';
+import { createLoadFormDraftJournal } from './load-form-draft-journal';
+import { LoadFormDraftContext, type LoadFormDraftStore } from '../../components/ees/panels/load-form-draft-context';
+import { ParameterFormDraftContext, type ParameterFormDraftStore } from '../../components/ees/panels/parameter-form-draft-context';
+import { createParameterFormDraftJournal } from './parameter-form-draft-journal';
 
-type Context = { generation: number; controller: AbortController; queue: ComponentWrites; transport: SchemeTransport };
+type Context = { generation: number; controller: AbortController; queue: ComponentWrites; transport: SchemeTransport; forms: LoadFormDraftStore; parameterForms: ParameterFormDraftStore };
 export function ProjectEditor({ identity, project, graph, onClose, onUnavailable }: {
   identity: Identity; project: Project; graph: ProjectGraph; onClose: () => void; onUnavailable?: () => void;
 }) {
@@ -41,7 +45,9 @@ export function ProjectEditor({ identity, project, graph, onClose, onUnavailable
         setJournalError('');
       }, error => { if (!controller.signal.aborted) setJournalError(error instanceof Error ? error.message : 'Не удалось обновить локальный журнал правок.'); });
       setSource(null); setClosing(false); setUnavailable(false);
-      setContext({ generation: ++generation.current, controller, queue, transport });
+      setContext({ generation: ++generation.current, controller, queue, transport,
+        forms: createLoadFormDraftJournal({ ...identity, projectId: project.id, schemeId: graph.id }, controller.signal),
+        parameterForms: createParameterFormDraftJournal({ ...identity, projectId: project.id, schemeId: graph.id }, controller.signal) });
     } catch (error) { controller.abort(); setContext(null); setOpeningError(error instanceof Error ? error.message : 'Не удалось открыть локальный журнал'); }
     return () => controller.abort();
   }, [identity.accountId, identity.sessionId, project.id, project.role, graph.id, graph.name, onUnavailable]);
@@ -62,7 +68,11 @@ export function ProjectEditor({ identity, project, graph, onClose, onUnavailable
     {journalError && <p role="alert">{journalError} Сохраните вкладку открытой и проверьте журнал перед выходом.</p>}
     {openingError ? <p role="alert">{openingError}</p> : unavailable ? <p role="alert">Доступ к схеме завершён. Проверьте сессию и права проекта.</p> : context && !context.controller.signal.aborted ?
       <div className="project-editor-body" aria-busy={closing} onKeyDownCapture={event => { if (closing) { event.preventDefault(); event.stopPropagation(); } }}>
-        <SchemeEditor key={context.generation} schemeId={Number(graph.id)} writeQueue={context.queue} transport={context.transport} manageSchemes={false} />
+        <LoadFormDraftContext.Provider value={context.forms}>
+          <ParameterFormDraftContext.Provider value={context.parameterForms}>
+            <SchemeEditor key={context.generation} schemeId={Number(graph.id)} writeQueue={context.queue} transport={context.transport} manageSchemes={false} />
+          </ParameterFormDraftContext.Provider>
+        </LoadFormDraftContext.Provider>
       </div> : <p role="status">Открываем редактор…</p>}
     <p className="projects-note">Успешный расчёт сохраняется в архив проекта. Архив доступен в навигаторе схем. После потери подтверждения проверьте архив перед повторным запуском.</p>
     {source && <p className="project-editor-source">Последний расчёт{source.archiveId ? ` · архив №${source.archiveId}` : ''}: ревизия топологии {source.topologyRevision} · <span title={source.inputSha256}>SHA-256 {source.inputSha256.slice(0, 16)}…</span></p>}

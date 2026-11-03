@@ -1,8 +1,9 @@
 import { parameterSourceBase, parameterUnitLabel, type ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
-import { useRef, useState, type FormEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
 import { loadProfileDraft, loadProfileError, loadProfileKeys, loadProfileMode, loadProfilePatch, loadProfileUnits, type LoadProfileDraft, type LoadProfileKey } from '../../../domain/load-profile';
 import { loadProfileDeclaration, loadUnitContext, type LoadUnitPolicy } from '../../../api/load-profile-declaration';
 import { parameterBaseLabel } from '../../../domain/parameter-base';
+import { LoadFormDraftContext, type LoadFormDraft } from './load-form-draft-context';
 import './LoadProfileForm.css';
 
 export function LoadProfileForm({ componentId, params, onSave, parameterResets = {}, unitDeclaration }: {
@@ -12,6 +13,14 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
   unitDeclaration?: ParameterUnitDeclaration;
 }) {
   const confirmed = loadProfileDraft(params);
+  const journal = useContext(LoadFormDraftContext);
+  const [recovery, setRecovery] = useState<{ value: LoadFormDraft | null; error: string }>(() => {
+    try { return { value: journal?.read(componentId) ?? null, error: '' }; }
+    catch { return { value: null, error: 'Не удалось прочитать сохранённый ввод. Сохранение профиля заблокировано до сброса локальной формы.' }; }
+  });
+  const [restored, setRestored] = useState<LoadFormDraft | null>(null);
+  const [storageError, setStorageError] = useState('');
+  const baseline = useRef({ base: confirmed, declaration: profileDeclaration(unitDeclaration) });
   const units = Object.fromEntries(loadProfileKeys.map(key => [key, parameterUnitLabel(unitDeclaration, key, '')]));
   const contexts = Object.fromEntries(loadProfileKeys.map(key => [key, loadUnitContext(unitDeclaration, key)]));
   const [policy, setPolicy] = useState<LoadUnitPolicy>('canonical');
@@ -35,6 +44,16 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
   }
   const mode = loadProfileMode(state.draft.zip_enabled);
   const dirty = state.unitsAcknowledged || loadProfileKeys.some(key => state.draft[key] !== state.confirmed[key]);
+  const waiting = !!recovery.value || !!recovery.error;
+  useEffect(() => {
+    if (!journal || waiting) return;
+    const changed = state.conflicted || loadProfileKeys.some(key => state.draft[key] !== state.confirmed[key]);
+    try {
+      journal.save(componentId, changed ? { ...baseline.current, draft: state.draft, policy } : null);
+      if (!changed) baseline.current = { base: state.confirmed, declaration: profileDeclaration(unitDeclaration) };
+      setStorageError('');
+    } catch { setStorageError('Ввод формы не сохранён в этой вкладке. Сохраните её открытой; применение профиля заблокировано.'); }
+  }, [journal, componentId, waiting, state.draft, state.confirmed, state.conflicted, policy, unitDeclaration]);
   let declaration: ParameterUnitDeclaration | undefined;
   let declarationError = '';
   try { declaration = loadProfileDeclaration(policy, state.draft, unitDeclaration); }
@@ -44,10 +63,24 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
     setState(previous => ({ ...previous, draft: { ...previous.draft, [key]: value } }));
     setMessage(''); setFailure('');
   };
-  const restore = () => { setState({ confirmed, draft: { ...confirmed }, units, contexts, resets: { ...parameterResets }, conflicted: false, unitsAcknowledged: false, submitted: null }); setMessage(''); setFailure(''); };
+  const restore = () => {
+    try { journal?.save(componentId, null); }
+    catch { setStorageError('Не удалось сбросить локальный ввод. Сохраните вкладку открытой.'); return; }
+    baseline.current = { base: confirmed, declaration: profileDeclaration(unitDeclaration) };
+    setRecovery({ value: null, error: '' }); setRestored(null); setStorageError('');
+    setState({ confirmed, draft: { ...confirmed }, units, contexts, resets: { ...parameterResets }, conflicted: false, unitsAcknowledged: false, submitted: null }); setMessage(''); setFailure('');
+  };
+  const recover = () => {
+    const value = recovery.value;
+    if (!value) return;
+    baseline.current = { base: value.base, declaration: value.declaration };
+    const conflicted = loadProfileKeys.some(key => confirmed[key] !== value.base[key] || loadUnitContext(value.declaration ?? undefined, key) !== contexts[key]);
+    setPolicy(value.policy); setRestored(value); setRecovery({ value: null, error: '' });
+    setState({ confirmed, draft: { ...value.draft }, units, contexts, resets: { ...parameterResets }, conflicted, unitsAcknowledged: false, submitted: null });
+  };
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current || !dirty || invalid || state.conflicted || !state.unitsAcknowledged || !declaration) return;
+    if (pending.current || waiting || storageError || !dirty || invalid || state.conflicted || !state.unitsAcknowledged || !declaration) return;
     const patch = loadProfilePatch(state.draft);
     const submittedContexts = Object.fromEntries(loadProfileKeys.map(key => [key, loadUnitContext(declaration, key)]));
     setState(previous => ({ ...previous, submitted: { draft: patch, contexts: submittedContexts } }));
@@ -69,7 +102,18 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
     {hint && <small>{hint}</small>}
   </label>;
   return <form className="load-profile-form" aria-label="Профиль нагрузки" onSubmit={submit}>
-    <fieldset disabled={busy}><legend>Мощность и зависимость от напряжения</legend>
+    {waiting && <section className="load-profile-recovery" aria-label="Сохранённый ввод нагрузки">
+      <p role="status">{recovery.error || 'В этой вкладке есть неприменённый ввод нагрузки. Он не отправлен на сервер. Восстановите его для проверки или верните сохранённый профиль.'}</p>
+      {recovery.value && <button className="tool-btn" type="button" onClick={recover}>Восстановить ввод</button>}
+      <button className="tool-btn" type="button" onClick={restore}>Отбросить локальный ввод</button>
+    </section>}
+    {restored && <details className="load-profile-recovery" open={state.conflicted}>
+      <summary>Исходные значения восстановленной формы</summary>
+      <p>Согласие на единицы не восстанавливается. При изменении серверных данных верните сохранённый профиль и введите значения заново.</p>
+      <dl>{loadProfileKeys.map(key => <div key={key}><dt>{profileFieldName(key)}</dt><dd>{restored.base[key] || 'Не задано'} · {parameterUnitLabel(restored.declaration ?? undefined, key, 'Единица не задана')}{parameterSourceBase(restored.declaration ?? undefined, key) ? ` · ${parameterBaseLabel(parameterSourceBase(restored.declaration ?? undefined, key))}` : ''}</dd></div>)}</dl>
+    </details>}
+    {storageError && <p role="alert">{storageError}</p>}
+    <fieldset disabled={busy || waiting}><legend>Мощность и зависимость от напряжения</legend>
       <label className="load-profile-field" htmlFor={`load-${componentId}-mode`}><span>Модель нагрузки<small>{state.unitsAcknowledged ? '1' : parameterUnitLabel(unitDeclaration, 'zip_enabled', 'Единица не задана')}</small></span>
         <select id={`load-${componentId}-mode`} value={mode} onChange={event => change('zip_enabled', String(event.target.value === 'zip'))}>
           {mode === 'unknown' && <option value="unknown" disabled>Неизвестный профиль</option>}
@@ -109,8 +153,25 @@ export function LoadProfileForm({ componentId, params, onSave, parameterResets =
       {invalid && <p className="load-profile-validation" role="status">{invalid}</p>}
       {failure && <p role="alert">{failure}</p>}
       {message && <p role="status">{message}</p>}
-      <div className="load-profile-actions"><button className="tool-btn" type="submit" disabled={!dirty || !!invalid || state.conflicted || !state.unitsAcknowledged}>{busy ? 'Сохранение…' : 'Применить профиль'}</button>
+      <div className="load-profile-actions"><button className="tool-btn" type="submit" disabled={!dirty || !!invalid || !!storageError || state.conflicted || !state.unitsAcknowledged}>{busy ? 'Сохранение…' : 'Применить профиль'}</button>
         <button className="tool-btn" type="button" disabled={!dirty && !state.conflicted} onClick={restore}>Вернуть сохранённый</button></div>
     </fieldset>
   </form>;
+}
+
+function profileDeclaration(value: ParameterUnitDeclaration | undefined): ParameterUnitDeclaration | null {
+  const units = Object.fromEntries(loadProfileKeys.filter(key => value?.units[key]).map(key => [key, value!.units[key]]));
+  if (!Object.keys(units).length) return null;
+  const bases = Object.fromEntries(loadProfileKeys.filter(key => units[key] === 'p.u.' && value?.bases && Object.prototype.hasOwnProperty.call(value.bases, key))
+    .map(key => [key, value!.bases![key] == null ? null : { ...value!.bases![key]! }]));
+  return Object.keys(bases).length ? { formatVersion: 2, units, bases } : { formatVersion: 1, units };
+}
+
+function profileFieldName(key: LoadProfileKey): string {
+  if (key === 'p') return 'Активная мощность P';
+  if (key === 'q') return 'Реактивная мощность Q';
+  if (key === 'voltage_nom') return 'Номинальное напряжение';
+  if (key === 'zip_enabled') return 'Режим ZIP';
+  const [, part, term] = key.split('_');
+  return `Доля ${part.toUpperCase()}: ${term.toUpperCase()}`;
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, symlink, rm, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -55,6 +55,98 @@ test('missing notices and license metadata remain visible for review', async t =
   assert.equal(report.incompleteEvidenceCount, 1);
   assert.equal(report.packages[0].declaredLicense, null);
   assert.deepEqual(report.packages[0].noticeFiles, []);
+});
+
+test('empty, BOM-only and invisible notices are retained as evidence without closing the gap', async t => {
+  const { root, lock, add } = await fixture(t);
+  for (const [index, text] of ['', '\uFEFF \r\n\t', '\u200b\u0000'].entries()) {
+    await add(`blank-${index}`, `blank-${index}`, '1.0.0', 'MIT', { LICENSE: text });
+  }
+  const report = await collectNodeLicenses(root, lock);
+  assert.equal(report.incompleteEvidenceCount, 3);
+  for (const pkg of report.packages) {
+    assert.equal(pkg.noticeFiles[0].empty, true);
+    assert.equal(report.notices[pkg.noticeFiles[0].sha256].text, ['', '\uFEFF \r\n\t', '\u200b\u0000'][Number(pkg.name.slice(-1))]);
+  }
+});
+
+test('a reviewed third-party header is supplemental and cannot stand in for the package notice', async t => {
+  const { root, lock, add } = await fixture(t);
+  const directory = await add('derived', 'derived', '1.0.0', 'MIT', { 'derived.js': '// Third-party copyright and BSD permission\nexport const example = 1;\n' });
+  const digest = data => createHash('sha256').update(data).digest('hex');
+  const reviewed = [{ name: 'derived', version: '1.0.0', file: 'derived.js', coverage: 'supplemental',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: digest(await readFile(path.join(directory, 'derived.js'))) }];
+  const report = await collectNodeLicenses(root, lock, reviewed);
+  assert.equal(report.incompleteEvidenceCount, 1); assert.equal(report.packages[0].noticeFiles[0].coverage, 'supplemental');
+  await writeFile(path.join(directory, 'LICENSE'), 'Primary package copyright and full permission');
+  assert.equal((await collectNodeLicenses(root, lock, reviewed)).incompleteEvidenceCount, 0);
+  const licenseReview = { ...reviewed[0], file: 'LICENSE', sha256: digest(await readFile(path.join(directory, 'LICENSE'))) };
+  assert.equal((await collectNodeLicenses(root, lock, [...reviewed, licenseReview])).incompleteEvidenceCount, 1);
+  await assert.rejects(collectNodeLicenses(root, lock, [{ ...reviewed[0], coverage: 'complete' }]), /notice coverage/);
+});
+
+test('reviewed installed files bind binary bytes without executing them or trusting only a manifest', async t => {
+  const { root, lock, add } = await fixture(t);
+  const directory = await add('native', 'native', '1.0.0', 'MIT', { LICENSE: 'Full author permission' });
+  await mkdir(path.join(directory, 'bin')); const binary = Buffer.from([0x7f, 69, 76, 70, 0, 1, 2]);
+  await writeFile(path.join(directory, 'bin', 'tool'), binary);
+  const digest = data => createHash('sha256').update(data).digest('hex');
+  const source = { name: 'native', version: '1.0.0', file: 'LICENSE',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: digest('Full author permission'), installedFiles: { 'bin/tool': digest(binary) } };
+  const report = await collectNodeLicenses(root, lock, [source]);
+  assert.deepEqual(report.packages[0].noticeFiles[0].installedFiles, source.installedFiles);
+  assert.equal(Object.values(report.notices).some(notice => notice.text.includes('ELF')), false);
+  await writeFile(path.join(directory, 'bin', 'tool'), Buffer.from('changed'));
+  await assert.rejects(collectNodeLicenses(root, lock, [source]), /installed file content changed/);
+  for (const invalid of ['../LICENSE', '/LICENSE', 'bin//tool', 'C:/secret', 'bin\\tool', 'bin/./tool']) {
+    await assert.rejects(collectNodeLicenses(root, lock, [{ ...source, installedFiles: { [invalid]: digest(binary) } }]), /installed file binding/);
+  }
+  await rm(path.join(directory, 'bin', 'tool'));
+  const other = await add('other-native', 'other-native', '1.0.0'); await writeFile(path.join(other, 'tool'), binary);
+  await symlink(path.join(other, 'tool'), path.join(directory, 'bin', 'tool'));
+  await assert.rejects(collectNodeLicenses(root, lock, [source]), /installed file escapes its package/);
+});
+
+function elfHeader() {
+  const bytes = Buffer.alloc(64); bytes.set([0x7f, 69, 76, 70, 2, 1, 1]); return bytes;
+}
+test('inventories recognized ELF, PE and WASM bytes with package-scoped integrity evidence', async t => {
+  const { root, lock, add } = await fixture(t);
+  const directory = await add('native', 'native', '1.0.0');
+  const elf = elfHeader(), wasm = Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]);
+  const pe = Buffer.alloc(128); pe.write('MZ'); pe.writeUInt32LE(80, 60); pe.set([80, 69, 0, 0], 80);
+  await mkdir(path.join(directory, 'bin'));
+  await writeFile(path.join(directory, 'bin', 'native'), elf); await writeFile(path.join(directory, 'module.wasm'), wasm); await writeFile(path.join(directory, 'addon.node'), pe);
+  await writeFile(path.join(directory, 'not-a-binary.node'), 'throw new Error("must not run");');
+  await writeFile(path.join(directory, 'truncated-elf'), Buffer.from([0x7f, 69, 76, 70, 2, 1, 1, 0]));
+  const nested = await add('native/node_modules/other', 'other', '1.0.0'); await writeFile(path.join(nested, 'other.node'), elf);
+  const digest = data => createHash('sha256').update(data).digest('hex');
+  const source = { name: 'native', version: '1.0.0', file: 'LICENSE',
+    manifestSha256: digest(await readFile(path.join(directory, 'package.json'))), sha256: digest(await readFile(path.join(directory, 'LICENSE'))), installedFiles: { 'bin/native': digest(elf) } };
+  const report = await collectNodeLicenses(root, lock, [source]);
+  assert.equal(report.binaryFileCount, 4); assert.equal(report.uniqueBinaryCount, 3); assert.equal(report.unboundBinaryFileCount, 3);
+  const native = report.packages.find(pkg => pkg.name === 'native');
+  assert.deepEqual(native.binaryFiles.map(file => [file.path, file.format, file.reviewedFileBinding]), [['addon.node', 'PE', false], ['bin/native', 'ELF', true], ['module.wasm', 'WASM', false]]);
+  assert.equal(native.binaryFiles[1].sha256, digest(elf)); assert.equal(native.binaryFiles[1].bytes, elf.length);
+  assert.equal(report.packages.find(pkg => pkg.name === 'other').binaryFiles[0].reviewedFileBinding, false);
+  assert.equal(Object.values(report.notices).some(notice => notice.text.includes('\0asm')), false);
+  assert.doesNotMatch(JSON.stringify(report), /enersy-licenses-/);
+});
+
+test('binary scan terminates same-package directory cycles and refuses cross-package links', async t => {
+  const { root, lock, add } = await fixture(t); const directory = await add('native', 'native', '1.0.0');
+  await writeFile(path.join(directory, 'addon.node'), elfHeader()); await symlink(directory, path.join(directory, 'cycle'), 'dir');
+  assert.equal((await collectNodeLicenses(root, lock)).binaryFileCount, 1);
+  const other = await add('other', 'other', '1.0.0'); await writeFile(path.join(other, 'addon.node'), elfHeader());
+  await symlink(path.join(other, 'addon.node'), path.join(directory, 'foreign.node'));
+  await assert.rejects(collectNodeLicenses(root, lock), /binary scan escapes its package/);
+});
+
+test('binary scan rejects oversized recognized payloads before hashing them', async t => {
+  const { root, lock, add } = await fixture(t); const directory = await add('native', 'native', '1.0.0');
+  const target = path.join(directory, 'large.node'); await writeFile(target, elfHeader());
+  const handle = await open(target, 'r+'); try { await handle.truncate(64 * 1024 * 1024 + 1); } finally { await handle.close(); }
+  await assert.rejects(collectNodeLicenses(root, lock), /binary exceeds 64 MiB/);
 });
 
 test('refuses to copy a notice escaping the installed dependency tree', async t => {

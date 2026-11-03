@@ -19,3 +19,8 @@
 .load-unit-declaration input[type="checkbox"] { width: 16px; height: 16px; margin: 2px 0 0; padding: 0; accent-color: var(--accent-blue); }
 .load-profile-actions button { white-space: normal; font-size: 11px; }
 .load-profile-form [role="alert"], .load-profile-form .load-profile-validation { color: var(--text-primary); border-left: 3px solid var(--accent-blue); padding-left: 8px; }
+.load-profile-recovery { border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.load-profile-recovery button { white-space: normal; margin: 4px 4px 0 0; }
+.load-profile-recovery dl { margin: 8px 0; }
+.load-profile-recovery dt { font-weight: 600; }
+.load-profile-recovery dd { margin: 2px 0 8px; color: var(--text-secondary); }

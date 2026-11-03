@@ -2,14 +2,113 @@ import { expect, test, vi } from 'vitest';
 import type { SchemeComponent } from '../../api/ees-api';
 import { ComponentWrites } from './component-writes';
 import { ComponentDrafts } from './component-drafts';
+import { compareComponentDraft } from './component-comparison';
 
 const component: SchemeComponent = { id: 101, revision: '1', type: 'busbar', typeId: 1, name: 'Bus', x: 0, y: 0, rotation: 0, params: { voltage: '110' } };
 
-test('acknowledged value/unit edit seeds the correct unit for a later failed numeric intent', async () => {
+test('a queued coefficient cannot silently inherit a source basis changed by an earlier acknowledged write', async () => {
+  const basis = (power: number) => ({ profile: 'ac-three-phase-rms-v1' as const, s_base_mva: power, v_base_kv: 110 });
+  const source: SchemeComponent = { ...component, params: { voltage: '1.0000' }, declaredParameterUnits: { formatVersion: 2, units: { voltage: 'p.u.' }, bases: { voltage: basis(10) } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  let acknowledge!: (value: { success: true; revision: string }) => void;
+  const waiting = new Promise<{ success: true; revision: string }>(resolve => { acknowledge = resolve; });
+  const first = queue.run(source, () => true, () => waiting, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '1.0000', unit: 'p.u.', base: basis(20) } });
+  const secondAction = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  const second = queue.run(source, () => true, secondAction, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '2.0000', unit: 'p.u.' } });
+  const outcome = second.then(() => null, error => error);
+  acknowledge({ success: true, revision: '2' }); await first;
+  expect(await outcome).toBeInstanceOf(Error); expect(secondAction).not.toHaveBeenCalled();
+  const draft = queue.drafts.failed(1)[0];
+  expect(draft.base).toMatchObject({ revision: '1', params: { voltage: '1.0000' }, declaredParameterUnits: { bases: { voltage: basis(10) } } });
+  const server = { ...source, revision: '2', declaredParameterUnits: { ...source.declaredParameterUnits!, bases: { voltage: basis(20) } } };
+  expect(compareComponentDraft(draft, server)[0].status).toBe('unit_changed');
+  const repeat = vi.fn(); await expect(queue.recover(draft, server, new Set(['parameter:voltage']), () => true, repeat)).rejects.toThrow('Единица');
+  expect(repeat).not.toHaveBeenCalled();
+  await queue.recover(queue.drafts.failed(1)[0], server, new Set(['parameter:voltage']), () => true);
+  expect(queue.drafts.hasFailed(1)).toBe(false);
+  const fresh = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  await queue.run(server, () => true, fresh, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '2.0000', unit: 'p.u.' } });
+  expect(fresh).toHaveBeenCalledOnce(); expect(fresh).toHaveBeenCalledWith('2');
+});
+
+test('a late callback cannot register an old unit context as the latest confirmed baseline', async () => {
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'кВ' } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  await queue.run(source, () => true, async () => ({ success: true, revision: '2' }), { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '110000', unit: 'В' } });
+  const action = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  await expect(queue.run(source, () => true, action, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '220', unit: 'кВ' } })).rejects.toThrow('не подтверждено');
+  expect(action).not.toHaveBeenCalled(); expect(queue.drafts.failed(1)[0].base).toEqual(source);
+});
+
+test('a later callback with unchanged units can follow its own numeric acknowledgement', async () => {
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'кВ' } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  await queue.run(source, () => true, async () => ({ success: true, revision: '2' }), { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '120' } });
+  const action = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  await queue.run(source, () => true, action, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '130' } });
+  expect(action).toHaveBeenCalledWith('2'); expect(queue.drafts.hasFailed(1)).toBe(false);
+});
+
+test.each(['unit', 'voltage-base', 'cleared-base'])('queued old coefficients stop after a %s change', async mode => {
+  const basis = { profile: 'ac-three-phase-rms-v1' as const, s_base_mva: 10, v_base_kv: 110 };
+  const source = { ...component, declaredParameterUnits: { formatVersion: 2 as const, units: { voltage: 'p.u.' }, bases: { voltage: basis } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  const first = queue.run(source, () => true, async () => ({ success: true, revision: '2' }), { schemeId: 1, intent: {
+    kind: 'parameter', key: 'voltage', value: '110', unit: mode === 'unit' ? 'кВ' : 'p.u.',
+    ...(mode === 'unit' ? {} : { base: mode === 'cleared-base' ? null : { ...basis, v_base_kv: 220 } }),
+  } });
+  const action = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  const second = queue.run(source, () => true, action, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '220' } });
+  const outcome = second.then(() => null, error => error); await first;
+  expect(await outcome).toBeInstanceOf(Error); expect(action).not.toHaveBeenCalled();
+  expect(queue.drafts.failed(1)[0].base).toMatchObject({ revision: '1', declaredParameterUnits: source.declaredParameterUnits });
+});
+
+test('atomic parameter acknowledgements preserve one complete historical baseline for blocked followers', async () => {
+  const basis = (power: number) => ({ profile: 'ac-three-phase-rms-v1' as const, s_base_mva: power, v_base_kv: 110 });
+  const source = { ...component, params: { p: '1.0000', q: '2.0000' }, declaredParameterUnits: { formatVersion: 2 as const, units: { p: 'p.u.', q: 'p.u.' }, bases: { p: basis(10), q: basis(10) } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  const first = queue.run(source, () => true, async () => ({ success: true, revision: '2' }), { schemeId: 1, intent: [
+    { kind: 'parameter', key: 'p', value: '1.0000', unit: 'p.u.', base: basis(20) },
+    { kind: 'parameter', key: 'q', value: '2.0000', unit: 'p.u.', base: basis(30) },
+  ] });
+  const action = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  const second = queue.run(source, () => true, action, { schemeId: 1, intent: { kind: 'parameter', key: 'q', value: '3.0000' } });
+  const outcome = second.then(() => null, error => error); await first; expect(await outcome).toBeInstanceOf(Error);
+  expect(action).not.toHaveBeenCalled(); expect(queue.drafts.failed(1)[0].base).toEqual(source);
+  expect(queue.drafts.failed(1)[0].intents).toEqual([{ kind: 'parameter', key: 'q', value: '3.0000' }]);
+});
+
+test('unchanged parameter contexts still allow fast serialized coefficient edits', async () => {
+  const source = { ...component, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'кВ' } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  const a = vi.fn(async () => ({ success: true as const, revision: '2' })), b = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  await Promise.all([
+    queue.run(source, () => true, a, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '120.000' } }),
+    queue.run(source, () => true, b, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '130.000' } }),
+  ]);
+  expect(a).toHaveBeenCalledWith('1'); expect(b).toHaveBeenCalledWith('2'); expect(queue.drafts.hasFailed(1)).toBe(false);
+});
+
+test('an unrelated queued pose continues after a basis edit and keeps the new confirmed basis', async () => {
+  const basis = (power: number) => ({ profile: 'ac-three-phase-rms-v1' as const, s_base_mva: power, v_base_kv: 110 });
+  const source = { ...component, declaredParameterUnits: { formatVersion: 2 as const, units: { voltage: 'p.u.' }, bases: { voltage: basis(10) } } };
+  const queue = new ComponentWrites(); queue.seed(1, source);
+  const first = queue.run(source, () => true, async () => ({ success: true, revision: '2' }), { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '110', unit: 'p.u.', base: basis(20) } });
+  const action = vi.fn(async () => ({ success: true as const, revision: '3' }));
+  await Promise.all([first, queue.run(source, () => true, action, { schemeId: 1, intent: { kind: 'pose', values: { x: 25 } } })]);
+  expect(action).toHaveBeenCalledWith('2'); expect(queue.drafts.hasFailed(1)).toBe(false);
+  const observed = { ...source, revision: '3', x: 25, declaredParameterUnits: { ...source.declaredParameterUnits, bases: { voltage: basis(20) } } };
+  await expect(queue.run(observed, () => true, async () => { throw new Error('lost'); }, { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '220' } })).rejects.toThrow('lost');
+  expect(queue.drafts.failed(1)[0].base).toMatchObject({ revision: '3', x: 25, declaredParameterUnits: { bases: { voltage: basis(20) } } });
+});
+
+test('acknowledged value/unit edit seeds the correct unit for a newly observed failed numeric intent', async () => {
   const queue = new ComponentWrites(); queue.seed(1, component);
   await queue.run(component, () => true, async () => ({ success: true, revision: '2' }),
     { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '110000', unit: 'В' } });
-  await expect(queue.run(component, () => true, async () => { throw new Error('lost value'); },
+  const observed = { ...component, revision: '2', params: { voltage: '110000' }, declaredParameterUnits: { formatVersion: 1 as const, units: { voltage: 'В' } } };
+  await expect(queue.run(observed, () => true, async () => { throw new Error('lost value'); },
     { schemeId: 1, intent: { kind: 'parameter', key: 'voltage', value: '220000' } })).rejects.toThrow('lost value');
   expect(queue.drafts.failed(1)[0].base).toMatchObject({ revision: '2', params: { voltage: '110000' }, declaredParameterUnits: { formatVersion: 1, units: { voltage: 'В' } } });
 });

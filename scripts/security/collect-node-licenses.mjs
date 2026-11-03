@@ -1,4 +1,5 @@
-import { readdir, readFile, realpath, stat, mkdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat, mkdir, writeFile, open } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +7,60 @@ import { fileURLToPath } from 'node:url';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const noticeName = /^(?:licen[cs]e|copying|notice|copyright)(?:[._-].*)?$|^third.*(?:notice|licen[cs]e).*$/i;
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+
+/** Recognize bounded ELF/PE/core-WASM headers, not executable correctness or licensing. */
+async function collectBinaryFiles(directory, bindings) {
+  const visited = new Set(), files = [];
+  let entries = 0;
+  async function walk(candidate, relative, depth) {
+    if (depth > 32) throw new Error('Dependency binary scan exceeds directory depth');
+    const resolved = await realpath(candidate);
+    if (resolved !== directory && !resolved.startsWith(directory + path.sep)) throw new Error('Dependency binary scan escapes its package');
+    const info = await stat(resolved);
+    if (info.isDirectory()) {
+      if (visited.has(resolved)) return;
+      visited.add(resolved);
+      for (const name of (await readdir(resolved)).sort()) {
+        if (name === 'node_modules' || name === '.git') continue;
+        if (++entries > 100000) throw new Error('Dependency binary scan exceeds entry limit');
+        await walk(path.join(resolved, name), relative ? `${relative}/${name}` : name, depth + 1);
+      }
+      return;
+    }
+    if (!info.isFile() || info.size < 8) return;
+    const handle = await open(resolved, 'r');
+    let format;
+    try {
+      const header = Buffer.alloc(64);
+      const { bytesRead } = await handle.read(header, 0, 64, 0);
+      if (bytesRead >= 52 && header.subarray(0, 4).equals(Buffer.from([0x7f, 69, 76, 70])) &&
+          [1, 2].includes(header[4]) && [1, 2].includes(header[5]) && header[6] === 1 &&
+          (header[4] === 1 || bytesRead >= 64)) format = 'ELF';
+      else if (header.subarray(0, 8).equals(Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]))) format = 'WASM';
+      else if (bytesRead === 64 && header[0] === 77 && header[1] === 90) {
+        const offset = header.readUInt32LE(60);
+        if (offset >= 64 && offset <= info.size - 4) {
+          const signature = Buffer.alloc(4);
+          const read = await handle.read(signature, 0, 4, offset);
+          if (read.bytesRead === 4 && signature.equals(Buffer.from([80, 69, 0, 0]))) format = 'PE';
+        }
+      }
+    } finally { await handle.close(); }
+    if (!format) return;
+    if (info.size > 64 * 1024 * 1024) throw new Error('Dependency binary exceeds 64 MiB');
+    const digest = createHash('sha256'); let size = 0;
+    for await (const chunk of createReadStream(resolved)) {
+      size += chunk.length;
+      if (size > 64 * 1024 * 1024) throw new Error('Dependency binary exceeds 64 MiB');
+      digest.update(chunk);
+    }
+    if (size !== info.size) throw new Error('Dependency binary changed during inventory');
+    const hash = digest.digest('hex');
+    files.push({ path: relative, format, bytes: size, sha256: hash, reviewedFileBinding: bindings.get(relative) === hash });
+  }
+  await walk(directory, '', 0);
+  return files.sort((a, b) => a.path.localeCompare(b.path, 'en'));
+}
 
 function validateLinkedNotice(source) {
   const reference = source.linkedNotice;
@@ -42,6 +97,13 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       !/^[a-f0-9]{64}$/.test(source.manifestSha256 ?? '') ||
       !/^[a-f0-9]{64}$/.test(source.sha256 ?? '')) {
       throw new Error('Invalid reviewed notice source');
+    }
+    if (source.coverage !== undefined && source.coverage !== 'supplemental') throw new Error('Invalid reviewed notice coverage');
+    if (source.installedFiles !== undefined) {
+      const entries = source.installedFiles && typeof source.installedFiles === 'object' && !Array.isArray(source.installedFiles) ? Object.entries(source.installedFiles) : [];
+      if (!entries.length || entries.length > 32 || entries.some(([file, digest]) =>
+        /[\\:\p{Cc}]/u.test(file) || file.split('/').some(part => !part || part === '.' || part === '..') ||
+        typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))) throw new Error('Invalid reviewed installed file binding');
     }
     if (source.kind !== undefined && (source.kind !== 'reviewed-upstream' ||
         !/^[a-f0-9]{40}$/.test(source.sourceCommit ?? '') ||
@@ -108,12 +170,17 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       const content = await readFile(file);
       const digest = sha256(content);
       if (source && digest !== source.sha256) throw new Error('Reviewed notice content changed');
-      notices[digest] = { sha256: digest, text: utf8.decode(content) };
-      files.push({ name: item, sha256: digest, ...(source ? { kind: source.kind ?? 'reviewed-embedded',
+      const text = utf8.decode(content);
+      const empty = !/[^\s\p{Cc}\p{Cf}]/u.test(text);
+      notices[digest] = { sha256: digest, text };
+      const provenance = source ? { kind: source.kind ?? 'reviewed-embedded',
+        ...(source.coverage ? { coverage: source.coverage } : {}),
+        ...(source.installedFiles ? { installedFiles: { ...source.installedFiles } } : {}),
         ...(typeof source.reason === 'string' ? { reviewReason: source.reason } : {}),
         ...(typeof source.reviewedUtc === 'string' ? { reviewedUtc: source.reviewedUtc } : {}),
         ...(source.kind === 'reviewed-upstream' ? { sourceCommit: source.sourceCommit, sourceURL: source.sourceURL,
-          ...(source.linkedNotice ? { linkedNotice: { ...source.linkedNotice } } : {}) } : {}) } : {}) });
+          ...(source.linkedNotice ? { linkedNotice: { ...source.linkedNotice } } : {}) } : {}) } : {};
+      files.push({ name: item, sha256: digest, ...provenance, ...(empty ? { empty: true } : {}) });
     }
     for (const item of (await readdir(directory)).sort()) {
       if (!noticeName.test(item)) continue;
@@ -123,18 +190,32 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
     }
     for (const source of reviewed.get(`${pkg.name}@${pkg.version}`) ?? []) {
       if (sha256(bytes) !== source.manifestSha256) throw new Error('Reviewed notice package manifest changed');
+      for (const [relative, expected] of Object.entries(source.installedFiles ?? {})) {
+        const file = await safePath(path.join(directory, relative));
+        if (!file.startsWith(directory + path.sep)) throw new Error('Reviewed installed file escapes its package');
+        const metadata = await stat(file);
+        if (!metadata.isFile() || metadata.size === 0 || metadata.size > 64 * 1024 * 1024) throw new Error('Invalid reviewed installed file');
+        const data = await readFile(file);
+        if (data.length > 64 * 1024 * 1024 || sha256(data) !== expected) throw new Error('Reviewed installed file content changed');
+      }
       if (source.kind === 'reviewed-upstream' || !files.some(file => file.name === source.file)) await captureNotice(source.file, source);
       else {
-        if (files.find(file => file.name === source.file).sha256 !== source.sha256) throw new Error('Reviewed notice content changed');
+        const file = files.find(file => file.name === source.file);
+        if (file.sha256 !== source.sha256) throw new Error('Reviewed notice content changed');
+        if (source.coverage) Object.assign(file, { coverage: source.coverage,
+          ...(typeof source.reason === 'string' ? { reviewReason: source.reason } : {}) });
+        if (source.installedFiles) file.installedFiles = { ...source.installedFiles };
       }
     }
     const declaredLicense = pkg.license ?? null;
+    const bindings = new Map((reviewed.get(`${pkg.name}@${pkg.version}`) ?? []).flatMap(source => Object.entries(source.installedFiles ?? {})));
+    const binaryFiles = await collectBinaryFiles(directory, bindings);
     const record = {
       name: pkg.name, version: pkg.version, manifestSha256: sha256(bytes),
-      declaredLicense, noticeFiles: files,
-      incompleteEvidence: typeof declaredLicense !== 'string' || !declaredLicense.trim() || files.length === 0,
+      declaredLicense, noticeFiles: files, binaryFiles,
+      incompleteEvidence: typeof declaredLicense !== 'string' || !declaredLicense.trim() || !files.some(file => !file.empty && file.coverage !== 'supplemental'),
     };
-    // Two physical installs can have identical manifests but different notices.
+    // Physical installs can have identical manifests but different notices/binaries.
     const identity = `${pkg.name}@${pkg.version}:${sha256(JSON.stringify(record))}`;
     records.set(identity, record);
     await scanModules(path.join(directory, 'node_modules'));
@@ -171,11 +252,14 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
   await scanModules(modules);
   if (records.size === 0) throw new Error('Installed dependency inventory is empty');
   const packages = [...records.entries()].sort(([a], [b]) => a.localeCompare(b, 'en')).map(([, value]) => value);
+  const binaries = packages.flatMap(pkg => pkg.binaryFiles);
   return {
     format: 1, capturedUtc: new Date().toISOString(),
     project: { name: project.name, version: project.version ?? null, declaredLicense: project.license ?? null },
     lock: { file: path.basename(lockFile), sha256: sha256(lock) },
     packageCount: packages.length, incompleteEvidenceCount: packages.filter(p => p.incompleteEvidence).length,
+    binaryFileCount: binaries.length, uniqueBinaryCount: new Set(binaries.map(file => file.sha256)).size,
+    unboundBinaryFileCount: binaries.filter(file => !file.reviewedFileBinding).length,
     packages,
     notices: Object.fromEntries(Object.entries(notices).sort(([a], [b]) => a.localeCompare(b, 'en'))),
     limitations: [
@@ -184,6 +268,10 @@ export async function collectNodeLicenses(projectRoot, lockFile, reviewedSources
       'Package license metadata and notice files are evidence, not a license compatibility decision',
       'A captured package root notice does not establish coverage of native binary dependencies; reviewReason preserves narrower reviewed scopes',
       'Embedded and upstream notices are included only for explicitly reviewed name/version, manifest and file hashes',
+      'Optional installedFiles bindings verify reviewed package files too; they do not establish full native binary attribution',
+      'binaryFiles recognizes ELF, PE and core WASM v1 headers only; other formats, loaded libraries and final bundle composition are not established',
+      'reviewedFileBinding is a package-scoped integrity binding, not proof of complete binary licensing; node_modules is scanned as separate packages',
+      'Empty/invisible notices and supplemental third-party notices alone do not complete package notice evidence',
       'Author-linked notices are reviewed byte snapshots bound to an installed declaration and explicit URL; links are not fetched during inventory',
       'Non-npm dependencies, operating-system packages and other non-root notice files require separate review',
     ],
@@ -198,4 +286,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   await mkdir(path.dirname(path.resolve(output)), { recursive: true });
   await writeFile(output, JSON.stringify(report, null, 2) + '\n');
   console.log(`${report.packageCount} installed packages; ${report.incompleteEvidenceCount} have incomplete license/notice evidence`);
+  console.log(`${report.binaryFileCount} recognized binary paths; ${report.unboundBinaryFileCount} lack reviewed package file bindings`);
 }

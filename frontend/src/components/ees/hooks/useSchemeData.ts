@@ -59,6 +59,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
   const activeView = useRef({ schemeId });
   const calculationRequest = useRef<object | null>(null);
   const writes = useRef(writeQueue ?? new ComponentWrites());
+  const captureCalculationVersion = useCallback(() => writes.current.calculationVersion, []);
   const graphReviews = useRef(new WeakMap<GraphReview, { isCurrent: () => boolean; version: number; templates: Map<number, api.ComponentParam[]> }>());
   const captureView = useCallback(() => {
     const view = activeView.current;
@@ -416,7 +417,7 @@ export function useSchemeData(schemeId?: number, writeQueue?: ComponentWrites, t
     handleCreateScheme, handleDeleteScheme,
     addComponent, deleteSelectedComponent, deleteConnection,
     handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, saveComponentParams, addConnection,
-    isCalculating, calculationError, loadedSchemeId, captureView, resolveComponentDraft, resolveComponentDeletion,
+    isCalculating, calculationError, loadedSchemeId, captureView, captureCalculationVersion, resolveComponentDraft, resolveComponentDeletion,
     failedDrafts: currentSchemeId ? writes.current.drafts.failed(currentSchemeId) : [],
     failedGraph: currentSchemeId ? writes.current.graph.failed(currentSchemeId) : [], reviewGraph, acceptGraphServer, retryGraphConnection,
   };

@@ -14,6 +14,8 @@ import type { CreationParameters } from '../../features/catalog/creation-paramet
 import { isCalculationBudget } from '../../api/calculation-execution';
 import type { TerminalVoltageLimit } from '../../api/operating-assessment';
 import { limitContextKey } from './limit-context';
+import { calculationPhysicalKey, calculationSelectionKey } from './calculation-context';
+import { ResultSnapshotNotice, type ResultSnapshot } from './panels/ResultSnapshotNotice';
 import { OperatingLimitsDialog } from './panels/OperatingLimitsDialog';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
@@ -53,7 +55,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     handleCreateScheme, handleDeleteScheme,
     addComponent, deleteSelectedComponent, deleteConnection,
     handleCalculate, updateComponentPosition, rotateComponent, saveComponentParam, saveComponentParams, addConnection,
-    isCalculating, calculationError, loadedSchemeId, captureView, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
+    isCalculating, calculationError, loadedSchemeId, captureView, captureCalculationVersion, failedDrafts, resolveComponentDraft, resolveComponentDeletion, parameterResets,
     failedGraph, reviewGraph, acceptGraphServer, retryGraphConnection,
   } = useSchemeData(schemeId, writeQueue, transport);
   const [reviewComponent, setReviewComponent] = useState<number | null>(null);
@@ -77,7 +79,8 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const [selectedConnection, setSelectedConnection] = useState<number | null>(null);
   const [focusedComponent,setFocusedComponent]=useState<number|null>(null);
   useEffect(()=>setFocusedComponent(null),[currentSchemeId]);
-  const [lastResult, setLastResult] = useState<CalculationResult | null>(null);
+  const [lastCalculation, setLastCalculation] = useState<(ResultSnapshot & { result: CalculationResult; physicalContext: string; selectionContext: string; activity: string }) | null>(null);
+  const lastResult = lastCalculation?.result ?? null;
   const [resultsVisible, setResultsVisible] = useState(false);
   const [calcMethod, setCalcMethod] = useState<string>('newton-raphson');
   const [modelGroup, setModelGroup] = useState<string>('three-phase');
@@ -86,15 +89,19 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const [maxTimeMs, setMaxTimeMs] = useState(20000);
   const [limitState,setLimitState] = useState<{limits:TerminalVoltageLimit[];context:string}>({limits:[],context:''});
   const [limitDialog,setLimitDialog] = useState(false);
-  const [resultContext,setResultContext] = useState('');
   const limitContext = useMemo(()=>limitContextKey(components,connections),[components,connections]);
+  const physicalContext = useMemo(() => calculationPhysicalKey(components, connections, unitProfile), [components, connections, unitProfile]);
+  const selectionContext = calculationSelectionKey({ modelGroup, method: calcMethod, backend: computeBackend, unitProfile, maxTimeMs, limits: limitState.limits });
+  const calculationActivity = captureCalculationVersion();
+  const resultStale = !!lastCalculation && (lastCalculation.changedWhileRunning || lastCalculation.physicalContext !== physicalContext ||
+    lastCalculation.selectionContext !== selectionContext || lastCalculation.activity !== calculationActivity || failedDrafts.length > 0 || failedGraph.length > 0);
   const limitsStale = limitState.limits.length>0 && limitState.context!==limitContext;
   const limitTargets = useMemo(()=>{
-    if(resultContext!==limitContext)return [];
+    if(!lastCalculation || lastCalculation.changedWhileRunning || lastCalculation.physicalContext!==physicalContext || lastCalculation.activity!==calculationActivity)return [];
     const names = new Map(components.map(c=>[c.id,c.name||c.type]));
     return (lastResult?.topology?.terminals??[]).filter(t=>t.bus_id!==null).map(t=>({component_id:t.component_id,terminal:t.terminal,label:`${names.get(t.component_id)||t.component_type} #${t.component_id} · терминал ${t.terminal}`}));
-  },[components,lastResult,resultContext,limitContext]);
-  useEffect(()=>{setLimitState({limits:[],context:''});setLimitDialog(false);setResultContext('');},[currentSchemeId]);
+  },[components,lastResult,lastCalculation,physicalContext,calculationActivity]);
+  useEffect(()=>{setLimitState({limits:[],context:''});setLimitDialog(false);},[currentSchemeId]);
   const backendChoices = useComputeBackends();
   const [pendingDrop, setPendingDrop] = useState<{ item: ComponentLibraryItem; wx: number; wy: number } | null>(null);
   const [createDialog, setCreateDialog] = useState(false);
@@ -172,7 +179,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     setPendingDrop(null);
     setSelectedComponent(null);
     setSelectedConnection(null);
-    setLastResult(null);
+    setLastCalculation(null);
     setResultsVisible(false);
   }, [currentSchemeId, resetInteraction]);
 
@@ -190,21 +197,24 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
     if (isCurrent()) setSelectedConnection(null);
   }, [selectedConnection, deleteConnection, captureView]);
 
+  const schemeName = schemes.find(s => s.id === currentSchemeId)?.name || 'Новая рабочая схема';
+
   const handleCalculateClick = useCallback(async () => {
     if(limitsStale){notify('Схема изменена. Пересмотрите границы напряжения.','error');return;}
     if (!isCalculationBudget(maxTimeMs)) { notify('Задайте бюджет времени от 1 до 20000 мс', 'error'); return; }
     if (!backendChoices.ids.includes(computeBackend)) { notify('Выберите доступный вычислительный движок', 'error'); return; }
     const calculatedSchemeId = currentSchemeId;
+    const activity = captureCalculationVersion();
+    const captured = { physicalContext, selectionContext, schemeName };
     const result = await handleCalculate(modelGroup, calcMethod, computeBackend, maxTimeMs, limitState.limits.length?limitState.limits:undefined, unitProfile);
     if (!result || activeSchemeRef.current !== calculatedSchemeId) return;
     if (result.success) {
-      setLastResult(result);
-      setResultContext(limitContext);
+      setLastCalculation({ ...captured, result, receivedAt: new Date().toISOString(), activity, changedWhileRunning: activity !== captureCalculationVersion() });
       setResultsVisible(true);
     } else {
       notify('Ошибка: ' + (result.error || '?'), 'error');
     }
-  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, computeBackend, maxTimeMs, backendChoices.ids, notify, limitsStale, limitState.limits, limitContext, unitProfile]);
+  }, [handleCalculate, currentSchemeId, calcMethod, modelGroup, computeBackend, maxTimeMs, backendChoices.ids, notify, limitsStale, limitState.limits, unitProfile, physicalContext, selectionContext, schemeName, captureCalculationVersion]);
 
   const closeModal = useCallback(() => setResultsVisible(false), []);
 
@@ -330,7 +340,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
   const inspectConnection=useCallback((id:number)=>{setSelectedConnection(id);setSelectedComponent(null);},[]);
   const connectionReasons: Record<string, string> = { scheme_mismatch: 'Объекты принадлежат разным схемам', unknown_port: 'Неизвестный порт', domain_mismatch: 'Несовместимые физические порты', identical_port: 'Порт соединён сам с собой' };
   const zoomPercent = Math.round((1600 / viewBox.w) * 100);
-  const schemeName = schemes.find(s => s.id === currentSchemeId)?.name || 'Новая рабочая схема';
+
 
   return (
     <div ref={editorRef} className="scheme-editor-container" data-library={libraryVisible} data-inspector={inspectorVisible}>
@@ -342,7 +352,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
         theme={theme}
         onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
         onCreateScheme={() => setCreateDialog(true)}
-        onSelectScheme={(id) => { setCurrentSchemeId(id); setSelectedComponent(null); setSelectedConnection(null); setLastResult(null); if (window.innerWidth <= 1000) setLibraryVisible(false); }}
+        onSelectScheme={(id) => { setCurrentSchemeId(id); setSelectedComponent(null); setSelectedConnection(null); setLastCalculation(null); if (window.innerWidth <= 1000) setLibraryVisible(false); }}
         onDeleteScheme={handleDeleteScheme}
         onLibDragStart={handleLibDragStart}
         onAddItem={item => { setPendingDrop({ item, wx: viewBox.x + viewBox.w / 2, wy: viewBox.y + viewBox.h / 2 }); if (window.innerWidth <= 1000) setLibraryVisible(false); }}
@@ -360,7 +370,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           modelGroup={modelGroup}
           computeBackend={computeBackend}
           unitProfile={unitProfile}
-          onUnitProfileChange={profile => { setUnitProfile(profile); setLastResult(null); setResultsVisible(false); setResultContext(''); }}
+          onUnitProfileChange={profile => { setUnitProfile(profile); setLastCalculation(null); setResultsVisible(false); }}
           maxTimeMs={maxTimeMs}
           onMaxTimeChange={setMaxTimeMs}
           computeBackends={backendChoices.ids}
@@ -370,6 +380,7 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
           isCalculating={isCalculating}
           calculationBlockedReason={failedGraph.length > 0 ? 'Сначала сверьте неподтверждённые изменения состава схемы.' : failedDrafts.length > 0 ? 'Сначала разрешите неподтверждённые правки оборудования.' : undefined}
           hasResult={Boolean(lastResult)}
+          resultStale={resultStale}
           onShowResult={() => setResultsVisible(true)}
           onCalcMethodChange={setCalcMethod}
           onModelGroupChange={handleModelGroupChange}
@@ -435,11 +446,11 @@ export const SchemeEditor: React.FC<{ schemeId?: number; writeQueue?: ComponentW
         parameterResets={selectedComp ? parameterResets[selectedComp.id] : undefined}
       />}
 
-      {resultsVisible && lastResult && <ResultsModal result={lastResult} schemeName={schemeName} onClose={closeModal} />}
+      {resultsVisible && lastCalculation && <ResultsModal result={lastCalculation.result} schemeName={lastCalculation.schemeName} context={<ResultSnapshotNotice snapshot={lastCalculation} stale={resultStale} />} onClose={closeModal} />}
       {limitDialog && <OperatingLimitsDialog targets={limitTargets} limits={limitState.limits} stale={limitsStale} onClose={()=>setLimitDialog(false)} onApply={limits=>{setLimitState({limits,context:limitContext});setLimitDialog(false);}} />}
       {reviewedDraft && <RecoveryDialog key={`${reviewedDraft.schemeId}:${reviewedDraft.componentId}`} draft={reviewedDraft} readScheme={transport?.getScheme} onResolve={resolveComponentDraft} onResolveDeletion={resolveComponentDeletion} onClose={() => setReviewComponent(null)} />}
       {reviewTopology && <GraphRecoveryDialog key={currentSchemeId} onRead={reviewGraph} onAccept={acceptGraphServer} onRetry={retryGraphConnection} onClose={() => setReviewTopology(false)} />}
-      {createDialog && <NewSchemeDialog onCreate={async (name, description) => { const created = await handleCreateScheme(name, description); if (created) { setLastResult(null); setSelectedComponent(null); setSelectedConnection(null); } return created; }} onClose={() => setCreateDialog(false)} />}
+      {createDialog && <NewSchemeDialog onCreate={async (name, description) => { const created = await handleCreateScheme(name, description); if (created) { setLastCalculation(null); setSelectedComponent(null); setSelectedConnection(null); } return created; }} onClose={() => setCreateDialog(false)} />}
       {pendingDrop && (
         <ModelSelectModal
           componentType={pendingDrop.item}

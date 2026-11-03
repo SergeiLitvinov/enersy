@@ -28,6 +28,14 @@ const copyComponent = (component: SchemeComponent): SchemeComponent => ({
 const copyIntent = (intent: ComponentIntent): ComponentIntent => intent.kind === 'pose'
   ? { kind: 'pose', values: { ...intent.values } } : intent.kind === 'parameter' && intent.base ? { ...intent, base: { ...intent.base } } : { ...intent };
 
+function changedParameterContext(before: SchemeComponent, after: SchemeComponent, key: string): boolean {
+  const unit = (component: SchemeComponent) => {
+    const units = component.declaredParameterUnits?.units;
+    return units && Object.prototype.hasOwnProperty.call(units, key) ? units[key] : undefined;
+  };
+  return unit(before) !== unit(after) || !sameParameterBase(parameterSourceBase(before.declaredParameterUnits, key), parameterSourceBase(after.declaredParameterUnits, key));
+}
+
 /** App-lifetime recovery journal. Reload updates the server baseline, not failed intents. */
 export class ComponentDrafts {
   private confirmed = new Map<string, SchemeComponent>();
@@ -64,11 +72,16 @@ export class ComponentDrafts {
     this.confirmed.set(this.key(schemeId, component.id), copyComponent(component));
   }
 
-  record(schemeId: number, component: SchemeComponent, intent: ComponentIntent) {
+  hasParameterContextChanged(schemeId: number, component: SchemeComponent, keys: readonly string[]): boolean {
+    const confirmed = this.confirmed.get(this.key(schemeId, component.id));
+    return !!confirmed && keys.some(key => changedParameterContext(component, confirmed, key));
+  }
+
+  record(schemeId: number, component: SchemeComponent, intent: ComponentIntent, capturedBase = false) {
     const key = this.key(schemeId, component.id);
     let draft = this.pending.get(key);
     if (!draft) {
-      draft = { schemeId, componentId: component.id, base: copyComponent(this.confirmed.get(key) ?? component), intents: new Map(), reason: '' };
+      draft = { schemeId, componentId: component.id, base: copyComponent(capturedBase ? component : this.confirmed.get(key) ?? component), intents: new Map(), reason: '' };
       this.pending.set(key, draft);
     }
     const token = {};
@@ -77,28 +90,49 @@ export class ComponentDrafts {
   }
 
   acknowledge(ticket: { key: string; token: object }, revision: string) {
-    const draft = this.pending.get(ticket.key);
-    const intent = draft?.intents.get(ticket.token);
-    if (!draft || !intent) return;
-    const previous = this.confirmed.get(ticket.key) ?? draft.base;
-    if (intent.kind === 'delete') this.confirmed.delete(ticket.key);
-    else {
-      const next = copyComponent(previous);
-      if (intent.kind === 'pose') Object.assign(next, intent.values);
-      else {
-        next.params = { ...next.params, [intent.key]: intent.value };
-        if (intent.unit !== undefined) next.declaredParameterUnits = mergeParameterUnits(next.declaredParameterUnits, {
-          formatVersion: Object.prototype.hasOwnProperty.call(intent, 'base') ? 2 : 1, units: { [intent.key]: intent.unit },
-          ...(Object.prototype.hasOwnProperty.call(intent, 'base') ? { bases: { [intent.key]: intent.base ?? null } } : {}),
-        });
-      }
-      next.revision = revision;
-      this.confirmed.set(ticket.key, next);
-      // Confirmed edits become the base for remaining unacknowledged intents.
-      draft.base = copyComponent(next);
+    this.acknowledgeBatch([ticket], revision);
+  }
+
+  /** One server commit is applied as a whole before rebasing remaining work. */
+  acknowledgeBatch(tickets: readonly { key: string; token: object }[], revision: string) {
+    const groups = new Map<string, Set<object>>();
+    for (const ticket of tickets) {
+      const tokens = groups.get(ticket.key) ?? new Set<object>();
+      tokens.add(ticket.token); groups.set(ticket.key, tokens);
     }
-    draft.intents.delete(ticket.token);
-    if (draft.intents.size === 0) this.pending.delete(ticket.key);
+    for (const [key, tokens] of groups) {
+      const draft = this.pending.get(key);
+      if (!draft) continue;
+      const applied = [...tokens].flatMap(token => { const intent = draft.intents.get(token); return intent ? [intent] : []; });
+      if (!applied.length) continue;
+      if (applied.some(intent => intent.kind === 'delete')) this.confirmed.delete(key);
+      else {
+        const previous = this.confirmed.get(key) ?? draft.base;
+        const next = copyComponent(previous);
+        for (const intent of applied) {
+          if (intent.kind === 'pose') Object.assign(next, intent.values);
+          else if (intent.kind === 'parameter') {
+            next.params = { ...next.params, [intent.key]: intent.value };
+            if (intent.unit !== undefined) next.declaredParameterUnits = mergeParameterUnits(next.declaredParameterUnits, {
+              formatVersion: Object.prototype.hasOwnProperty.call(intent, 'base') ? 2 : 1, units: { [intent.key]: intent.unit },
+              ...(Object.prototype.hasOwnProperty.call(intent, 'base') ? { bases: { [intent.key]: intent.base ?? null } } : {}),
+            });
+          }
+        }
+        next.revision = revision;
+        this.confirmed.set(key, next);
+        const changedKeys = new Set(applied.flatMap(intent => intent.kind === 'parameter' &&
+          changedParameterContext(previous, next, intent.key) ? [intent.key] : []));
+        const contextChanged = changedKeys.size > 0 && [...draft.intents].some(([token, intent]) => !tokens.has(token) && intent.kind === 'parameter' && changedKeys.has(intent.key) &&
+          changedParameterContext(draft.base, next, intent.key));
+        // A queued coefficient belongs to its captured representation. Updating
+        // its baseline here would hide an intervening unit/basis change.
+        if (contextChanged && !draft.reason) draft.reason = 'Единица или исходный базис изменились при подтверждении предыдущей записи. Сверьте оставшиеся параметры перед повтором.';
+        if (!draft.reason) draft.base = copyComponent(next);
+      }
+      for (const token of tokens) draft.intents.delete(token);
+      if (draft.intents.size === 0) this.pending.delete(key);
+    }
   }
 
   fail(ticket: { key: string; token: object }, reason: string) {

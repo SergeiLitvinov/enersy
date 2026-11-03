@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ParameterUnitDialog } from './ParameterUnitDialog';
 import type { EditorComponent } from '../editor-utils';
+import { ParameterFormDraftContext, type ParameterFormDraftStore } from './parameter-form-draft-context';
+import { createParameterFormDraftJournal } from '../../../features/projects/parameter-form-draft-journal';
 
 vi.mock('../../ui/Dialog', () => ({ Dialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 const component: EditorComponent = { id: 7, revision: '1', typeId: 1, type: 'generator', name: 'Generator', x: 0, y: 0, rotation: 0,
@@ -69,4 +71,54 @@ test('same-batch duplicate submit sends one value/unit operation', async () => {
   await act(async () => { submit(); submit(); }); expect(save).toHaveBeenCalledOnce();
   expect(host.querySelector('fieldset')?.disabled).toBe(true);
   await act(async () => resolve()); expect(close).toHaveBeenCalledOnce();
+});
+
+const openJournal = () => createParameterFormDraftJournal({ accountId: '1', sessionId: '2', projectId: '3', schemeId: '4' }, new AbortController().signal);
+async function renderStored(store: ParameterFormDraftStore, value = component) {
+  await act(async () => root.render(<ParameterFormDraftContext.Provider value={store}><ParameterUnitDialog component={value} onSave={save} onClose={close} /></ParameterFormDraftContext.Provider>));
+}
+async function remount() { await act(async () => root.unmount()); root = createRoot(host); }
+async function click(text: string) { await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text)!.click()); }
+
+test('restores incomplete bases only after explicit choice, then saves once and clears', async () => {
+  sessionStorage.clear(); const store = openJournal(); await renderStored(store); await type(1, 'p.u.'); await type(0, '0.25000'); await type(2, '20e-');
+  expect(store.read(7)?.draft.power).toBe('20e-'); await remount(); await renderStored(openJournal());
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled(); expect(host.querySelector('fieldset')!.disabled).toBe(true);
+  await click('Восстановить ввод параметра'); expect(inputs()[0].value).toBe('0.25000'); expect(inputs()[2].value).toBe('20e-');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await type(2, '20'); await type(3, '110'); save.mockResolvedValue(undefined); await act(async () => submit());
+  expect(save).toHaveBeenCalledOnce(); expect(store.read(7)).toBeNull(); expect(close).toHaveBeenCalledOnce();
+});
+
+test('historical revision and basis remain visible and block replay after reopening', async () => {
+  sessionStorage.clear(); const store = openJournal();
+  const based = { ...component, declaredParameterUnits: { formatVersion: 2 as const, units: { p: 'p.u.' }, bases: { p: { profile: 'ac-three-phase-rms-v1' as const, s_base_mva: 10, v_base_kv: 110 } } } };
+  await renderStored(store, based); await type(0, '0.25000'); await remount();
+  const changed = { ...based, revision: '2', declaredParameterUnits: { ...based.declaredParameterUnits, bases: { p: { ...based.declaredParameterUnits.bases.p, s_base_mva: 20 } } } };
+  await renderStored(openJournal(), changed); await click('Восстановить ввод параметра'); await act(async () => submit());
+  expect(save).not.toHaveBeenCalled(); expect(host.textContent).toContain('Sб 10 МВА'); expect(store.read(7)?.sourceRevision).toBe('1');
+  expect(host.textContent).toContain('Актуальное: 10 · p.u. · Sб 20 МВА');
+  await click('Вернуть актуальное значение'); expect(store.read(7)).toBeNull(); expect(inputs()[2].value).toBe('20');
+  await type(0, '0.12500'); await act(async () => submit()); expect(save).toHaveBeenCalledWith('p', '0.12500', 'p.u.', expect.objectContaining({ s_base_mva: 20 }));
+});
+
+test('changing the selected parameter cannot silently replace dirty input', async () => {
+  sessionStorage.clear(); const store = openJournal(); await renderStored(store, { ...component, params: { p: '10', q: '3' } }); await type(1, 'МВт');
+  await act(async () => { const select = host.querySelector('select')!; select.value = 'q'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(store.read(7)?.draft.key).toBe('p'); expect(host.querySelector('select')!.value).toBe('p');
+  expect(host.textContent).toContain('Сначала сохраните'); await click('Отмена'); expect(store.read(7)).toBeNull();
+});
+
+test('failed raw storage blocks network writes and keeps text visible', async () => {
+  await renderStored({ read: () => null, save: () => { throw new Error('quota'); } }); await type(1, 'МВт'); await type(0, '12.0000');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled(); expect(inputs()[0].value).toBe('12.0000'); expect(host.textContent).toContain('запись на сервер заблокирована');
+});
+
+test('cleanup failure after commit never permits a second server write', async () => {
+  const journal = openJournal(); sessionStorage.clear(); let failCleanup = false;
+  const store: ParameterFormDraftStore = { read: id => journal.read(id), save: (id, value) => { if (failCleanup && value === null) throw new Error('cleanup'); journal.save(id, value); } };
+  await renderStored(store); await type(1, 'МВт'); save.mockImplementation(async () => { failCleanup = true; });
+  await act(async () => submit()); expect(save).toHaveBeenCalledOnce(); expect(host.textContent).toContain('сохранены на сервере');
+  await act(async () => submit()); expect(save).toHaveBeenCalledOnce(); expect(close).not.toHaveBeenCalled();
+  failCleanup = false; await click('Закрыть сохранённую форму'); expect(journal.read(7)).toBeNull(); expect(close).toHaveBeenCalledOnce();
 });

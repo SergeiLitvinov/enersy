@@ -12,3 +12,6 @@
 .result-topology summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 4px; }
 .q-limit-state { display: inline-block; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 6px; white-space: nowrap; }
 .q-limit-state[data-state="clamped"] { font-weight: 600; border-color: currentColor; }
+.result-snapshot { border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; color: var(--text-primary); }
+.result-snapshot p { margin: 7px 0 0; line-height: 1.6; font-size: 12px; overflow-wrap: anywhere; }
+.result-snapshot [role="alert"] { border-left: 3px solid var(--accent-blue); padding-left: 10px; }

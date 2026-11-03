@@ -100,5 +100,32 @@
     "sha256": "ced6cb1fe6ee15a32c63ea8c7e0425454e80456a890c6df3909429530566d40a",
     "reviewedUtc": "2026-11-02",
     "reason": "Preserve the exact published copyright years, author attribution and original MIT link together with the separately reviewed full author notice; this README alone is not the full MIT text."
+  },
+  {
+    "name": "stackback",
+    "version": "0.0.2",
+    "manifestSha256": "4d984909b27d37d2f1a379b9cda7292a6e3a133c076df166d740a17514ac6e60",
+    "file": "formatstack.js",
+    "sha256": "3c1191bd7094a36098418e7d1606e2a49e7ee25b5ddee54b0b2514ea1a43b8a7",
+    "coverage": "supplemental",
+    "reviewedUtc": "2026-11-03",
+    "reason": "Preserve the exact installed source with its complete V8 2012 BSD copyright, conditions and disclaimer. The reviewed byte copy is node-notices/stackback-0.0.2-formatstack.js. This is supplemental third-party attribution only: the package declares MIT but its own full MIT notice remains absent. Capturing this file must not mark package evidence complete. No package code is executed."
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.25.12",
+    "manifestSha256": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+    "file": "esbuild-0.25.12-LICENSE.md",
+    "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681",
+    "kind": "reviewed-upstream",
+    "sourceCommit": "208f539945b145e7c9d6d844290f81c3fe5af320",
+    "sourceURL": "https://raw.githubusercontent.com/evanw/esbuild/208f539945b145e7c9d6d844290f81c3fe5af320/LICENSE.md",
+    "reviewedUtc": "2026-11-03",
+    "reason": "Platform package and parent npm gitHead match this release tag commit. The tarball SRI matches the frontend lock and all three installed files match its bytes. The source platform manifest agrees with the installed manifest and explicitly declares MIT; the platform README also matches. Preserve the original root license, identical to npm/esbuild/LICENSE.md in the same commit. Covers esbuild-owned code only: attribution of Go runtime, modules and other native binary constituents still requires separate review. No automatic inheritance from a similarly named package or current upstream branch.",
+    "installedFiles": {
+      "package.json": "fdf02f1b53a4651a3eea731e2ad0a9c7d4fd8646430a5935d551e610e8d469fc",
+      "README.md": "3b0ebdffe92e5b77c948c4ac0bf4bc4a38803b15405d0425b517705221c27a2f",
+      "bin/esbuild": "bab29b2ca7a9e89b67cf720b77b2d743f9f31f5cf0d5bd74ee8c8de30ced7014"
+    }
   }
 ]

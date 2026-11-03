@@ -12,6 +12,7 @@ export class ComponentWrites {
   readonly drafts = new ComponentDrafts();
   readonly graph = new GraphWrites();
   private activity = 0;
+  private physicalActivity = 0;
   private persistDrafts?: () => void;
   private reportPersistenceError?: (error: unknown) => void;
 
@@ -26,6 +27,7 @@ export class ComponentWrites {
     catch (error) { this.reportPersistenceError?.(error); }
   }
   get version() { return this.activity; }
+  get calculationVersion() { return `${this.physicalActivity}:${this.graph.version}`; }
   private entries = new Map<number, { tail: Promise<void>; failed: boolean; deleted?: boolean; revision: string; pose?: ComponentPose }>();
 
   private entry(component: Pick<SchemeComponent, 'id' | 'revision'>) {
@@ -51,8 +53,12 @@ export class ComponentWrites {
     recovery?: { schemeId: number; intent: ComponentIntent | ComponentIntent[] }): Promise<T | undefined> {
     const entry = this.entry(component);
     const intents = recovery ? (Array.isArray(recovery.intent) ? recovery.intent : [recovery.intent]) : [];
-    const tickets = recovery ? intents.map(intent => this.drafts.record(recovery.schemeId, component, intent)) : [];
+    const changedContext = !!recovery && this.drafts.hasParameterContextChanged(recovery.schemeId, component,
+      intents.flatMap(intent => intent.kind === 'parameter' ? [intent.key] : []));
+    const tickets = recovery ? intents.map(intent => this.drafts.record(recovery.schemeId, component, intent, changedContext)) : [];
+    if (changedContext) tickets.forEach(ticket => this.drafts.fail(ticket, 'Единица или исходный базис изменились после подготовки правки. Сверьте параметр перед повтором.'));
     this.activity++;
+    if (!intents.length || intents.some(intent => intent.kind !== 'pose')) this.physicalActivity++;
     let preparationError: { error: unknown } | undefined;
     try { this.persistDrafts?.(); } catch (error) { preparationError = { error }; }
     const result = entry.tail.then(async () => {
@@ -65,7 +71,7 @@ export class ComponentWrites {
         const result = await action(entry.revision);
         entry.revision = parseComponentRevision(result.revision);
         if (intents.some(intent => intent.kind === 'delete')) entry.deleted = true;
-        tickets.forEach(ticket => this.drafts.acknowledge(ticket, entry.revision));
+        this.drafts.acknowledgeBatch(tickets, entry.revision);
         return result;
       }
       catch (error) {
@@ -103,6 +109,8 @@ export class ComponentWrites {
     apply?: (patch: ComponentPatch, revision: string) => Promise<ComponentWriteResult>): Promise<SchemeComponent | undefined> {
     const fields = new Set(selected);
     this.activity++;
+    // Review adopts a complete fresh server component, including its parameters.
+    this.physicalActivity++;
     const compared = { ...server, params: { ...server.params } };
     if (server.declaredParameterUnits) compared.declaredParameterUnits = copyParameterUnits(server.declaredParameterUnits);
     const entry = this.entry(compared);
@@ -137,6 +145,7 @@ export class ComponentWrites {
   recoverDeletion(draft: ComponentDraft, server: SchemeComponent | undefined, mode: 'keep' | 'delete', isCurrent: () => boolean,
     remove?: (revision: string) => Promise<ComponentWriteResult>): Promise<{ deleted: boolean; component?: SchemeComponent } | undefined> {
     this.activity++;
+    this.physicalActivity++;
     const compared = server ? { ...server, params: { ...server.params } } : undefined;
     const entry = this.entry(compared ?? draft.base);
     const result = entry.tail.then(async () => {

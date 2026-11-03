@@ -3,6 +3,8 @@ import { createProject, listProjects, login, logout, readProject, readSession, S
 import { ProjectSchemes } from './ProjectSchemes';
 import { forgetOtherStudySessions } from './study-intent-journal';
 import { forgetOtherComponentSessions } from './component-intent-journal';
+import { forgetOtherLoadFormSessions } from './load-form-draft-journal';
+import { forgetOtherParameterFormSessions } from './parameter-form-draft-journal';
 import { forgetOtherEquipmentSessions } from './equipment-intent-journal';
 import { forgetOtherRunSessions } from './run-intent-journal';
 import { Icon } from '../../components/ui/Icon';
@@ -44,6 +46,8 @@ export function ProjectsWorkspace() {
         forgetOtherRunSessions(result.identity);
         forgetOtherEquipmentSessions(result.identity);
         forgetOtherComponentSessions(result.identity);
+        forgetOtherLoadFormSessions(result.identity);
+        forgetOtherParameterFormSessions(result.identity);
         setView({ ...result, busy: false, error: '' });
       }
     } catch (error) {
@@ -84,7 +88,7 @@ export function ProjectsWorkspace() {
       return { identity, page: await listProjects(signal) };
     });
   };
-  const signOut = (all: boolean) => { forgetOtherStudySessions(null); forgetOtherRunSessions(null); forgetOtherEquipmentSessions(null); forgetOtherComponentSessions(null);
+  const signOut = (all: boolean) => { forgetOtherStudySessions(null); forgetOtherRunSessions(null); forgetOtherEquipmentSessions(null); forgetOtherComponentSessions(null); forgetOtherLoadFormSessions(null); forgetOtherParameterFormSessions(null);
     setPassword(''); setName(''); setUsername('');
     void perform(async signal => { await logout(all, signal); return { identity: null, page: emptyPage }; });
   };

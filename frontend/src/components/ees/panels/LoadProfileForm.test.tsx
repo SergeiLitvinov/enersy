@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { LoadProfileForm } from './LoadProfileForm';
 import { loadProfileUnits } from '../../../domain/load-profile';
 import type { ParameterUnitDeclaration } from '../../../api/parameter-unit-declaration';
+import { LoadFormDraftContext, type LoadFormDraftStore } from './load-form-draft-context';
+import { createLoadFormDraftJournal } from '../../../features/projects/load-form-draft-journal';
 
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
 const save = vi.fn<(values: Readonly<Record<string, string>>, declaration: ParameterUnitDeclaration) => Promise<void>>();
@@ -204,4 +206,76 @@ test('an in-place basis update is detected even though values and unit labels ar
   declaration.bases!.p!.s_base_mva = 300;
   await renderBased(declaration); await acknowledge(); await act(async () => submit());
   expect(save).not.toHaveBeenCalled(); expect(host.textContent).toContain('базисы изменились');
+});
+
+const journal = () => createLoadFormDraftJournal({ accountId: '1', sessionId: '2', projectId: '3', schemeId: '4' }, new AbortController().signal);
+async function renderStored(store: LoadFormDraftStore, declaration = basedDeclaration(), params = { ...initial, p: '0.1000' }) {
+  await act(async () => root.render(<LoadFormDraftContext.Provider value={store}><LoadProfileForm componentId={5} params={params} onSave={save} unitDeclaration={declaration} /></LoadFormDraftContext.Provider>));
+}
+async function remount() { await act(async () => root.unmount()); root = createRoot(host); }
+async function clickText(text: string) { await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text)!.click()); }
+
+test('unapplied incomplete text survives remount, requires explicit restoration and new consent', async () => {
+  sessionStorage.clear(); const store = journal(); await renderStored(store);
+  await representation('saved'); await input('p', '0.25000e-'); await acknowledge();
+  expect(store.read(5)?.draft.p).toBe('0.25000e-'); expect(save).not.toHaveBeenCalled();
+  await remount(); await renderStored(journal());
+  expect(host.textContent).toContain('есть неприменённый ввод');
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('0.1000');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await clickText('Восстановить ввод');
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('0.25000e-');
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+  await input('p', '0.25000'); await acknowledge(); save.mockResolvedValue(); await act(async () => submit());
+  expect(save).toHaveBeenCalledOnce(); expect(save.mock.calls[0][0].p).toBe('0.25000');
+  expect(save.mock.calls[0][1].bases!.p?.s_base_mva).toBe(100);
+});
+
+test('reopened text never adopts a new server basis and can be explicitly discarded', async () => {
+  sessionStorage.clear(); const store = journal(); await renderStored(store);
+  await representation('saved'); await input('p', '0.25000');
+  await remount(); await renderStored(journal(), basedDeclaration(200)); await clickText('Восстановить ввод'); await acknowledge();
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('базисы изменились');
+  expect(host.querySelector('details')!.textContent).toContain('100 МВА');
+  expect(store.read(5)!.declaration!.bases!.p?.s_base_mva).toBe(100);
+  await clickText('Вернуть сохранённый'); expect(store.read(5)).toBeNull();
+  expect(host.querySelector<HTMLInputElement>('#load-5-units')!.checked).toBe(false);
+  await remount(); await renderStored(journal(), basedDeclaration(200));
+  expect(host.textContent).not.toContain('есть неприменённый ввод');
+});
+
+test('storage failure preserves visible text and blocks submitting an undurable profile', async () => {
+  const store = { read: () => null, save: vi.fn(() => { throw new Error('quota'); }) };
+  await renderStored(store); await input('p', '0.25000'); await acknowledge(); await act(async () => submit());
+  expect(save).not.toHaveBeenCalled(); expect(host.textContent).toContain('Ввод формы не сохранён');
+  expect(host.querySelector<HTMLInputElement>('#load-5-p')!.value).toBe('0.25000');
+});
+
+test('a confirmed save clears the raw form journal without replaying on reopen', async () => {
+  sessionStorage.clear(); const store = journal(); await renderStored(store); await representation('saved');
+  await input('p', '0.25000'); await acknowledge(); save.mockResolvedValue(); await act(async () => submit());
+  const patch = save.mock.calls[0][0];
+  await renderStored(store, save.mock.calls[0][1], { ...initial, ...patch });
+  expect(store.read(5)).toBeNull();
+  await remount(); await renderStored(journal(), save.mock.calls[0][1], { ...initial, ...patch });
+  expect(host.textContent).not.toContain('есть неприменённый ввод'); expect(save).toHaveBeenCalledOnce();
+});
+
+test('an external live conflict does not rewrite the historical basis in the raw journal', async () => {
+  sessionStorage.clear(); const store = journal(); await renderStored(store); await representation('saved'); await input('p', '0.25000');
+  await renderStored(store, basedDeclaration(200));
+  expect(store.read(5)!.declaration!.bases!.p?.s_base_mva).toBe(100);
+  await remount(); await renderStored(journal(), basedDeclaration(200)); await clickText('Восстановить ввод'); await acknowledge();
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled(); expect(host.querySelector('details')!.textContent).toContain('100 МВА');
+});
+
+test('damaged storage is not overwritten until the user explicitly discards it', async () => {
+  sessionStorage.clear(); const store = journal(); await renderStored(store); await input('p', '0.25000');
+  const key = sessionStorage.key(0)!; sessionStorage.setItem(key, 'broken');
+  await remount(); await renderStored(journal());
+  expect(host.textContent).toContain('Не удалось прочитать'); expect(sessionStorage.getItem(key)).toBe('broken');
+  await act(async () => submit()); expect(save).not.toHaveBeenCalled();
+  await clickText('Отбросить локальный ввод'); expect(store.read(5)).toBeNull();
+  expect(host.querySelector<HTMLFieldSetElement>('fieldset')!.disabled).toBe(false);
 });
